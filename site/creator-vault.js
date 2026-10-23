@@ -287,7 +287,7 @@
     function status(key,additional=''){
       $('mc-vault-feedback').textContent=t(key)+(additional?': '+additional:'');
     }
-    function lock(flag){busy=flag;$('mc-save-revision').disabled=flag||!storage;}
+    function lock(flag){busy=flag;$('mc-save-revision').disabled=flag||!storage;$('mc-delete-project').disabled=flag||!active;}
     function resetChecks(){
       for(const k of CHECK_KEYS)$('mc-review-'+k).checked=false;
       syncReview();
