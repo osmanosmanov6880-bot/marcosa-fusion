@@ -1,0 +1,64 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MARCOSA Network OS — Public Source Preview</title><meta name="description" content="MARCOSA Network OS R2 — public source demonstration; no account data, sales, analytics or ads."><link rel="stylesheet" href="./network.css"></head><body style="margin:0;background:#07090e;color:#f5f3ee;font-family:system-ui,sans-serif"><main style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="text-align:center"><p style="color:#88e3d5;letter-spacing:.2em">MARCOSA / 16 PRODUCTS</p><h1 style="font-family:Georgia,serif;font-size:clamp(38px,7vw,76px);font-weight:400">Discover beyond the feed.</h1><p style="color:#adbac6">Source-backed public demonstration. No live accounts, payments, tracking or advertising.</p><button data-mn-open style="background:#bba477;color:#12151c;border:0;border-radius:14px;padding:18px 28px;font-size:17px;cursor:pointer">Открыть Network OS ↗</button></div></main>
+<!-- The dialog DOM is copied from the real site's integrated template by the build tool. -->
+  <dialog id="mn-dialog" class="mn-dialog" aria-labelledby="mn-title">
+    <div class="mn-shell">
+      <header class="mn-topbar">
+        <div class="mn-topbrand"><span class="mn-glyph" aria-hidden="true">◈</span><span><strong>MARCOSA <em>NETWORK OS</em></strong><small data-mn-text="topline">Экосистема независимых цифровых миров</small></span></div>
+        <div class="mn-top-actions"><span class="mn-preview-tag" data-mn-text="demoTag">Открытая демонстрация · без оплаты</span><button class="mn-close" id="mn-close" aria-label="Закрыть каталог" type="button">✕</button></div>
+      </header>
+      <div class="mn-scroll">
+        <section class="mn-hero">
+          <div><p class="mn-eyebrow">MARCOSA / DISCOVERY PROTOCOL 01</p><h2 id="mn-title" data-mn-text="headline">Открой мир возможностей.</h2><p class="mn-lead" data-mn-text="lead">Независимые инструменты, интерактивные истории и рабочие продукты — в единой точке входа. Каждый проект остаётся самостоятельным.</p><div class="mn-hero-actions"><button class="mn-primary" type="button" data-mn-goto="products" data-mn-text="seeProducts">Исследовать проекты ↗</button><button class="mn-secondary" type="button" data-mn-goto="campaign" data-mn-text="buildCampaign">Создать промо-черновик</button></div></div>
+          <div class="mn-orbit-panel" aria-hidden="true"><div class="mn-orbit-a"></div><div class="mn-orbit-b"></div><div class="mn-orbit-core">M<span>◇</span></div><span class="mn-orbit-dot one"></span><span class="mn-orbit-dot two"></span><span class="mn-orbit-dot three"></span><span class="mn-orbit-label">INDEPENDENT · CONNECTED</span></div>
+        </section>
+        <div class="mn-metrics"><div><b id="mn-product-count">16</b><span data-mn-text="productsMetric">продуктов с известным источником</span></div><div><b id="mn-film-count">43</b><span data-mn-text="filmMetric">кино-площадки требуют подтверждения</span></div><div><b>0</b><span data-mn-text="paymentsMetric">публичных платежей в этом модуле</span></div></div>
+        <nav class="mn-tabs" aria-label="Разделы Network OS">
+          <button type="button" class="mn-tab is-current" data-mn-tab="products" aria-pressed="true" data-mn-text="tabProducts">Проекты</button>
+          <button type="button" class="mn-tab" data-mn-tab="films" aria-pressed="false" data-mn-text="tabFilms">Кино-сеть</button>
+          <button type="button" class="mn-tab" data-mn-tab="campaign" aria-pressed="false" data-mn-text="tabCampaign">Промо-лаборатория</button>
+          <button type="button" class="mn-tab" data-mn-tab="about" aria-pressed="false" data-mn-text="tabAbout">Архитектура</button>
+          <div class="mn-language" aria-label="Язык"><button type="button" data-mn-lang="ru" class="selected" aria-pressed="true">RU</button><button type="button" data-mn-lang="en" aria-pressed="false">EN</button><button type="button" data-mn-lang="zh" aria-pressed="false">中文</button></div>
+        </nav>
+        <section class="mn-pane" id="mn-pane-products" aria-labelledby="mn-products-heading">
+          <div class="mn-section-heading"><div><p class="mn-eyebrow" data-mn-text="catalogKicker">КУРАТОРСКИЙ КАТАЛОГ</p><h3 id="mn-products-heading" data-mn-text="catalogTitle">Разные продукты. Общая точка входа.</h3></div><span class="mn-count" id="mn-results" role="status" aria-live="polite">16</span></div>
+          <p class="mn-catalog-note" data-mn-text="notLive">Это каталог известных исходников, а не список запущенных сервисов. Рабочие ссылки появятся только после проверки запуска и прав на публикацию.</p>
+          <div class="mn-filters"><label class="mn-search-label"><span class="mn-visually-hidden" data-mn-text="searchLabel">Поиск проекта</span><span aria-hidden="true">⌕</span><input id="mn-search" type="search" autocomplete="off" data-mn-placeholder="searchPlaceholder" placeholder="Название, направление, задача"></label><div class="mn-category-buttons" id="mn-categories" aria-label="Категории проектов"></div></div>
+          <div class="mn-grid" id="mn-grid" aria-live="polite"></div><div class="mn-empty" id="mn-empty" hidden data-mn-text="noResults">По вашему запросу проектов не найдено.</div>
+        </section>
+        <section class="mn-pane" id="mn-pane-films" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">CINEMA NETWORK / 43 SOURCES</p><h3 data-mn-text="filmTitle">43 истории — одна сеть открытий</h3></div></div>
+          <div class="mn-editorial-card"><span class="mn-icon-xl" aria-hidden="true">✧</span><div><h4 data-mn-text="filmMissing">Площадки ждут инвентаризации</h4><p data-mn-text="filmDetail">В исходном пакете нет подтверждённого списка 43 доменов. Их адреса, доступность и права не придуманы. Первый релиз подключит три проверенных сайта: просмотр истории → добровольная рекомендация → тематический World или продукт.</p><button class="mn-secondary" id="mn-show-worlds" type="button" data-mn-text="openWorlds">Открыть Worlds в MARCOSA ↗</button></div></div>
+          <div class="mn-film-workbench" aria-label="MARCOSA / cinema onboarding studio">
+            <div class="mn-film-band"><div><span class="mn-eyebrow">FILM ONBOARDING / SOURCE REVIEW</span><h4 data-mn-film-text="candidate">Кандидаты на проверку</h4><p data-mn-film-text="unverified">Данные из файла пользователя. Владение доменами и права независимо не проверены.</p></div><strong id="mn-film-quantity" aria-live="polite">0 / 43</strong></div>
+            <div class="mn-film-importbar">
+              <button class="mn-secondary" id="mn-film-template" type="button" data-mn-film-text="template">Скачать шаблон 43 сайтов · CSV</button>
+              <label class="mn-film-upload"><span data-mn-film-text="chooseFile">Импортировать заполненный CSV</span><input id="mn-film-csv" type="file" accept=".csv,text/csv" aria-label="Импорт CSV со списком кино-сайтов"></label>
+              <button class="mn-film-clear" id="mn-film-reset" type="button" data-mn-film-text="reset">Очистить импорт</button>
+            </div>
+            <p class="mn-film-status" id="mn-film-status" role="status" aria-live="polite">Пока не импортировано ни одного домена.</p>
+            <div class="mn-film-list" id="mn-film-list"></div>
+            <div class="mn-film-composer"><form id="mn-film-form" class="mn-film-form">
+              <p class="mn-eyebrow">MARCOSA / FILM → DISCOVERY</p>
+              <h4>POST-STORY REFERRAL</h4>
+              <label><span data-mn-film-text="selectSite">Кино-сайт для пилота</span><select id="mn-film-source" required disabled></select></label>
+              <label><span data-mn-film-text="selectProduct">Рекомендуемый проект</span><select id="mn-film-product" required></select></label>
+              <label><span data-mn-film-text="message">Короткое предложение после финала</span><textarea id="mn-film-message" required minlength="10" maxlength="160" rows="3" placeholder="История закончилась, но выбор продолжается. Открой связанный цифровой мир."></textarea></label>
+              <label class="mn-film-checkbox"><input id="mn-film-own" type="checkbox"><span data-mn-film-text="attestDomain">Я управляю указанным сайтом или уполномочен владельцем (самодекларация).</span></label>
+              <label class="mn-film-checkbox"><input id="mn-film-rights" type="checkbox"><span data-mn-film-text="attestRights">У меня есть разрешение на размещение материалов и ссылок (самодекларация).</span></label>
+              <button class="mn-primary" id="mn-film-prepare" type="submit" disabled data-mn-film-text="preview">Сформировать черновик перехода</button>
+              <div class="mn-film-actions"><button class="mn-secondary" id="mn-film-download-json" type="button" disabled data-mn-film-text="downloadJson">Скачать план JSON</button><button class="mn-secondary" id="mn-film-download-html" type="button" disabled data-mn-film-text="downloadHtml">Скачать пример HTML</button></div>
+              <p id="mn-film-feedback" class="mn-hint" role="status" aria-live="polite"></p>
+            </form><aside class="mn-film-preview-panel"><div class="mn-preview-top">DISTRIBUTION / DRAFT ONLY</div><p class="mn-film-watermark">NOT DEPLOYED · NO TRACKING</p><pre><code id="mn-film-preview">Для подготовки пакета сначала импортируй реальный кино-домен из CSV.</code></pre></aside></div>
+          </div>
+
+        </section>
+        <section class="mn-pane" id="mn-pane-campaign" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">FIRST-PARTY / CREATIVE LAB</p><h3 data-mn-text="campaignTitle">Собери собственную рекламную идею.</h3></div></div><p class="mn-catalog-note" data-mn-text="campaignNote">Черновик создаётся только в браузере. Он не запускает рекламу, не отслеживает зрителей и не списывает деньги.</p>
+          <div class="mn-campaign-layout"><form id="mn-campaign-form" class="mn-campaign-form"><label><span data-mn-text="chooseProduct">Какой продукт рекламируем?</span><select id="mn-product-select" required></select></label><label><span data-mn-text="headlineA">Заголовок A</span><input id="mn-headline-a" maxlength="100" required placeholder="Открой новый мир" value="Открой новый мир"></label><label><span data-mn-text="copyA">Описание A</span><textarea id="mn-copy-a" maxlength="240" rows="3" required placeholder="Короткое объяснение ценности"></textarea></label><div class="mn-form-split"><label><span data-mn-text="headlineB">Заголовок B (необязательно)</span><input id="mn-headline-b" maxlength="100"></label><label><span data-mn-text="copyB">Описание B (если указан заголовок)</span><textarea id="mn-copy-b" maxlength="240" rows="2"></textarea></label></div><button class="mn-primary" type="submit" data-mn-text="exportDraft">Скачать черновик JSON ↓</button><p id="mn-form-feedback" class="mn-hint" role="status" aria-live="polite"></p></form>
+          <aside class="mn-campaign-preview"><div class="mn-preview-top"><span data-mn-text="previewTitle">ПРЕДПРОСМОТР · ФИНАЛ ИСТОРИИ</span><span>◈ OWN BRAND</span></div><div class="mn-preview-stage"><span class="mn-preview-mark">MARCOSA ORIGINAL</span><h4 id="mn-preview-headline">Открой новый мир</h4><p id="mn-preview-copy" data-mn-text="previewEmpty">Добавьте описание своего проекта.</p><span class="mn-preview-link" data-mn-text="previewLink">Узнать о проекте ↗</span></div><p class="mn-preview-disclaimer" data-mn-text="rawCounters">В текущем выпуске нет верифицированных показов или продаж. A/B — два текста, не статистически доказанный победитель.</p></aside></div>
+        </section>
+        <section class="mn-pane" id="mn-pane-about" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">MARCOSA / NETWORK CONSTITUTION</p><h3 data-mn-text="aboutTitle">Единое открытие без единой зависимости.</h3></div></div><div class="mn-principles"><article><b>01</b><h4 data-mn-text="principle1Title">Каждый проект независим</h4><p data-mn-text="principle1">Собственные исходники, домены, данные, права и жизненный цикл. MARCOSA отвечает за обнаружение, рекомендации и переходы.</p></article><article><b>02</b><h4 data-mn-text="principle2Title">Художественный опыт важнее рекламы</h4><p data-mn-text="principle2">Не прерывать фильмы. Уместные рекомендации и прозрачное спонсорство — после сцены или завершения истории.</p></article><article><b>03</b><h4 data-mn-text="principle3Title">Доверие прежде измерений</h4><p data-mn-text="principle3">Никаких выдуманных зрителей, дохода, лайков и конверсий. Источник данных, права, подтверждение домена и согласия проверяются отдельно.</p></article></div></section>
+        <footer class="mn-footer"><span>© MARCOSA NETWORK OS · SOURCE-BASED INTEGRATION</span><span data-mn-text="footerStatus">Демонстрация исходного кода · без production-деплоя</span></footer>
+      </div>
+    </div>
+  </dialog>
+
+<script src="./network.js" defer></script></body></html>
