@@ -25,16 +25,29 @@ def main() -> None:
         return
     OUTPUT.mkdir(exist_ok=True)
     cases = [
-        ("desktop-webgl", 1440, 900, False),
-        ("mobile-webgl", 390, 844, False),
-        ("mobile-static", 390, 844, True),
+        ("desktop-webgl", 1440, 900, False, False),
+        ("desktop-catalog", 1440, 900, False, True),
+        ("mobile-webgl", 390, 844, False, False),
+        ("mobile-catalog", 390, 844, False, True),
+        ("mobile-static", 390, 844, True, False),
     ]
     reports = []
     with tempfile.TemporaryDirectory(prefix="marcosa-r4-snap-") as tmp:
         here = Path(tmp)
         for filename in ("index.html", "network.js", "network.css", "immersive.js", "immersive.css"):
             shutil.copyfile(DIST / filename, here / filename)
-        for label, width, height, disable_gl in cases:
+        # Screenshots of the actual existing catalogue, not a mock-up.
+        original = (here / "index.html").read_text(encoding="utf-8")
+        catalog_hook = """<script>
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    var button=document.querySelector('[data-mn-open]');
+    if(button) button.click();
+  },450);
+});
+</script>"""
+        (here / "catalog.html").write_text(original.replace("</body>",catalog_hook+"</body>"),encoding="utf-8")
+        for label, width, height, disable_gl, catalog in cases:
             target = OUTPUT / (label + ".png")
             cmd = [
                 BROWSER, "--headless=new", "--no-sandbox",
@@ -47,7 +60,7 @@ def main() -> None:
             ]
             if disable_gl:
                 cmd += ["--disable-webgl", "--disable-gpu"]
-            cmd.append((here / "index.html").as_uri())
+            cmd.append((here / ("catalog.html" if catalog else "index.html")).as_uri())
             try:
                 p = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
             except subprocess.TimeoutExpired:
