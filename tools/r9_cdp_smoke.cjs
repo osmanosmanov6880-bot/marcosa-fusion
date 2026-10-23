@@ -141,6 +141,7 @@ function liveTest(){
       box.dispatchEvent(new Event('change',{bubbles:true}));
     }
     check(!$('mc-export-review').disabled,'REVIEW_STILL_DISABLED');
+    check(!$('mc-delete-project').disabled,'DELETE_BUTTON_STUCK_DISABLED');
     $('mc-export-review').click();
     check($('mc-export-review').disabled,'CHECKLIST_NOT_RESET');
     check($('mc-vault-feedback').textContent.includes('Пакет'),'REVIEW_FEEDBACK');
@@ -229,9 +230,16 @@ async function main(){
     console.log('R9 CDP end-to-end: PASS (desktop/mobile, real IndexedDB, localhost only)');
   }finally{
     if(cdp)try{cdp.close();}catch(err){}
-    if(chrome)chrome.kill('SIGTERM');
+    if(chrome){
+      const stopped=new Promise(resolve=>chrome.once('exit',()=>resolve()));
+      if(chrome.exitCode===null)chrome.kill('SIGTERM');
+      await Promise.race([stopped,pause(2500)]);
+      if(chrome.exitCode===null)chrome.kill('SIGKILL');
+      await pause(150);
+    }
     await new Promise(resolve=>server.close(()=>resolve()));
-    fs.rmSync(profile,{recursive:true,force:true,maxRetries:5,retryDelay:150});
+    try{fs.rmSync(profile,{recursive:true,force:true,maxRetries:12,retryDelay:250});}
+    catch(err){console.warn('Chrome temporary-profile cleanup warning:',err.message);}
   }
 }
 main().catch(err=>{console.error('R9 CDP end-to-end FAIL:',err&&err.stack||err);process.exitCode=1;});
