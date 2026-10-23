@@ -57,9 +57,7 @@ create table if not exists public.marcosa_review_submissions_r10 (
   revision_id uuid not null,
   owner_id uuid not null default (select auth.uid()),
   self_checklist jsonb not null check (
-    jsonb_typeof(self_checklist)='object'
-    and self_checklist @> '{"authorship":true,"sponsorship":true,"editorial":true,"privacy":true}'::jsonb
-    and (select count(*) from jsonb_object_keys(self_checklist))=4
+    self_checklist = '{"authorship":true,"sponsorship":true,"editorial":true,"privacy":true}'::jsonb
   ),
   submitted_at timestamptz not null default now(),
   foreign key (revision_id,project_id,owner_id)
