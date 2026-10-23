@@ -51,7 +51,7 @@ jobs:
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           node --check site/network.js
-          node --test tests/film_kit.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |
