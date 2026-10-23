@@ -8,6 +8,13 @@ on:
       - "tests/**"
       - "tools/build_webroot.py"
       - ".github/workflows/marcosa-public-pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "tests/**"
+      - "tools/build_webroot.py"
+      - ".github/workflows/marcosa-public-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -36,13 +43,16 @@ jobs:
         run: |
           set -euo pipefail
           node --check site/network.js
-          node --test tests/film_kit.test.cjs
+          node --check site/immersive.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
           test -s dist/index.html
           test -s dist/network.js
           test -s dist/network.css
+          test -s dist/immersive.js
+          test -s dist/immersive.css
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
@@ -52,7 +62,7 @@ jobs:
     needs: verify-and-build
     # GitHub Pages requires a one-time Settings > Pages enablement.
     # Keep builds green until the owner explicitly enables the Pages preview.
-    if: vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
+    if: github.event_name != 'pull_request' && vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment:

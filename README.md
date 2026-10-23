@@ -1,6 +1,6 @@
 # MARCOSA FUSION · Network OS R2
 
-**Public source release — 23 October 2026.**
+**Public source release — 23 October 2026. R3 cinematic graphics layer (WebGL2 + CSS fallback).**
 
 An open, stateless preview of the MARCOSA discovery layer: 16 independent source-backed products, a catalogue, a 43-film-domain inventory template and browser-only promotional planning. **Not** a replacement for the authenticated MARCOSA platform, Supabase data, or an operational advertising exchange.
 
@@ -47,3 +47,19 @@ The build at [Actions run #39877019560](https://github.com/osmanosmanov6880-bot/
 **Scope honesty:** This public repository currently contains the isolated R2 Network OS preview and source references, not all 118 files of the original R2 starter. The full offline starter ZIP from the earlier conversation is a separate artifact; uploading it without redacting sensitive material is not recommended.
 
 [План развития MARCOSA](docs/MASTER_STRATEGY_RU.md) · [Пошаговое подключение Contabo](docs/CONTABO_STAGING_SETUP_RU.md)
+
+
+## R3 — Cinematic Architecture & Device Graphics Lab
+
+The standalone public preview now includes procedural digital-city architecture with metallic/glass facades, emissive windows, animated camera, atmospheric fog and a post-processing pass (film-style tonemapping, controlled glow, vignette and grain). This is real authored WebGL2 geometry, **not a generated screenshot and not full AAA photorealism**. No external textures, third-party 3D library or analytics requests.
+
+- Three adaptive quality tiers: **ECO** (~5k triangles), **BALANCED/CINEMA** (~22k triangles with dynamic resolution caps).
+- WebGL2 detection; an illustrated 2D city fallback when WebGL2 is unavailable.
+- Automatically pause rendering while the catalogue modal is open, when the tab is hidden, or when the scene is off-screen.
+- `prefers-reduced-motion` and data saver default to a static accessible scene; manual graphics quality control.
+- Device Performance Lab: opt-in 12-second local FPS, p50/p95 frame time and frame-jank benchmark, downloadable JSON stored **only in the browser**.
+- Chrome/Chromium smoke QA on desktop/mobile and reduced-motion layouts; this sandbox does not expose WebGL2 hardware, so full shader performance on the user device is **not yet verified**.
+
+To test locally: `python3 -m http.server 8765 -d site`, open the preview, then expand **DEVICE PERFORMANCE LAB**. See [R3 performance guide](docs/CINEMATIC_R3_QUALITY.md).
+
+Source: `site/immersive.js`, `site/immersive.css`, `tests/immersive.test.cjs`. The 16-product catalogue, rights checks and export flows are preserved from R2.
