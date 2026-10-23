@@ -100,7 +100,13 @@
             <div class="ms-ending-actions">
               <a id="ms-project-link" class="ms-button ms-button-gold" href="./index.html#network">СМОТРЕТЬ КАРТОЧКУ ПРОЕКТА ↗</a>
               <a id="ms-campaign-link" class="ms-button ms-button-outline" href="./index.html#network">СОЗДАТЬ СВОЁ ПРОМО ↗</a>
+              <button type="button" id="ms-share-copy" class="ms-button ms-button-outline" data-ms-i18n="share">СКОПИРОВАТЬ ССЫЛКУ НА ФИНАЛ</button>
             </div>
+            <div class="ms-share-field" id="ms-share-field" hidden>
+              <label for="ms-share-url" data-ms-i18n="shareManual">Если копирование недоступно, скопируй ссылку вручную.</label>
+              <input id="ms-share-url" type="text" readonly autocomplete="off" spellcheck="false" aria-label="Story ending link">
+            </div>
+            <p class="ms-share-feedback" id="ms-share-feedback" role="status" aria-live="polite"></p>
             <p class="ms-smallprint" id="ms-result-note"></p>
           </div>
           <div class="ms-stage-controls">

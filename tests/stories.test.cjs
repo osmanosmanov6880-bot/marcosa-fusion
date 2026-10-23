@@ -139,13 +139,43 @@ test('local QA is explicitly opt-in, bounded, session-only and never fabricates 
   assert.equal(qa.record('film_completed','signal',2),false);
 });
 
+test('R7 ending links round-trip every public outcome without leaking private data',()=>{
+  let checked=0;
+  for(const item of story.STORIES)for(const first of [0,1])for(const second of [0,1]){
+    const state=story.advance(story.advance(story.createState(item.id),first),second);
+    const route=story.encodeStoryRoute(state);
+    assert.match(route,/^#story=[a-z0-9-]+\.[01]{2}$/);
+    assert.deepEqual(story.parseStoryRoute(route),state);
+    const link=story.buildShareUrl('https://example.test/path/stories.html?email=private%40example.com&token=abc#old',state);
+    assert.equal(link,'https://example.test/path/stories.html'+route);
+    assert.equal(link.includes('private'),false);
+    assert.deepEqual(story.outcome(story.parseStoryRoute(new URL(link).hash)),story.outcome(state));
+    checked++;
+  }
+  assert.equal(checked,12);
+  for(const bad of [
+    '', '#story=signal.', '#story=signal.02', '#story=signal.001',
+    '#story=unknown.00', '#story=signal.00&redirect=https://evil.test',
+    '#story=signal.%30%30', '#story=signal.<script>', '#story=signal.00?token=secret',
+    '#story=signal.00'.repeat(8)
+  ])assert.equal(story.parseStoryRoute(bad),null,bad);
+  assert.throws(()=>story.encodeStoryRoute(story.createState('signal')),/INVALID_STORY_ROUTE/);
+  assert.throws(()=>story.encodeStoryRoute({storyId:'signal',answers:[0,'1']}),/INVALID_STORY_ROUTE/);
+  assert.throws(()=>story.encodeStoryRoute({storyId:'unknown',answers:[0,1]}),/INVALID_STORY_ROUTE/);
+  assert.throws(()=>story.buildShareUrl('javascript:alert(1)',{storyId:'signal',answers:[0,0]}),/INVALID_SHARE_URL/);
+  assert.equal(
+    story.buildShareUrl('https://user:password@example.test/story.html?secret=1#old',{storyId:'signal',answers:[0,1]}),
+    'https://example.test/story.html#story=signal.01'
+  );
+});
+
 test('R5 page and home navigation provide keyboard-ready, localized, accessible controls',()=>{
   const dir=path.join(__dirname,'../site');
   const html=fs.readFileSync(path.join(dir,'stories.html'),'utf8');
   const home=fs.readFileSync(path.join(dir,'index.html'),'utf8');
   const css=fs.readFileSync(path.join(dir,'stories.css'),'utf8');
   for(const id of ['ms-story-list','ms-stage','ms-choices','ms-finish','ms-project-link',
-    'ms-campaign-link','ms-brief-form','ms-brief-download','ms-brief-html','ms-qa-opt','ms-qa-download'])
+    'ms-campaign-link','ms-share-copy','ms-share-field','ms-share-url','ms-share-feedback','ms-brief-form','ms-brief-download','ms-brief-html','ms-qa-opt','ms-qa-download'])
     assert.ok(html.includes('id="'+id+'"'),id);
   for(const file of ['stories.html','stories.js','stories.css'])
     assert.ok(home.includes('./stories.html')||file!=='stories.html');

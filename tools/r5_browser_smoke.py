@@ -56,6 +56,28 @@ window.addEventListener('load',function(){
 });
 </script>"""
 
+STORY_ROUTE_TEST=r"""<script>
+window.addEventListener('load',function(){
+  window.setTimeout(function(){
+    try{
+      const by=id=>document.getElementById(id);
+      if(by('ms-finish').hidden)throw Error('SHARED_OUTCOME_NOT_LOADED');
+      if(document.querySelector('[data-story-id="signal"]').getAttribute('aria-pressed')!=='true')throw Error('SHARED_STORY_NOT_SELECTED');
+      if(by('ms-project-name').textContent!=='ProofOS')throw Error('SHARED_RECOMMENDATION');
+      if(by('ms-back').disabled)throw Error('SHARED_HISTORY_NOT_RESTORED');
+      if(by('ms-share-copy').hidden)throw Error('SHARE_ACTION_HIDDEN');
+      const expected=window.MarcosaStoryPilot.encodeStoryRoute({storyId:'signal',answers:[0,0]});
+      if(location.hash!==expected)throw Error('SHARE_URL_MISMATCH');
+      const m=document.createElement('meta');m.name='r5-browser-smoke';m.content='PASS-R7-END-TO-END-DEEP-LINK';
+      document.head.append(m);
+    }catch(e){
+      const m=document.createElement('meta');m.name='r5-browser-smoke';m.content='FAIL-R7-'+String(e.message||e).slice(0,90);
+      document.head.append(m);
+    }
+  },650);
+});
+</script>"""
+
 ROUTE_TEST=r"""<script>
 window.addEventListener('load',function(){
   window.setTimeout(function(){
@@ -110,7 +132,8 @@ def main()->int:
             shutil.copyfile(DIST/filename,here/filename)
         ok1=run_case(here,"stories.html",STORY_TEST)
         ok2=run_case(here,"index.html",ROUTE_TEST,"#network-product=proofos")
-        return 0 if ok1 and ok2 else 3
+        ok3=run_case(here,"stories.html",STORY_ROUTE_TEST,"#story=signal.00")
+        return 0 if ok1 and ok2 and ok3 else 3
 
 if __name__=="__main__":
     raise SystemExit(main())
