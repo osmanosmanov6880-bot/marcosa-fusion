@@ -170,8 +170,14 @@ function r10BackupPrepare(){
       throw Error('BACKUP_SERIALIZATION_BROKEN');
     window.__r10_test_backup=file;
     document.getElementById('mc-backup-download').click();
-    if(!document.getElementById('mc-backup-feedback').textContent.includes('Резервная копия'))
-      throw Error('BACKUP_EXPORT_FEEDBACK');
+    let downloaded=false;
+    for(let attempt=0;attempt<110;attempt++){
+      if(document.getElementById('mc-backup-feedback').textContent.includes('Резервная копия')){
+        downloaded=true;break;
+      }
+      await new Promise(resolve=>setTimeout(resolve,45));
+    }
+    if(!downloaded)throw Error('BACKUP_EXPORT_FEEDBACK');
     return {result:'PASS_R10_PORTABLE_BACKUP',bytes:new TextEncoder().encode(file).byteLength,versions:3};
   })();
 }
