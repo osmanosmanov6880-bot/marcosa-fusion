@@ -1,4 +1,32 @@
-<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MARCOSA Network OS — Public Source Preview</title><meta name="description" content="MARCOSA Network OS R2 — public source demonstration; no account data, sales, analytics or ads."><link rel="stylesheet" href="./network.css"></head><body style="margin:0;background:#07090e;color:#f5f3ee;font-family:system-ui,sans-serif"><main style="min-height:100vh;display:grid;place-items:center;padding:24px"><div style="text-align:center"><p style="color:#88e3d5;letter-spacing:.2em">MARCOSA / 16 PRODUCTS</p><h1 style="font-family:Georgia,serif;font-size:clamp(38px,7vw,76px);font-weight:400">Discover beyond the feed.</h1><p style="color:#adbac6">Source-backed public demonstration. No live accounts, payments, tracking or advertising.</p><button data-mn-open style="background:#bba477;color:#12151c;border:0;border-radius:14px;padding:18px 28px;font-size:17px;cursor:pointer">Открыть Network OS ↗</button></div></main>
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MARCOSA R3 — Cinematic Network OS</title><meta name="description" content="MARCOSA Network OS R3 — interactive cinematic architecture; no account data, sales, analytics or ads."><link rel="stylesheet" href="./network.css"><link rel="stylesheet" href="./immersive.css"></head><body style="margin:0;background:#07090e;color:#f5f3ee;font-family:system-ui,sans-serif"><main class="mi-landing" id="mi-home" aria-labelledby="mi-title">
+  <header class="mi-header">
+    <a class="mi-brand" href="#mi-home" aria-label="MARCOSA - Network OS"><span class="mi-brand-glyph" aria-hidden="true">M</span><span class="mi-brand-word">MARCOSA<small>NETWORK OS / 03</small></span></a>
+    <div class="mi-header-right"><span class="mi-header-note">CINEMATIC DISCOVERY / PUBLIC PREVIEW</span><button class="mi-outline-link" type="button" data-mn-open>EXPLORE THE NETWORK <span aria-hidden="true">&#8599;</span></button></div>
+  </header>
+  <section class="mi-stage" id="mi-stage" aria-labelledby="mi-title">
+    <canvas id="mi-world-canvas" class="mi-world-canvas" aria-hidden="true" width="960" height="520"></canvas>
+    <div class="mi-fallback" aria-hidden="true"><div class="mi-skyline"><span class="mi-tower" style="--tower-h:34%"></span><span class="mi-tower" style="--tower-h:65%"></span><span class="mi-tower" style="--tower-h:48%"></span><span class="mi-tower" style="--tower-h:91%"></span><span class="mi-tower" style="--tower-h:60%"></span><span class="mi-tower" style="--tower-h:76%"></span></div><span class="mi-beacon"></span></div>
+    <span class="mi-crosshair" aria-hidden="true"></span><span class="mi-stage-label">M / DIGITAL ESTATES / LIVE RENDER</span>
+    <div class="mi-copy">
+      <p class="mi-overline">DISCOVER BEYOND THE FEED</p>
+      <h1 id="mi-title">A network<br><em>of worlds.</em></h1>
+      <p class="mi-copy-lead">Interactive stories, independent digital products and creative communities. One entrance. Unlimited directions.</p>
+      <div class="mi-actions"><button type="button" data-mn-open class="mi-main-btn">ENTER THE NETWORK <span aria-hidden="true">&#8599;</span></button><button class="mi-quiet-btn" type="button" data-mn-open>VIEW ALL 16 PROJECTS</button></div>
+    </div>
+    <div class="mi-stage-footer"><span class="mi-stage-coordinates"><span aria-hidden="true"></span> SOURCE-BASED PUBLIC PREVIEW <strong>/ NO ACCOUNT REQUIRED</strong></span><span>SCENE 001 / DIGITAL ARCHITECTURE</span></div>
+  </section>
+  <div class="mi-understage">
+    <div class="mi-under-head"><h2>Worlds need more than a feed.</h2><p>16 source-backed projects; 43 film sites await independent verification. This is a working public preview, not an active advertising network.</p></div>
+    <div class="mi-pillars" aria-label="Network capabilities">
+      <article class="mi-pillar"><div class="mi-pillar-top"><span>01 / DISCOVERY</span><span class="mi-pillar-index">&#9671;</span></div><h3>Independent products</h3><p>Explore 16 real code projects without claiming unverified production services.</p></article>
+      <article class="mi-pillar"><div class="mi-pillar-top"><span>02 / INTERACTIVE CINEMA</span><span class="mi-pillar-index">&#9675;</span></div><h3>Stories that connect</h3><p>Plan contextual, voluntary referrals after a story ends, with domain and rights review.</p></article>
+      <article class="mi-pillar"><div class="mi-pillar-top"><span>03 / CREATIVE LAB</span><span class="mi-pillar-index">&#8853;</span></div><h3>Campaigns with intent</h3><p>Produce local A/B creative drafts. No hidden tracking, billing or automatic publication.</p></article>
+    </div>
+    <div class="mi-live-panel"><span>RENDER ENGINE <strong>WEBGL2 + RESPONSIVE FALLBACK</strong></span><div class="mi-controls"><button class="mi-small-btn" id="mi-quality" type="button" aria-label="Graphics quality: auto">QUALITY / AUTO</button><output id="mi-quality-status" aria-live="polite">INITIALIZING</output><span id="mi-fps" aria-hidden="true">-- FPS</span></div></div>
+  </div>
+  <details class="mi-diagnostics" id="mi-diagnostics"><summary>DEVICE PERFORMANCE LAB / LOCAL BENCHMARK</summary><div class="mi-diagnostics-panel"><p>Benchmark runs only on your current browser for 12 seconds. It measures animation frame times; it does not collect hardware identifiers or transmit performance data.</p><div class="mi-diag-controls"><button class="mi-small-btn" type="button" id="mi-benchmark">RUN 12S TEST</button><button class="mi-small-btn" type="button" id="mi-report" disabled>DOWNLOAD DEVICE REPORT JSON</button></div><output id="mi-diagnostic-output" role="status" aria-live="polite"></output></div></details>
+  <footer class="mi-foot"><span>&copy; MARCOSA / NETWORK OS R3</span><span>PUBLIC TECHNOLOGY PREVIEW &middot; NOT PRODUCTION</span></footer>
+</main>
 <!-- The dialog DOM is copied from the real site's integrated template by the build tool. -->
   <dialog id="mn-dialog" class="mn-dialog" aria-labelledby="mn-title">
     <div class="mn-shell">
@@ -61,4 +89,4 @@
     </div>
   </dialog>
 
-<script src="./network.js" defer></script></body></html>
+<script src="./immersive.js" defer></script><script src="./network.js" defer></script></body></html>
