@@ -101,16 +101,18 @@
       const body=[(.09+rnd()*.06)*tint,(.16+rnd()*.07)*tint,(.23+rnd()*.08)*tint];
       box(x,.04,z,w,h,d,body,0,.12+rnd()*.14);
       box(x,h+.04,z,w+.12,.09,d+.12,[.34,.42,.43],.04,.37);
+      if(tier==='cinema'&&h>5.3&&rnd()>.55)box(x,h+.09,z,w*.58,.26,d*.64,[.28,.39,.43],.04,.25);
       if(h>5&&rnd()>.35)box(x,h+.14,z,.05,.55,.05,[.35,.7,.72],.35,.28);
       const floors=Math.min(17,Math.floor(h/.51));
       const cols=tier==='eco'?2:Math.max(3,Math.floor(w/.3));
       for(let row=0;row<floors;row++)for(let col=0;col<cols;col++){
         if(row%density===0&&rnd()<.09)continue;
         const px=x-w*.5 + (col+.5)*w/cols,py=.35+row*(h-.42)/floors;
-        const width=w/cols*.68,height=Math.max(.085,(h-.55)/floors*.51);
-        const light=rnd()>.63;
-        const c=light?[.27+rnd()*.3,.51+rnd()*.27,.57+rnd()*.34]:[.10,.21,.28];
-        const glow=light?.22+rnd()*.52:.025;
+        const width=w/cols*(tier==='eco'?.68:.81),height=Math.max(.085,(h-.55)/floors*(tier==='eco'?.51:.63));
+        const light=rnd()>(tier==='cinema'?.52:tier==='balanced'?.59:.67);
+        const warm=light && rnd()>.87;
+        const c=warm?[.87,.66,.39]:light?[.39+rnd()*.22,.66+rnd()*.22,.75+rnd()*.18]:[.13,.25,.33];
+        const glow=light?.36+rnd()*.52:.025;
         quad([px-width/2,py,z+d/2+.008],[px+width/2,py,z+d/2+.008],
           [px+width/2,py+height,z+d/2+.008],[px-width/2,py+height,z+d/2+.008],
           [0,0,1],c,glow,.06);
@@ -124,6 +126,28 @@
       // Ground-floor luminous door, facade columns and overhangs.
       box(x,.05,z+d*.53,.15,.43,.025,[.32,.68,.65],.55,.08);
       if(tier!=='eco') for(let k=-1;k<=1;k++)box(x+k*w*.28,.08,z+d*.51,.026,h-.25,.025,[.27,.36,.42],.02,.26);
+      if(tier==='cinema')for(let floor=3;floor<floors;floor+=4){
+        const sy=.36+floor*(h-.42)/floors;
+        box(x,sy,z+d*.5+.015,w*.91,.018,.026,[.42,.51,.50],.018,.23);
+      }
+    }
+    // R4 signature crown: a landmark over the skyline, visible beyond the surrounding roofs.
+    if(tier!=='eco'){
+      box(0,6.3,0,.32,5.2,.32,[.42,.64,.67],.28,.13);
+      box(0,11.50,0,.76,.26,.76,[.77,.63,.40],.75,.11);
+      const crownSegments=tier==='cinema'?72:40;
+      for(let a=0;a<crownSegments;a++){
+        const t=a*2*Math.PI/crownSegments,u=(a+1)*2*Math.PI/crownSegments;
+        const rad=2.15,outer=.10,y=10.82;
+        quad([Math.cos(t)*rad,y,Math.sin(t)*rad],[Math.cos(u)*rad,y,Math.sin(u)*rad],
+          [Math.cos(u)*(rad+outer),y,Math.sin(u)*(rad+outer)],
+          [Math.cos(t)*(rad+outer),y,Math.sin(t)*(rad+outer)],[0,1,0],
+          a%5===0?[.86,.62,.30]:[.28,.81,.79],1.05,.10);
+      }
+      for(let a=0;a<12;a++){
+        const t=a*Math.PI/6;
+        box(Math.cos(t)*1.81,8.35,Math.sin(t)*1.81,.055,2.35,.055,[.29,.72,.76],.31,.12);
+      }
     }
     // R4: beveled gallery rims, layered art-deco ribs and sandstone/metal inlays.
     if(tier!=='eco'){
@@ -188,7 +212,7 @@
     return new Float32Array(list);
   }
   const VERT="#version 300 es\nprecision highp float;\nlayout(location=0) in vec3 aPos;\nlayout(location=1) in vec3 aNormal;\nlayout(location=2) in vec3 aColor;\nlayout(location=3) in float aEmission;\nlayout(location=4) in float aRough;\nuniform mat4 uPV; uniform float uTime;\nout vec3 vWorld;out vec3 vNormal;out vec3 vColor;out float vEmission;out float vRough;\nvoid main(){\n  vec3 pos=aPos;\n  if(aEmission>1.6){\n    float phase=floor(aPos.x*1.2+aPos.z*.8)*1.618;\n    pos.x+=sin(uTime*.31+phase)*.6;\n    pos.z+=cos(uTime*.24+phase)*.52;\n    pos.y+=sin(uTime*.57+phase)*.16;\n  }\n  vWorld=pos;vNormal=aNormal;vColor=aColor;vEmission=aEmission;vRough=aRough;\n  gl_Position=uPV*vec4(pos,1.);\n}";
-  const FRAG="#version 300 es\nprecision highp float;\nin vec3 vWorld;in vec3 vNormal;in vec3 vColor;in float vEmission;in float vRough;\nuniform vec3 uEye;uniform float uTime;uniform float uDetail;\nout vec4 outColor;\nconst float PI=3.14159265359;\nfloat hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat valueNoise(vec3 p){\n  vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  float a=mix(hash3(i),hash3(i+vec3(1,0,0)),f.x);\n  float b=mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x);\n  float c=mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x);\n  float d=mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x);\n  return mix(mix(a,b,f.y),mix(c,d,f.y),f.z);\n}\nfloat smithGGX(float ndv,float ndl,float rough){\n  float k=(rough+1.);k=k*k*.125;\n  return ndv/(ndv*(1.-k)+k)*ndl/(ndl*(1.-k)+k);\n}\nvec3 brdf(vec3 n,vec3 v,vec3 l,vec3 albedo,float rough,float metal){\n  float ndl=max(dot(n,l),0.),ndv=max(dot(n,v),.001);\n  vec3 h=normalize(l+v);\n  float ndh=max(dot(n,h),0.),vdh=max(dot(v,h),0.);\n  float a=max(.045,rough*rough),a2=a*a;\n  float denom=ndh*ndh*(a2-1.)+1.;\n  float D=a2/(PI*denom*denom+.00001);\n  vec3 F0=mix(vec3(.045),albedo*.88,metal);\n  vec3 F=F0+(1.-F0)*pow(1.-vdh,5.);\n  vec3 spec=D*smithGGX(ndv,ndl,rough)*F/(4.*ndv*max(ndl,.001)+.002);\n  vec3 diff=(1.-F)*(1.-metal)*albedo/PI;\n  return (diff+spec)*ndl;\n}\nvoid main(){\n  vec3 n=normalize(vNormal),v=normalize(uEye-vWorld);\n  float rough=clamp(vRough,.07,.92);\n  float detail=uDetail>0.0?valueNoise(vWorld*(5.+uDetail*13.)):.5;\n  float etching=uDetail>0.0?sin(dot(vWorld.xz,vec2(32.,43.))+detail*4.):0.;\n  rough=clamp(rough+(detail-.5)*.13*uDetail,.075,.94);\n  if(uDetail>.4 && vEmission<.2) {\n    n=normalize(n+vec3(etching,-etching*.27,detail-.5)*.028*uDetail);\n  }\n  float metallic=(1.-smoothstep(.23,.54,rough))*.63;\n  float glass=(1.-smoothstep(.12,.26,rough))*(1.-smoothstep(.3,.75,vEmission));\n  metallic*=1.-glass*.66;\n  vec3 key=normalize(vec3(-.50,.92,.47)),fill=normalize(vec3(.73,.52,-.31));\n  vec3 albedo=vColor*(.93+(detail-.5)*.16*uDetail);\n  vec3 c=brdf(n,v,key,albedo,rough,metallic)*vec3(2.6,2.16,1.63);\n  c+=brdf(n,v,fill,albedo,rough,metallic)*vec3(.26,.57,.82);\n  float ndv=max(dot(n,v),0.);\n  vec3 r=reflect(-v,n);\n  vec3 environment=mix(vec3(.035,.069,.11),vec3(.40,.35,.23),smoothstep(-.1,.82,r.y));\n  float fres=pow(1.-ndv,5.);\n  c+=environment*(.13+fres*.7)*(1.-rough*.74);\n  c+=albedo*(.095+.16*max(n.y,0.))*(1.-metallic);\n  float pulse=.92+.08*sin(uTime*.65+vWorld.x*1.7+vWorld.z*.45);\n  c+=vEmission*pulse*vec3(.35,.90,1.08);\n  // Height-sensitive atmospheric scattering, restrained in close architectural detail.\n  float distanceToEye=distance(uEye,vWorld);\n  float fog=1.-exp(-.00077*distanceToEye*distanceToEye);\n  fog*=1.25-.3*smoothstep(2.,10.,vWorld.y);\n  c=mix(c,vec3(.052,.12,.18),clamp(fog,0.,.76));\n  outColor=vec4(max(c,0.),1.);\n}";
+  const FRAG="#version 300 es\nprecision highp float;\nin vec3 vWorld;in vec3 vNormal;in vec3 vColor;in float vEmission;in float vRough;\nuniform vec3 uEye;uniform float uTime;uniform float uDetail;\nout vec4 outColor;\nconst float PI=3.14159265359;\nfloat hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat valueNoise(vec3 p){\n  vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  float a=mix(hash3(i),hash3(i+vec3(1,0,0)),f.x);\n  float b=mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x);\n  float c=mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x);\n  float d=mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x);\n  return mix(mix(a,b,f.y),mix(c,d,f.y),f.z);\n}\nfloat smithGGX(float ndv,float ndl,float rough){\n  float k=(rough+1.);k=k*k*.125;\n  return ndv/(ndv*(1.-k)+k)*ndl/(ndl*(1.-k)+k);\n}\nvec3 brdf(vec3 n,vec3 v,vec3 l,vec3 albedo,float rough,float metal){\n  float ndl=max(dot(n,l),0.),ndv=max(dot(n,v),.001);\n  vec3 h=normalize(l+v);\n  float ndh=max(dot(n,h),0.),vdh=max(dot(v,h),0.);\n  float a=max(.045,rough*rough),a2=a*a;\n  float denom=ndh*ndh*(a2-1.)+1.;\n  float D=a2/(PI*denom*denom+.00001);\n  vec3 F0=mix(vec3(.045),albedo*.88,metal);\n  vec3 F=F0+(1.-F0)*pow(1.-vdh,5.);\n  vec3 spec=D*smithGGX(ndv,ndl,rough)*F/(4.*ndv*max(ndl,.001)+.002);\n  vec3 diff=(1.-F)*(1.-metal)*albedo/PI;\n  return (diff+spec)*ndl;\n}\nvoid main(){\n  vec3 n=normalize(vNormal),v=normalize(uEye-vWorld);\n  float rough=clamp(vRough,.07,.92);\n  float detail=uDetail>0.0?valueNoise(vWorld*(5.+uDetail*13.)):.5;\n  float etching=uDetail>0.0?sin(dot(vWorld.xz,vec2(32.,43.))+detail*4.):0.;\n  rough=clamp(rough+(detail-.5)*.13*uDetail,.075,.94);\n  if(uDetail>.4 && vEmission<.2) {\n    n=normalize(n+vec3(etching,-etching*.27,detail-.5)*.028*uDetail);\n  }\n  float metallic=(1.-smoothstep(.23,.54,rough))*.63;\n  float glass=(1.-smoothstep(.12,.26,rough))*(1.-smoothstep(.3,.75,vEmission));\n  metallic*=1.-glass*.66;\n  vec3 key=normalize(vec3(-.50,.92,.47)),fill=normalize(vec3(.73,.52,-.31));\n  vec3 albedo=vColor*(.93+(detail-.5)*.16*uDetail);\n  vec3 c=brdf(n,v,key,albedo,rough,metallic)*vec3(2.6,2.16,1.63);\n  c+=brdf(n,v,fill,albedo,rough,metallic)*vec3(.26,.57,.82);\n  float ndv=max(dot(n,v),0.);\n  vec3 r=reflect(-v,n);\n  vec3 environment=mix(vec3(.075,.125,.16),vec3(.49,.41,.29),smoothstep(-.1,.82,r.y));\n  float fres=pow(1.-ndv,5.);\n  c+=environment*(.19+fres*.83)*(1.-rough*.68);\n  c+=albedo*(.145+.18*max(n.y,0.))*(1.-metallic);\n  float pulse=.92+.08*sin(uTime*.65+vWorld.x*1.7+vWorld.z*.45);\n  c+=vEmission*pulse*vec3(.35,.90,1.08);\n  // Height-sensitive atmospheric scattering, restrained in close architectural detail.\n  float distanceToEye=distance(uEye,vWorld);\n  float fog=1.-exp(-.00077*distanceToEye*distanceToEye);\n  fog*=1.25-.3*smoothstep(2.,10.,vWorld.y);\n  c=mix(c,vec3(.052,.12,.18),clamp(fog,0.,.76));\n  outColor=vec4(max(c,0.),1.);\n}";
   const SCREEN_V=`#version 300 es
     precision highp float;
     const vec2 vertices[3]=vec2[3](vec2(-1.,-1.),vec2(3.,-1.),vec2(-1.,3.));
