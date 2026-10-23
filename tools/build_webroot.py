@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are eleven independently reviewed public files in site/.
+Its inputs are twelve independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -39,6 +39,8 @@ def build() -> dict:
     creator = (SOURCE / "creator.html").read_text(encoding="utf-8")
     if any(anchor not in creator for anchor in ('id="mc-editor"', 'id="mc-preview"', 'id="mc-fields"', 'id="mc-apply"', 'id="mc-download"', 'id="mc-import"', 'id="mc-choice-list"', 'src="./creator.js"', 'href="./creator.css"')):
         raise RuntimeError("R8 creator engine is missing a functional editor or preview control")
+    if any(anchor not in creator for anchor in ('id="mc-vault"', 'id="mc-save-revision"', 'id="mc-project-list"', 'id="mc-version-list"', 'id="mc-export-review"', 'src="./creator-vault.js"')):
+        raise RuntimeError("R9 local project archive or review gateway is missing")
     if 'href="./creator.html"' not in stories:
         raise RuntimeError("R8 creator engine is not discoverable from Story Lab")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
