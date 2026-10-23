@@ -1,0 +1,62 @@
+name: "MARCOSA | Publish public Network OS preview"
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "tests/**"
+      - "tools/build_webroot.py"
+      - ".github/workflows/marcosa-public-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: marcosa-public-preview-pages
+  cancel-in-progress: true
+
+jobs:
+  verify-and-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify public preview code and build
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/network.js
+          node --test tests/film_kit.test.cjs
+          python -m unittest discover -s tests -q
+          python tools/build_webroot.py
+          test -s dist/index.html
+          test -s dist/network.js
+          test -s dist/network.css
+      - name: Upload static Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/
+
+  publish:
+    needs: verify-and-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages (requires Pages enabled in repo settings)
+        uses: actions/configure-pages@v5
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
