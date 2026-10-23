@@ -9,12 +9,11 @@
 - `.github/workflows/marcosa-staging-rollback.yml` — ручной откат STAGING.
 - `scripts/activate-staging.sh` и `scripts/rollback-staging.sh` — атомарное переключение `current` / `previous` в домашнем каталоге пользователя `marcosa-deploy`.
 
-## A. Прежде всего сделайте репозиторий приватным
+## A. Публичный код и приватный staging — два разных уровня
 
-Репозиторий `osmanosmanov6880-bot/marcosa-fusion` сейчас **Public**.
-Откройте **Settings → General → Danger Zone → Change repository visibility → Private**.
+Репозиторий `osmanosmanov6880-bot/marcosa-fusion` оставлен **Public** по решению владельца. В нём разрешены открытый демонстрационный HTML/CSS/JS и публичные руководства. **Сборка и тесты GitHub Actions работают публично**, но SSH-стадия запускается только для приватного репозитория и при включённой переменной.
 
-Нельзя загружать оригинальные файлы MARCOSA, приватные бэкапы и прочие исходники в публичный репозиторий до проверки их на секреты и права.
+Для безопасного **первого SSH-развёртывания** рекомендуются отдельный приватный репозиторий/окружение или перевод этого репозитория в Private. Не включайте флаг staging на Public. Нельзя загружать архивы личных материалов, дампы, токены и приватные ключи в открытый GitHub.
 
 ## B. Первоначальная подготовка сервера
 
@@ -84,7 +83,7 @@ Settings → Secrets and variables → Actions → Repository secrets:
 
 ## E. Первый ручной тест
 
-1. Сначала репозиторий Private.
+1. Для проверки SSH используйте Private-репозиторий или отдельное приватное окружение; в текущем публичном проекте CI остаётся доступным, а SSH-публикация заблокирована.
 2. В GitHub перейдите в **Actions → MARCOSA | Verify staging SSH (read-only) → Run workflow**.
 3. Проверьте результат:
    - `server=...` и `connected_as=marcosa-deploy`: авторизация работает.
@@ -95,7 +94,7 @@ Settings → Secrets and variables → Actions → Repository secrets:
 
 ## F. Подключение исходников R2 и запуск автосборки
 
-После переключения repo в Private необходимо **действительно импортировать исходники из `MARCOSA_GITHUB_AUTODEPLOY_STARTER_R2.zip` как отдельные файлы**, включая `site/`, `tests/`, `tools/`, а не просто загрузить ZIP.
+Публичная сборка R2 Network OS preview уже импортирована и запускает CI. Полный архив `MARCOSA_GITHUB_AUTODEPLOY_STARTER_R2.zip` содержит дополнительные модули и изображения; нельзя импортировать его целиком без проверки файлов, прав на материалы и приватных данных.
 
 Только после успешного Build на `main` и SSH preflight:
 - **Settings → Secrets and variables → Actions → Variables → New repository variable**
