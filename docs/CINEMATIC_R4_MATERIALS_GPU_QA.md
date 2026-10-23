@@ -29,6 +29,16 @@
 
 The pipeline uses **3 draw calls in ECO** (sky, geometry, composite) and **6 in other tiers** (plus 3 bloom operations). Those numbers are the coded pipeline design, not observed GPU captures.
 
+## Verified R4 geometry counts (deterministic source, not FPS)
+
+| Tier | Triangles | Mesh vertex-buffer bytes | Maximum rendered pixels |
+|---|---:|---:|---:|
+| ECO | 5,462 | 720,984 | 520,000 |
+| BALANCED | 24,144 | 3,187,008 | 1,050,000 |
+| CINEMA | 28,012 | 3,697,584 | 1,950,000 |
+
+These values were calculated from the built JavaScript geometry on 23 October 2026. They measure geometric complexity and pixel limits, **not performance on a physical GPU**. R4 remains below the 40,000-triangle regression budget.
+
 ## On-device metrics: what the report proves
 
 Open **DEVICE PERFORMANCE LAB / GPU + FRAME PROFILING**, choose a quality tier and run the 12-second test. The browser exports `marcosa-graphics-device-report.json`.
@@ -56,7 +66,7 @@ These are **product release targets**, not achieved readings. For comparability:
 
 ## CI QA vs real hardware QA
 
-- GitHub Actions runs Node geometry/LOD/pixel-budget tests, Python build/secret audit and optional headless Chromium initialization on a software renderer.
+- GitHub Actions runs Node geometry/LOD/pixel-budget tests, Python build/secret audit, Chromium WebGL2 shader initialization and five software-rendered screenshots (desktop 1440×900, mobile 390×844, catalogue desktop/mobile, and mobile 2D). Chromium WebGL2 initialization passed in PR #3. Those are actual code renders, not AI-generated concept images.
 - The headless browser test prints `PASS-WEBGL2` only if a WebGL2 context actually initialized and shaders compiled. It prints `PASS-2D-FALLBACK` if WebGL2 was unavailable. Neither is a real physical GPU FPS test.
 - **Physical hardware has not been remotely controlled or measured in this session.** No measured FPS, power draw, hardware temperatures or frame captures from your PC/phone should be claimed until the browser lab is run there and its results checked.
 - Production `marcosa.club`, Worlds, Messages, Supabase and monetization remain unchanged.
