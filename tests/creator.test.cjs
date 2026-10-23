@@ -144,6 +144,10 @@ test('R8 localized authoring and navigation exists with accessible controls',()=
   const home=fs.readFileSync(path.join(root,'index.html'),'utf8');
   const css=fs.readFileSync(path.join(root,'creator.css'),'utf8');
   const storyJs=fs.readFileSync(path.join(root,'stories.js'),'utf8');
+  const creatorJs=fs.readFileSync(path.join(root,'creator.js'),'utf8');
+  const actualIds=new Set([...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]));
+  const queriedIds=[...new Set([...creatorJs.matchAll(/\$\('([^']+)'\)/g)].map(m=>m[1]))];
+  for(const id of queriedIds)assert.ok(actualIds.has(id),'missing creator DOM id: '+id);
   for(const id of [
     'mc-editor','mc-preview','mc-fields','mc-apply','mc-download','mc-import',
     'mc-reset','mc-rights','mc-disclose','mc-story-language','mc-play-title',
