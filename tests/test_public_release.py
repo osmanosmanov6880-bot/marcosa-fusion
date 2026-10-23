@@ -74,12 +74,29 @@ class PublicPreviewTests(unittest.TestCase):
             self.assertEqual(digest, hashlib.sha256((dist / name).read_bytes()).hexdigest())
         self.assertNotIn("supabase", " ".join(files))
 
-    def test_staging_workflow_stays_disabled_in_public_repository(self):
+    def test_staging_is_explicitly_restricted_to_trusted_main_and_dedicated_user(self):
         yml = (ROOT / ".github" / "workflows" / "marcosa-staging.yml").read_text(encoding="utf-8")
-        self.assertIn("github.event.repository.private == true", yml)
-        self.assertIn("MARCOSA_STAGING_ENABLED", yml)
+        self.assertIn("github.ref == 'refs/heads/main'", yml)
+        self.assertIn("environment: marcosa-staging", yml)
         self.assertIn("MARCOSA_SSH_KNOWN_HOSTS", yml)
         self.assertIn("MARCOSA_SSH_KEY", yml)
+        self.assertIn("scripts/diagnose-staging-ssh.sh", yml)
+        self.assertIn("scripts/activate-staging.sh", yml)
+        self.assertNotIn("github.event.repository.private == true", yml)
+        activate = (ROOT / "scripts" / "activate-staging.sh").read_text(encoding="utf-8")
+        self.assertIn('id -un', activate)
+        self.assertIn('marcosa-deploy', activate)
+        self.assertIn('MARCOSA-STAGING-APPROVED-v1', activate)
+        self.assertNotIn('/opt/marcosa', activate)
+
+    def test_pages_deploys_only_from_main_without_hidden_variable(self):
+        yml = (ROOT / ".github" / "workflows" / "marcosa-public-pages.yml").read_text(encoding="utf-8")
+        self.assertIn("github.ref == 'refs/heads/main'", yml)
+        self.assertNotIn("MARCOSA_PUBLIC_PAGES_ENABLED", yml)
+        self.assertIn("actions/deploy-pages@v4", yml)
+        self.assertIn("pages: write", yml)
+        self.assertIn("id-token: write", yml)
+        self.assertIn("one-time", yml.lower())
 
     def test_no_private_notes_or_runtime_data_in_public_distribution(self):
         names = {str(p.relative_to(ROOT)) for p in (SITE).rglob("*") if p.is_file()}
