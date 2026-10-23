@@ -134,7 +134,7 @@ The public Creator Engine now includes a **deliberate, device-local project arch
 - Delete a whole local project with explicit confirmation. Drafts are **not encrypted by this application**, and clearing browser site data deletes them. Download separate JSON backups using R8's editor.
 - Browser interaction QA now exercises actual IndexedDB (desktop and mobile Chromium via localhost); tests also cover invalid data, tampered review flags and the 15-revision cap.
 
-Documentation: [R9 architecture, privacy and review boundaries](docs/LOCAL_PROJECT_VAULT_R9_RU.md), [revision/security tests](tests/vault.test.cjs), and [browser workflow](tools/r5_browser_smoke.py).
+Documentation: [R9 architecture, privacy and review boundaries](docs/LOCAL_PROJECT_VAULT_R9_RU.md), [revision/security tests](tests/vault.test.cjs), and [browser workflow](tools/r9_cdp_smoke.cjs).
 
 **Important:** This is still the *public static preview*, not the authenticated production MARCOSA. No real moderator queues, live published author stories, contracts, commerce or existing user accounts were introduced.
 
