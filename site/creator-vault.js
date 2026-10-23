@@ -268,6 +268,50 @@
           const del=store.delete(id);
           del.onsuccess=()=>done(true);
         });
+      },
+      async restoreRecords(records){
+        // One transaction: reject malformed, oversized, or duplicate-ID backups before
+        // any writes; preserve existing projects even when a backup ID has diverged.
+        if(!Array.isArray(records)||records.length>MAX_PROJECTS)
+          throw Error('INVALID_BACKUP_PROJECT_COUNT');
+        const incoming=records.map(normalizeRecord);
+        if(new Set(incoming.map(x=>x.id)).size!==incoming.length)
+          throw Error('DUPLICATE_BACKUP_IDS');
+        return run('readwrite',(store,done,fail)=>{
+          const existingRequest=store.getAll();
+          existingRequest.onsuccess=()=>{
+            try{
+              const originals=existingRequest.result.map(normalizeRecord);
+              const lookup=new Map(originals.map(x=>[x.id,x]));
+              const used=new Set(originals.concat(incoming).map(x=>x.id));
+              const additions=[];
+              let skipped=0,conflicts=0;
+              for(const incomingRecord of incoming){
+                let project=incomingRecord;
+                if(lookup.has(project.id)){
+                  if(JSON.stringify(lookup.get(project.id))===JSON.stringify(project)){
+                    skipped++;continue;
+                  }
+                  // Collision = independent copy, NEVER overwrite either history.
+                  let newId;
+                  for(let attempt=0;attempt<10;attempt++){
+                    const candidate=makeId(crypto);
+                    if(!used.has(candidate)){newId=candidate;used.add(candidate);break;}
+                  }
+                  if(!newId)throw Error('RESTORE_RANDOM_ID_COLLISION');
+                  project={...project,id:newId};
+                  conflicts++;
+                }
+                additions.push(normalizeRecord(project));
+              }
+              if(originals.length+additions.length>MAX_PROJECTS)
+                throw Error('PROJECT_LIMIT');
+              for(const project of additions)store.add(project);
+              done({added:additions.length,skipped,conflicts,
+                total:originals.length+additions.length});
+            }catch(err){fail(err);}
+          };
+        });
       }
     });
   }
