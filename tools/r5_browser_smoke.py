@@ -45,7 +45,7 @@ window.addEventListener('load',function(){
       by('ms-brief-rights').checked=true;
       by('ms-brief-disclose').checked=true;
       by('ms-brief-form').dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
-      if(by('ms-brief-preview').hidden||by('ms-brief-download').disabled)throw Error('BRIEF_EXPORT');
+      if(by('ms-brief-preview').hidden||by('ms-brief-download').disabled||by('ms-brief-html').disabled)throw Error('BRIEF_EXPORT');
       const m=document.createElement('meta');m.name='r5-browser-smoke';m.content='PASS-STORY-BRIEF-LINK';
       document.head.append(m);
     }catch(e){
