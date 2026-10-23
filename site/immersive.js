@@ -188,7 +188,7 @@
     return new Float32Array(list);
   }
   const VERT="#version 300 es\nprecision highp float;\nlayout(location=0) in vec3 aPos;\nlayout(location=1) in vec3 aNormal;\nlayout(location=2) in vec3 aColor;\nlayout(location=3) in float aEmission;\nlayout(location=4) in float aRough;\nuniform mat4 uPV; uniform float uTime;\nout vec3 vWorld;out vec3 vNormal;out vec3 vColor;out float vEmission;out float vRough;\nvoid main(){\n  vec3 pos=aPos;\n  if(aEmission>1.6){\n    float phase=floor(aPos.x*1.2+aPos.z*.8)*1.618;\n    pos.x+=sin(uTime*.31+phase)*.6;\n    pos.z+=cos(uTime*.24+phase)*.52;\n    pos.y+=sin(uTime*.57+phase)*.16;\n  }\n  vWorld=pos;vNormal=aNormal;vColor=aColor;vEmission=aEmission;vRough=aRough;\n  gl_Position=uPV*vec4(pos,1.);\n}";
-  const FRAG="#version 300 es\nprecision highp float;\nin vec3 vWorld;in vec3 vNormal;in vec3 vColor;in float vEmission;in float vRough;\nuniform vec3 uEye;uniform float uTime;uniform float uDetail;\nout vec4 outColor;\nconst float PI=3.14159265359;\nfloat hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat valueNoise(vec3 p){\n  vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  float a=mix(hash3(i),hash3(i+vec3(1,0,0)),f.x);\n  float b=mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x);\n  float c=mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x);\n  float d=mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x);\n  return mix(mix(a,b,f.y),mix(c,d,f.y),f.z);\n}\nfloat smithGGX(float ndv,float ndl,float rough){\n  float k=(rough+1.);k=k*k*.125;\n  return ndv/(ndv*(1.-k)+k)*ndl/(ndl*(1.-k)+k);\n}\nvec3 brdf(vec3 n,vec3 v,vec3 l,vec3 albedo,float rough,float metal){\n  float ndl=max(dot(n,l),0.),ndv=max(dot(n,v),.001);\n  vec3 h=normalize(l+v);\n  float ndh=max(dot(n,h),0.),vdh=max(dot(v,h),0.);\n  float a=max(.045,rough*rough),a2=a*a;\n  float denom=ndh*ndh*(a2-1.)+1.;\n  float D=a2/(PI*denom*denom+.00001);\n  vec3 F0=mix(vec3(.045),albedo*.88,metal);\n  vec3 F=F0+(1.-F0)*pow(1.-vdh,5.);\n  vec3 spec=D*smithGGX(ndv,ndl,rough)*F/(4.*ndv*max(ndl,.001)+.002);\n  vec3 diff=(1.-F)*(1.-metal)*albedo/PI;\n  return (diff+spec)*ndl;\n}\nvoid main(){\n  vec3 n=normalize(vNormal),v=normalize(uEye-vWorld);\n  float rough=clamp(vRough,.07,.92);\n  float detail=uDetail>0.0?valueNoise(vWorld*(5.+uDetail*13.)):.5;\n  float etching=uDetail>0.0?sin(dot(vWorld.xz,vec2(32.,43.))+detail*4.):0.;\n  rough=clamp(rough+(detail-.5)*.13*uDetail,.075,.94);\n  if(uDetail>.4 && vEmission<.2) {\n    n=normalize(n+vec3(etching,-etching*.27,detail-.5)*.028*uDetail);\n  }\n  float metallic=smoothstep(.54,.23,rough)*.63;\n  float glass=(1.-smoothstep(.12,.26,rough))*(1.-smoothstep(.3,.75,vEmission));\n  metallic*=1.-glass*.66;\n  vec3 key=normalize(vec3(-.50,.92,.47)),fill=normalize(vec3(.73,.52,-.31));\n  vec3 albedo=vColor*(.93+(detail-.5)*.16*uDetail);\n  vec3 c=brdf(n,v,key,albedo,rough,metallic)*vec3(2.6,2.16,1.63);\n  c+=brdf(n,v,fill,albedo,rough,metallic)*vec3(.26,.57,.82);\n  float ndv=max(dot(n,v),0.);\n  vec3 r=reflect(-v,n);\n  vec3 environment=mix(vec3(.035,.069,.11),vec3(.40,.35,.23),smoothstep(-.1,.82,r.y));\n  float fres=pow(1.-ndv,5.);\n  c+=environment*(.13+fres*.7)*(1.-rough*.74);\n  c+=albedo*(.095+.16*max(n.y,0.))*(1.-metallic);\n  float pulse=.92+.08*sin(uTime*.65+vWorld.x*1.7+vWorld.z*.45);\n  c+=vEmission*pulse*vec3(.35,.90,1.08);\n  // Height-sensitive atmospheric scattering, restrained in close architectural detail.\n  float distanceToEye=distance(uEye,vWorld);\n  float fog=1.-exp(-.00077*distanceToEye*distanceToEye);\n  fog*=1.25-.3*smoothstep(2.,10.,vWorld.y);\n  c=mix(c,vec3(.052,.12,.18),clamp(fog,0.,.76));\n  outColor=vec4(max(c,0.),1.);\n}";
+  const FRAG="#version 300 es\nprecision highp float;\nin vec3 vWorld;in vec3 vNormal;in vec3 vColor;in float vEmission;in float vRough;\nuniform vec3 uEye;uniform float uTime;uniform float uDetail;\nout vec4 outColor;\nconst float PI=3.14159265359;\nfloat hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}\nfloat valueNoise(vec3 p){\n  vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);\n  float a=mix(hash3(i),hash3(i+vec3(1,0,0)),f.x);\n  float b=mix(hash3(i+vec3(0,1,0)),hash3(i+vec3(1,1,0)),f.x);\n  float c=mix(hash3(i+vec3(0,0,1)),hash3(i+vec3(1,0,1)),f.x);\n  float d=mix(hash3(i+vec3(0,1,1)),hash3(i+vec3(1,1,1)),f.x);\n  return mix(mix(a,b,f.y),mix(c,d,f.y),f.z);\n}\nfloat smithGGX(float ndv,float ndl,float rough){\n  float k=(rough+1.);k=k*k*.125;\n  return ndv/(ndv*(1.-k)+k)*ndl/(ndl*(1.-k)+k);\n}\nvec3 brdf(vec3 n,vec3 v,vec3 l,vec3 albedo,float rough,float metal){\n  float ndl=max(dot(n,l),0.),ndv=max(dot(n,v),.001);\n  vec3 h=normalize(l+v);\n  float ndh=max(dot(n,h),0.),vdh=max(dot(v,h),0.);\n  float a=max(.045,rough*rough),a2=a*a;\n  float denom=ndh*ndh*(a2-1.)+1.;\n  float D=a2/(PI*denom*denom+.00001);\n  vec3 F0=mix(vec3(.045),albedo*.88,metal);\n  vec3 F=F0+(1.-F0)*pow(1.-vdh,5.);\n  vec3 spec=D*smithGGX(ndv,ndl,rough)*F/(4.*ndv*max(ndl,.001)+.002);\n  vec3 diff=(1.-F)*(1.-metal)*albedo/PI;\n  return (diff+spec)*ndl;\n}\nvoid main(){\n  vec3 n=normalize(vNormal),v=normalize(uEye-vWorld);\n  float rough=clamp(vRough,.07,.92);\n  float detail=uDetail>0.0?valueNoise(vWorld*(5.+uDetail*13.)):.5;\n  float etching=uDetail>0.0?sin(dot(vWorld.xz,vec2(32.,43.))+detail*4.):0.;\n  rough=clamp(rough+(detail-.5)*.13*uDetail,.075,.94);\n  if(uDetail>.4 && vEmission<.2) {\n    n=normalize(n+vec3(etching,-etching*.27,detail-.5)*.028*uDetail);\n  }\n  float metallic=(1.-smoothstep(.23,.54,rough))*.63;\n  float glass=(1.-smoothstep(.12,.26,rough))*(1.-smoothstep(.3,.75,vEmission));\n  metallic*=1.-glass*.66;\n  vec3 key=normalize(vec3(-.50,.92,.47)),fill=normalize(vec3(.73,.52,-.31));\n  vec3 albedo=vColor*(.93+(detail-.5)*.16*uDetail);\n  vec3 c=brdf(n,v,key,albedo,rough,metallic)*vec3(2.6,2.16,1.63);\n  c+=brdf(n,v,fill,albedo,rough,metallic)*vec3(.26,.57,.82);\n  float ndv=max(dot(n,v),0.);\n  vec3 r=reflect(-v,n);\n  vec3 environment=mix(vec3(.035,.069,.11),vec3(.40,.35,.23),smoothstep(-.1,.82,r.y));\n  float fres=pow(1.-ndv,5.);\n  c+=environment*(.13+fres*.7)*(1.-rough*.74);\n  c+=albedo*(.095+.16*max(n.y,0.))*(1.-metallic);\n  float pulse=.92+.08*sin(uTime*.65+vWorld.x*1.7+vWorld.z*.45);\n  c+=vEmission*pulse*vec3(.35,.90,1.08);\n  // Height-sensitive atmospheric scattering, restrained in close architectural detail.\n  float distanceToEye=distance(uEye,vWorld);\n  float fog=1.-exp(-.00077*distanceToEye*distanceToEye);\n  fog*=1.25-.3*smoothstep(2.,10.,vWorld.y);\n  c=mix(c,vec3(.052,.12,.18),clamp(fog,0.,.76));\n  outColor=vec4(max(c,0.),1.);\n}";
   const SCREEN_V=`#version 300 es
     precision highp float;
     const vec2 vertices[3]=vec2[3](vec2(-1.,-1.),vec2(3.,-1.),vec2(-1.,3.));
@@ -208,7 +208,8 @@
       sky+=stars*vec3(.42,.58,.66)*smoothstep(.55,.9,uv.y);
       outColor=vec4(sky,1.);
     }`;
-  const POST_F="#version 300 es\nprecision highp float;\nin vec2 uv;uniform sampler2D uScene;uniform vec2 uSize;uniform float uTime;\nuniform float uBloom;uniform float uCinema;\nout vec4 outColor;\nvec3 thresholdBloom(vec2 p,vec2 k){\n  vec3 sum=vec3(0.);float weights=0.;\n  for(int x=-2;x<=2;x++) for(int y=-2;y<=2;y++){\n    vec2 delta=vec2(float(x),float(y))*k;\n    float w=1./(1.+dot(delta/k,delta/k));\n    vec3 sampleColor=texture(uScene,clamp(p+delta,vec2(.001),vec2(.999))).rgb;\n    float lum=dot(sampleColor,vec3(.2126,.7152,.0722));\n    sum+=max(sampleColor-vec3(.48),0.)*smoothstep(.47,.92,lum)*w;\n    weights+=w;\n  }\n  return sum/max(weights,.01);\n}\nvoid main(){\n  vec2 xy=uv-.5;\n  vec3 color=texture(uScene,uv).rgb;\n  if(uBloom>.5){\n    vec2 radius=vec2(3.2)/uSize;\n    color+=thresholdBloom(uv,radius)*.33+thresholdBloom(uv,radius*3.)*.14;\n  }\n  if(uCinema>.5){\n    vec2 aberration=xy*(.0013*dot(xy,xy));\n    color.r=mix(color.r,texture(uScene,clamp(uv+aberration,vec2(0.),vec2(1.))).r,.23);\n    color.b=mix(color.b,texture(uScene,clamp(uv-aberration,vec2(0.),vec2(1.))).b,.23);\n  }\n  color=max(color,vec3(0.));\n  color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);\n  color=mix(color,dot(color,vec3(.2126,.7152,.0722))*vec3(.99,1.0,1.01),.045);\n  float vignette=1.-(.33+.09*uCinema)*pow(length(xy*vec2(1.20,1.)),1.7);\n  float seed=fract(sin(dot(floor(uv*uSize)+floor(uTime*20.),vec2(12.9898,78.233)))*43758.5453);\n  float grain=(seed-.5)*mix(.004,.008,uCinema);\n  outColor=vec4(pow(clamp(color*vignette+grain,0.,1.),vec3(.95)),1.);\n}";
+  const BLOOM_F="#version 300 es\nprecision highp float;in vec2 uv;uniform sampler2D uSource;\nuniform vec2 uTexel;uniform int uPass;out vec4 outColor;\nvoid main(){\n  vec3 c=texture(uSource,clamp(uv,vec2(0.),vec2(1.))).rgb;\n  if(uPass==0){\n    float lum=dot(c,vec3(.2126,.7152,.0722));\n    c=max(c-vec3(.48),vec3(0.))*smoothstep(.45,.9,lum);\n  }else{\n    vec2 axis=uPass==1?vec2(uTexel.x,0.):vec2(0.,uTexel.y);\n    c*=.227027;\n    c+=(texture(uSource,clamp(uv+axis*1.384615,vec2(0.),vec2(1.))).rgb+\n        texture(uSource,clamp(uv-axis*1.384615,vec2(0.),vec2(1.))).rgb)*.316216;\n    c+=(texture(uSource,clamp(uv+axis*3.230769,vec2(0.),vec2(1.))).rgb+\n        texture(uSource,clamp(uv-axis*3.230769,vec2(0.),vec2(1.))).rgb)*.070270;\n  }\n  outColor=vec4(c,1.);\n}";
+  const POST_F="#version 300 es\nprecision highp float;in vec2 uv;\nuniform sampler2D uScene;uniform sampler2D uBloomTex;uniform vec2 uSize;\nuniform float uTime;uniform float uBloom;uniform float uCinema;\nout vec4 outColor;\nvoid main(){\n  vec2 xy=uv-.5;\n  vec3 color=texture(uScene,uv).rgb;\n  if(uBloom>.5)color+=texture(uBloomTex,uv).rgb*.62;\n  if(uCinema>.5){\n    vec2 aberration=xy*(.0013*dot(xy,xy));\n    color.r=mix(color.r,texture(uScene,clamp(uv+aberration,vec2(0.),vec2(1.))).r,.23);\n    color.b=mix(color.b,texture(uScene,clamp(uv-aberration,vec2(0.),vec2(1.))).b,.23);\n  }\n  color=max(color,vec3(0.));\n  color=(color*(2.51*color+.03))/(color*(2.43*color+.59)+.14);\n  color=mix(color,dot(color,vec3(.2126,.7152,.0722))*vec3(.99,1.0,1.01),.045);\n  float vignette=1.-(.33+.09*uCinema)*pow(length(xy*vec2(1.20,1.)),1.7);\n  float seed=fract(sin(dot(floor(uv*uSize)+floor(uTime*20.),vec2(12.9898,78.233)))*43758.5453);\n  float grain=(seed-.5)*mix(.004,.008,uCinema);\n  outColor=vec4(pow(clamp(color*vignette+grain,0.,1.),vec3(.95)),1.);\n}";
   function perspective(fov,aspect,n,f){const t=1/Math.tan(fov/2);return new Float32Array([t/aspect,0,0,0,0,t,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0]);}
   function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
   function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2];}
@@ -226,7 +227,7 @@
     const saveData=nav.connection?.saveData===true;
     const profile={width:win.innerWidth,cores:nav.hardwareConcurrency||0,memory:nav.deviceMemory||0,reducedMotion:reduced,saveData};
     if(saveData)wrap.classList.add('mi-save-data');
-    let mode='auto',tier=chooseQuality(profile),gl=null,sceneProgram,skyProgram,postProgram,vbo,vao,screenVao,fb,fbColor,depth,count=0;
+    let mode='auto',tier=chooseQuality(profile),gl=null,sceneProgram,skyProgram,postProgram,bloomProgram,vbo,vao,screenVao,fb,fbColor,depth,bloomFbs=[],bloomTextures=[],bloomSize=[1,1],count=0;
     let shaderLoc=null; const geometryCache=new Map();
     let active=false,visible=true,raf=0,last=0,frames=[],bench=null,lastReport=null,resizeObserver=null,glError=null,failures=0;
     let adaptive=1,slowResamples=0,gpuExt=null,gpuPending=[],gpuFrames=[];
@@ -236,7 +237,10 @@
     function ui(){statusNode.textContent=qualityText();qualityButton.textContent='QUALITY  /  '+mode.toUpperCase();qualityButton.setAttribute('aria-label','Graphics quality: '+mode);}
     function makeShader(type,source){const sh=gl.createShader(type);gl.shaderSource(sh,source);gl.compileShader(sh);if(!gl.getShaderParameter(sh,gl.COMPILE_STATUS)){const err=gl.getShaderInfoLog(sh);gl.deleteShader(sh);throw Error('WebGL shader compile: '+err);}return sh;}
     function program(a,b){const v=makeShader(gl.VERTEX_SHADER,a),f=makeShader(gl.FRAGMENT_SHADER,b),p=gl.createProgram();gl.attachShader(p,v);gl.attachShader(p,f);gl.linkProgram(p);gl.deleteShader(v);gl.deleteShader(f);if(!gl.getProgramParameter(p,gl.LINK_STATUS)){const e=gl.getProgramInfoLog(p);gl.deleteProgram(p);throw Error('WebGL link: '+e);}return p;}
-    function freeTargets(){if(fb)gl.deleteFramebuffer(fb);if(fbColor)gl.deleteTexture(fbColor);if(depth)gl.deleteRenderbuffer(depth);fb=fbColor=depth=null;}
+    function freeTargets(){if(fb)gl.deleteFramebuffer(fb);if(fbColor)gl.deleteTexture(fbColor);if(depth)gl.deleteRenderbuffer(depth);
+      for(const f of bloomFbs)gl.deleteFramebuffer(f);for(const tex of bloomTextures)gl.deleteTexture(tex);
+      fb=fbColor=depth=null;bloomFbs=[];bloomTextures=[];
+    }
     function setupTargets(w,h){freeTargets();fb=gl.createFramebuffer();gl.bindFramebuffer(gl.FRAMEBUFFER,fb);
       fbColor=gl.createTexture();gl.bindTexture(gl.TEXTURE_2D,fbColor);gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,w,h,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
       gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
@@ -245,6 +249,16 @@
       depth=gl.createRenderbuffer();gl.bindRenderbuffer(gl.RENDERBUFFER,depth);gl.renderbufferStorage(gl.RENDERBUFFER,gl.DEPTH_COMPONENT16,w,h);
       gl.framebufferRenderbuffer(gl.FRAMEBUFFER,gl.DEPTH_ATTACHMENT,gl.RENDERBUFFER,depth);
       if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Incomplete render target');
+      const bw=Math.max(2,Math.ceil(w/4)),bh=Math.max(2,Math.ceil(h/4));bloomSize=[bw,bh];
+      for(let i=0;i<2;i++){
+        const bf=gl.createFramebuffer(),tex=gl.createTexture();gl.bindFramebuffer(gl.FRAMEBUFFER,bf);gl.bindTexture(gl.TEXTURE_2D,tex);
+        gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA8,bw,bh,0,gl.RGBA,gl.UNSIGNED_BYTE,null);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER,gl.COLOR_ATTACHMENT0,gl.TEXTURE_2D,tex,0);
+        if(gl.checkFramebufferStatus(gl.FRAMEBUFFER)!==gl.FRAMEBUFFER_COMPLETE)throw Error('Incomplete quarter-resolution bloom buffer');
+        bloomFbs.push(bf);bloomTextures.push(tex);
+      }
       gl.bindFramebuffer(gl.FRAMEBUFFER,null);
     }
     function resize(){if(!gl||tier==='static')return;
@@ -262,12 +276,13 @@
     function initialize(){if(tier==='static')return false;
       gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:true,stencil:false,powerPreference:'high-performance'});
       if(!gl)return false;
-      sceneProgram=program(VERT,FRAG);skyProgram=program(SCREEN_V,SKY_F);postProgram=program(SCREEN_V,POST_F);
+      sceneProgram=program(VERT,FRAG);skyProgram=program(SCREEN_V,SKY_F);bloomProgram=program(SCREEN_V,BLOOM_F);postProgram=program(SCREEN_V,POST_F);
       gpuExt=gl.getExtension('EXT_disjoint_timer_query_webgl2');gpuPending=[];gpuFrames=[];
       shaderLoc={
         scene:{pv:gl.getUniformLocation(sceneProgram,'uPV'),eye:gl.getUniformLocation(sceneProgram,'uEye'),time:gl.getUniformLocation(sceneProgram,'uTime'),detail:gl.getUniformLocation(sceneProgram,'uDetail')},
         sky:{time:gl.getUniformLocation(skyProgram,'uTime')},
-        post:{scene:gl.getUniformLocation(postProgram,'uScene'),size:gl.getUniformLocation(postProgram,'uSize'),time:gl.getUniformLocation(postProgram,'uTime'),bloom:gl.getUniformLocation(postProgram,'uBloom'),cinema:gl.getUniformLocation(postProgram,'uCinema')}
+        bloom:{source:gl.getUniformLocation(bloomProgram,'uSource'),texel:gl.getUniformLocation(bloomProgram,'uTexel'),pass:gl.getUniformLocation(bloomProgram,'uPass')},
+        post:{scene:gl.getUniformLocation(postProgram,'uScene'),bloomTex:gl.getUniformLocation(postProgram,'uBloomTex'),size:gl.getUniformLocation(postProgram,'uSize'),time:gl.getUniformLocation(postProgram,'uTime'),bloom:gl.getUniformLocation(postProgram,'uBloom'),cinema:gl.getUniformLocation(postProgram,'uCinema')}
       };
       screenVao=gl.createVertexArray();geometryUpload();resize();canvas.classList.add('mi-ready');wrap.classList.add('mi-webgl-active');return true;
     }
@@ -282,8 +297,25 @@
       gl.useProgram(sceneProgram);gl.bindVertexArray(vao);
       gl.uniformMatrix4fv(shaderLoc.scene.pv,false,pv);gl.uniform3fv(shaderLoc.scene.eye,cam);
       gl.uniform1f(shaderLoc.scene.time,t);gl.uniform1f(shaderLoc.scene.detail,tier==='eco'?0:tier==='cinema'?1:.5);gl.drawArrays(gl.TRIANGLES,0,count);
-      gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.disable(gl.DEPTH_TEST);gl.viewport(0,0,w,h);gl.useProgram(postProgram);gl.bindVertexArray(screenVao);
+      gl.disable(gl.DEPTH_TEST);
+      if(QUALITY[tier].glow){
+        // Quarter-resolution bright extraction + horizontal/vertical separable blur.
+        gl.useProgram(bloomProgram);gl.bindVertexArray(screenVao);
+        gl.uniform2f(shaderLoc.bloom.texel,1/bloomSize[0],1/bloomSize[1]);
+        gl.uniform1i(shaderLoc.bloom.source,0);
+        for(let pass=0;pass<3;pass++){
+          const target=pass===1?1:0;
+          const input=pass===0?fbColor:pass===1?bloomTextures[0]:bloomTextures[1];
+          gl.bindFramebuffer(gl.FRAMEBUFFER,bloomFbs[target]);
+          gl.viewport(0,0,bloomSize[0],bloomSize[1]);
+          gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,input);
+          gl.uniform1i(shaderLoc.bloom.pass,pass);
+          gl.drawArrays(gl.TRIANGLES,0,3);
+        }
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.viewport(0,0,w,h);gl.useProgram(postProgram);gl.bindVertexArray(screenVao);
       gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbColor);gl.uniform1i(shaderLoc.post.scene,0);
+      gl.activeTexture(gl.TEXTURE1);gl.bindTexture(gl.TEXTURE_2D,bloomTextures[0]);gl.uniform1i(shaderLoc.post.bloomTex,1);
       gl.uniform2f(shaderLoc.post.size,w,h);gl.uniform1f(shaderLoc.post.time,t);
       gl.uniform1f(shaderLoc.post.bloom,QUALITY[tier].glow);gl.uniform1f(shaderLoc.post.cinema,tier==='cinema'?1:0);gl.drawArrays(gl.TRIANGLES,0,3);
       gl.bindVertexArray(null);
@@ -358,7 +390,7 @@
         browser_viewport:{width:win.innerWidth,height:win.innerHeight},
         canvas_resolution:{width:targetPixels[0],height:targetPixels[1]},
         pixel_budget:budget.maxPixels,adaptive_scale:Math.round(adaptive*100)/100,
-        geometry_triangles:count/3,draw_calls_per_frame:3,
+        geometry_triangles:count/3,draw_calls_per_frame:QUALITY[tier].glow?6:3,postprocess:'quarter_resolution_separable_bloom',
         metrics:report,gpu_timing:gpu,
         notes:'RAF measures delivered frames, not a guaranteed GPU frame-time measurement. GPU timer query is optional and asynchronous. No hardware identifiers, thermals or data transmission.'};
       output.textContent='FPS '+report.fps+' | p95 '+report.p95ms+' ms | slow frames '+report.jankRate+
