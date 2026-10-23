@@ -43,7 +43,8 @@ jobs:
           node --check site/network.js
           node --check site/immersive.js
           node --check site/stories.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs
+          node --check site/creator.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -55,6 +56,9 @@ jobs:
           test -s dist/stories.html
           test -s dist/stories.css
           test -s dist/stories.js
+          test -s dist/creator.html
+          test -s dist/creator.css
+          test -s dist/creator.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
