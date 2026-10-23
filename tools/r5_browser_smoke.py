@@ -230,7 +230,12 @@ def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,
     outcome=match.group(1) if match else "FAIL-NO-RESULT-MARKER"
     print("R5 Chromium",filename,outcome)
     if not outcome.startswith("PASS-"):
-        print(proc.stderr[-1800:],file=sys.stderr)
+        if filename=="creator.html":
+            for key in ("mc-vault-feedback","mc-project-list","mc-version-list","mc-save-revision"):
+                location=proc.stdout.find('id="'+key+'"')
+                if location>=0:
+                    print("R9 DOM diagnostic",key,repr(proc.stdout[location:location+260]),file=sys.stderr)
+        print(proc.stderr[-900:],file=sys.stderr)
     return outcome.startswith("PASS-")
 
 def main()->int:
