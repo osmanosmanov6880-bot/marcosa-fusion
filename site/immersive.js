@@ -199,6 +199,7 @@
     const saveData=nav.connection?.saveData===true;
     const profile={width:win.innerWidth,cores:nav.hardwareConcurrency||0,memory:nav.deviceMemory||0,reducedMotion:reduced,saveData};
     let mode='auto',tier=chooseQuality(profile),gl=null,sceneProgram,skyProgram,postProgram,vbo,vao,screenVao,fb,fbColor,depth,count=0;
+    let shaderLoc=null; const geometryCache=new Map();
     let active=false,visible=true,raf=0,last=0,frames=[],bench=null,lastReport=null,resizeObserver=null,glError=null,failures=0;
     let pointer=[0,0],smoothed=[0,0],targetPixels=[1,1],frameN=0,rendered=0,lastHud=0,slowWindows=0;
     const fixedFrame=t=>t==='eco'?1000/30:1000/60;
@@ -223,7 +224,7 @@
       const multiplier=Math.min(1,Math.sqrt(q.maxPixels/(w*h)));w=Math.max(2,Math.floor(w*multiplier));h=Math.max(2,Math.floor(h*multiplier));
       if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;setupTargets(w,h);}targetPixels=[w,h];
     }
-    function geometryUpload(){const data=sceneGeometry(tier);
+    function geometryUpload(){let data=geometryCache.get(tier);if(!data){data=sceneGeometry(tier);geometryCache.set(tier,data);}
       if(vbo)gl.deleteBuffer(vbo);if(vao)gl.deleteVertexArray(vao);
       vbo=gl.createBuffer();vao=gl.createVertexArray();gl.bindVertexArray(vao);gl.bindBuffer(gl.ARRAY_BUFFER,vbo);gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
       for(const [index,size,offset] of [[0,3,0],[1,3,12],[2,3,24],[3,1,36],[4,1,40]]){gl.enableVertexAttribArray(index);gl.vertexAttribPointer(index,size,gl.FLOAT,false,44,offset);}
@@ -233,6 +234,11 @@
       gl=canvas.getContext('webgl2',{alpha:false,antialias:false,depth:true,stencil:false,powerPreference:'high-performance'});
       if(!gl)return false;
       sceneProgram=program(VERT,FRAG);skyProgram=program(SCREEN_V,SKY_F);postProgram=program(SCREEN_V,POST_F);
+      shaderLoc={
+        scene:{pv:gl.getUniformLocation(sceneProgram,'uPV'),eye:gl.getUniformLocation(sceneProgram,'uEye'),time:gl.getUniformLocation(sceneProgram,'uTime')},
+        sky:{time:gl.getUniformLocation(skyProgram,'uTime')},
+        post:{scene:gl.getUniformLocation(postProgram,'uScene'),size:gl.getUniformLocation(postProgram,'uSize'),time:gl.getUniformLocation(postProgram,'uTime'),bloom:gl.getUniformLocation(postProgram,'uBloom')}
+      };
       screenVao=gl.createVertexArray();geometryUpload();resize();canvas.classList.add('mi-ready');wrap.classList.add('mi-webgl-active');return true;
     }
     function draw(now){
@@ -241,15 +247,15 @@
       const cam=[19.5+Math.sin(t*.09)*1.7+smoothed[0]*2.6,14.5+smoothed[1]*2,21.5+Math.cos(t*.09)*2];
       const pv=mul(perspective(Math.PI/4,w/h,.1,95),viewMatrix(cam,[0,2.5,0]));
       gl.bindFramebuffer(gl.FRAMEBUFFER,fb);gl.viewport(0,0,w,h);gl.disable(gl.DEPTH_TEST);gl.useProgram(skyProgram);gl.bindVertexArray(screenVao);
-      gl.uniform1f(gl.getUniformLocation(skyProgram,'uTime'),t);gl.drawArrays(gl.TRIANGLES,0,3);
+      gl.uniform1f(shaderLoc.sky.time,t);gl.drawArrays(gl.TRIANGLES,0,3);
       gl.enable(gl.DEPTH_TEST);gl.depthFunc(gl.LESS);gl.clear(gl.DEPTH_BUFFER_BIT);
       gl.useProgram(sceneProgram);gl.bindVertexArray(vao);
-      gl.uniformMatrix4fv(gl.getUniformLocation(sceneProgram,'uPV'),false,pv);gl.uniform3fv(gl.getUniformLocation(sceneProgram,'uEye'),cam);
-      gl.uniform1f(gl.getUniformLocation(sceneProgram,'uTime'),t);gl.drawArrays(gl.TRIANGLES,0,count);
+      gl.uniformMatrix4fv(shaderLoc.scene.pv,false,pv);gl.uniform3fv(shaderLoc.scene.eye,cam);
+      gl.uniform1f(shaderLoc.scene.time,t);gl.drawArrays(gl.TRIANGLES,0,count);
       gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.disable(gl.DEPTH_TEST);gl.viewport(0,0,w,h);gl.useProgram(postProgram);gl.bindVertexArray(screenVao);
-      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbColor);gl.uniform1i(gl.getUniformLocation(postProgram,'uScene'),0);
-      gl.uniform2f(gl.getUniformLocation(postProgram,'uSize'),w,h);gl.uniform1f(gl.getUniformLocation(postProgram,'uTime'),t);
-      gl.uniform1f(gl.getUniformLocation(postProgram,'uBloom'),QUALITY[tier].glow);gl.drawArrays(gl.TRIANGLES,0,3);
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,fbColor);gl.uniform1i(shaderLoc.post.scene,0);
+      gl.uniform2f(shaderLoc.post.size,w,h);gl.uniform1f(shaderLoc.post.time,t);
+      gl.uniform1f(shaderLoc.post.bloom,QUALITY[tier].glow);gl.drawArrays(gl.TRIANGLES,0,3);
       gl.bindVertexArray(null);
     }
     function enabled(){return Boolean(gl&&visible&&!doc.hidden&&!modal?.open&&tier!=='static');}
