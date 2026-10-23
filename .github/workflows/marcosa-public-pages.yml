@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           node --check site/network.js
           node --test tests/film_kit.test.cjs
+          python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
           test -s dist/index.html
