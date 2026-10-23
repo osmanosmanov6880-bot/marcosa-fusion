@@ -50,6 +50,9 @@ jobs:
 
   publish:
     needs: verify-and-build
+    # GitHub Pages requires a one-time Settings > Pages enablement.
+    # Keep builds green until the owner explicitly enables the Pages preview.
+    if: vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment:
