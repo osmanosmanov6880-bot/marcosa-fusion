@@ -8,6 +8,13 @@ on:
       - "tests/**"
       - "tools/build_webroot.py"
       - ".github/workflows/marcosa-public-pages.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "tests/**"
+      - "tools/build_webroot.py"
+      - ".github/workflows/marcosa-public-pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -55,7 +62,7 @@ jobs:
     needs: verify-and-build
     # GitHub Pages requires a one-time Settings > Pages enablement.
     # Keep builds green until the owner explicitly enables the Pages preview.
-    if: vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
+    if: github.event_name != 'pull_request' && vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment:
