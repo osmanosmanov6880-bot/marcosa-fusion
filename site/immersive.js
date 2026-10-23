@@ -198,6 +198,7 @@
     const nav=win.navigator||{};const reduced=win.matchMedia?.('(prefers-reduced-motion: reduce)').matches||false;
     const saveData=nav.connection?.saveData===true;
     const profile={width:win.innerWidth,cores:nav.hardwareConcurrency||0,memory:nav.deviceMemory||0,reducedMotion:reduced,saveData};
+    if(saveData)wrap.classList.add('mi-save-data');
     let mode='auto',tier=chooseQuality(profile),gl=null,sceneProgram,skyProgram,postProgram,vbo,vao,screenVao,fb,fbColor,depth,count=0;
     let shaderLoc=null; const geometryCache=new Map();
     let active=false,visible=true,raf=0,last=0,frames=[],bench=null,lastReport=null,resizeObserver=null,glError=null,failures=0;
