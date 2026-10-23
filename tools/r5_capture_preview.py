@@ -17,24 +17,36 @@ CHROME=next((p for n in ("google-chrome","google-chrome-stable","chromium","chro
              if (p:=shutil.which(n))),None)
 FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js")
 
-def hook(mode:str)->str:
+def hook(mode:str)->tuple[str,str]:
+    # Instead of JS scrollIntoView (which can produce a blank headless snapshot
+    # under virtual time), present the true component at the top of a *temporary
+    # screenshot copy*. No styles in the production app are modified.
     if mode=="hero":
-        script="window.scrollTo(0,0);"
+        script=""
+        styles=""
     elif mode=="scene":
-        script="document.getElementById('ms-stage').scrollIntoView({block:'start',behavior:'instant'});"
+        script=""
+        styles="""header.ms-topbar,.ms-hero,.ms-ticker,.ms-stories,
+            .ms-values,.ms-studio,.ms-privacy,.ms-footer{display:none!important}
+            .ms-stage{margin:14px auto!important;max-width:1320px!important}"""
     elif mode=="ending":
         script="""
           document.querySelector('[data-story-id="signal"]').click();
           document.querySelector('#ms-choices .ms-choice').click();
           document.querySelector('#ms-choices .ms-choice').click();
-          document.getElementById('ms-stage').scrollIntoView({block:'start',behavior:'instant'});
         """
+        styles="""header.ms-topbar,.ms-hero,.ms-ticker,.ms-stories,
+            .ms-values,.ms-studio,.ms-privacy,.ms-footer{display:none!important}
+            .ms-stage{margin:14px auto!important;max-width:1320px!important}"""
     elif mode=="creator":
-        script="document.getElementById('ms-studio').scrollIntoView({block:'start',behavior:'instant'});"
+        script=""
+        styles="""header.ms-topbar,.ms-hero,.ms-ticker,.ms-stories,.ms-stage,
+            .ms-values,.ms-privacy,.ms-footer{display:none!important}
+            .ms-studio{margin:0 auto!important;padding-top:18px!important}"""
     else:
         raise ValueError(mode)
-    return "<script>window.addEventListener('load',function(){setTimeout(function(){"+script+"},600);});</script>"
-
+    js="<script>window.addEventListener('load',function(){setTimeout(function(){"+script+"},350);});</script>"
+    return js,"<style>"+styles+"</style>"
 def main()->None:
     if not CHROME:
         print("R5 browser visual QA SKIP: Chrome binary not available")
@@ -56,7 +68,9 @@ def main()->None:
             shutil.copyfile(DIST/name,here/name)
         base=(here/"stories.html").read_text(encoding="utf-8")
         for label,width,height,mode in cases:
-            (here/"capture.html").write_text(base.replace("</body>",hook(mode)+"</body>"),encoding="utf-8")
+            js,styles=hook(mode)
+            custom=base.replace("</head>",styles+"</head>").replace("</body>",js+"</body>")
+            (here/"capture.html").write_text(custom,encoding="utf-8")
             png=OUTPUT/(label+".png")
             cmd=[CHROME,"--headless=new","--no-sandbox","--disable-dev-shm-usage",
                  "--allow-file-access-from-files","--disable-background-networking",
@@ -68,7 +82,7 @@ def main()->None:
             except subprocess.TimeoutExpired:
                 reports.append({"case":label,"status":"timeout"})
                 continue
-            if not png.is_file() or png.stat().st_size<1024:
+            if not png.is_file() or png.stat().st_size<(14000 if width>700 else 7500):
                 reports.append({"case":label,"status":"missing","exit":done.returncode})
                 continue
             raw=png.read_bytes()
