@@ -4,17 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060b19">
-  <meta name="description" content="MARCOSA R8 Creator Engine — local interactive story editor with two choices, four real branching endings, strict JSON export/import, and no tracking or publication.">
-  <title>MARCOSA — Creator Engine R8</title>
+  <meta name="description" content="MARCOSA R9 Creator Engine — original branching stories, local revision history, human review handoff, and no automatic publication.">
+  <title>MARCOSA — Creator Engine R9 · Local Project Vault</title>
   <link rel="stylesheet" href="./creator.css">
   <script src="./creator.js" defer></script>
+  <script src="./creator-vault.js" defer></script>
 </head>
 <body class="mc-body">
 <div class="mc-shell">
   <header class="mc-header">
     <a class="mc-brand" href="./index.html" aria-label="MARCOSA — главная">
       <span class="mc-monogram" aria-hidden="true">M</span>
-      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R8</small></span>
+      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R9</small></span>
     </a>
     <div class="mc-top-actions">
       <nav class="mc-language" aria-label="Интерфейс / Interface language">
@@ -30,10 +31,10 @@
   <main>
     <section class="mc-hero" aria-labelledby="mc-main-title">
       <div class="mc-hero-content">
-        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R8</span></p>
+        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R9</span></p>
         <h1 id="mc-main-title" data-mc-text="heading">Твоя история. Четыре разных финала.</h1>
-        <p class="mc-hero-description" data-mc-text="intro">Напиши собственный сюжет с двумя решениями и четырьмя финалами. Проверь развилки в плеере справа и выгрузи готовый JSON-черновик.</p>
-        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span></div>
+        <p class="mc-hero-description" data-mc-text="intro">Напиши историю с четырьмя финалами. Сохраняй версии в локальном архиве, сравнивай изменения и готовь JSON для независимой проверки.</p>
+        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span><span>R9 / PROJECT VAULT</span></div>
         <p class="mc-hero-disclaimer"><span class="mc-crimson-pip" aria-hidden="true"></span><span data-mc-text="prototype">ЛОКАЛЬНЫЙ ПРОТОТИП · НЕ ПУБЛИКУЕТСЯ</span></p>
       </div>
       <div class="mc-hero-visual" aria-hidden="true">
@@ -41,7 +42,7 @@
         <span class="mc-orbit mc-orbit-two"></span>
         <span class="mc-orbit mc-orbit-three"></span>
         <span class="mc-hero-core">M<i>✦</i></span>
-        <span class="mc-axis mc-axis-top">STORY SYSTEM / 8.0</span>
+        <span class="mc-axis mc-axis-top">STORY SYSTEM / 9.0</span>
         <span class="mc-axis mc-axis-bottom">CREATE · TEST · EXPORT</span>
       </div>
     </section>
@@ -83,7 +84,7 @@
         <div class="mc-visual-stage" aria-hidden="true">
           <span class="mc-stage-sky"></span><span class="mc-stage-lines"></span>
           <span class="mc-stage-tower"></span><span class="mc-stage-light"></span>
-          <span class="mc-stage-caption">THE STORY IS YOURS / 8.0</span>
+          <span class="mc-stage-caption">THE STORY IS YOURS / 9.0</span>
         </div>
         <div class="mc-story-player" id="mc-play-card" data-step="0">
           <div class="mc-player-top">
@@ -115,8 +116,78 @@
         <p class="mc-dirty" id="mc-dirty" hidden>● <span data-mc-text="statusDirty">Текст изменён. Обнови предпросмотр перед экспортом.</span></p>
       </aside>
     </section>
+
+    <section class="mc-vault-section" id="mc-vault" aria-labelledby="mc-vault-heading">
+      <header class="mc-vault-heading">
+        <div>
+          <p class="mc-panel-eyebrow">03 / AUTHOR WORKSPACE · R9</p>
+          <h2 id="mc-vault-heading" data-mcv-text="section">ЛОКАЛЬНЫЙ АРХИВ ПРОЕКТОВ</h2>
+          <p data-mcv-text="intro">Создавай несколько историй, сохраняй версии вручную, сравнивай изменения и передавай JSON на независимую проверку. Данные остаются в этом браузере.</p>
+        </div>
+        <span class="mc-vault-chip" data-mcv-text="storage">ТОЛЬКО ЭТО УСТРОЙСТВО</span>
+      </header>
+
+      <div class="mc-vault-main">
+        <section class="mc-vault-card mc-save-card" aria-labelledby="mc-save-heading">
+          <div class="mc-vault-card-head">
+            <div><p class="mc-panel-eyebrow">LOCAL / VERSION CONTROL</p><h3 id="mc-save-heading" data-mcv-text="save">СОХРАНИТЬ НОВУЮ ВЕРСИЮ</h3></div>
+            <span class="mc-vault-hint" data-mcv-text="limit">До 8 проектов · 15 редакций в каждом</span>
+          </div>
+          <div class="mc-vault-fields">
+            <label class="mc-vault-field">
+              <span data-mcv-text="saveTitle">НАЗВАНИЕ ПРОЕКТА</span>
+              <input id="mc-project-name" type="text" minlength="4" maxlength="100" required autocomplete="off" placeholder="Город последнего сигнала">
+            </label>
+            <label class="mc-vault-field">
+              <span data-mcv-text="noteTitle">ЧТО ИЗМЕНИЛОСЬ</span>
+              <input id="mc-version-note" type="text" maxlength="140" autocomplete="off" placeholder="Например: улучшены финалы и диалоги">
+            </label>
+          </div>
+          <div class="mc-vault-action-row">
+            <button type="button" class="mc-btn mc-btn-primary" id="mc-save-revision" data-mcv-text="save">СОХРАНИТЬ НОВУЮ ВЕРСИЮ</button>
+            <button type="button" class="mc-btn mc-btn-quiet" id="mc-create-project" data-mcv-text="fork">НОВЫЙ ПРОЕКТ ИЗ ТЕКСТА</button>
+          </div>
+          <p class="mc-vault-status" id="mc-vault-feedback" role="status" aria-live="polite"></p>
+          <div class="mc-vault-caution"><span aria-hidden="true">◇</span><p data-mcv-text="warning">Это не облачная копия. Очистка данных сайта или другой браузер могут уничтожить версии. Не сохраняй конфиденциальные материалы. Скачивай резервный JSON.</p></div>
+        </section>
+
+        <section class="mc-vault-card mc-projects-card" aria-labelledby="mc-projects-heading">
+          <div class="mc-vault-card-head">
+            <div><p class="mc-panel-eyebrow">LOCAL / MULTI PROJECT</p><h3 id="mc-projects-heading" data-mcv-text="projects">СОХРАНЁННЫЕ ПРОЕКТЫ</h3></div>
+            <span class="mc-vault-hint" data-mcv-text="limit">До 8 проектов · 15 редакций в каждом</span>
+          </div>
+          <div class="mc-project-list" id="mc-project-list" aria-live="polite"><p class="mc-vault-empty">Загрузка локального архива…</p></div>
+        </section>
+
+        <section class="mc-vault-card mc-history-card" aria-labelledby="mc-history-heading">
+          <div class="mc-vault-card-head">
+            <div><p class="mc-panel-eyebrow">LOCAL / REVISION HISTORY</p><h3 id="mc-history-heading" data-mcv-text="versions">ИСТОРИЯ ВЕРСИЙ</h3></div>
+            <button id="mc-delete-project" class="mc-vault-button mc-vault-danger" type="button" disabled data-mcv-text="remove">УДАЛИТЬ ПРОЕКТ</button>
+          </div>
+          <div class="mc-project-list" id="mc-version-list"><p class="mc-vault-empty" data-mcv-text="none">Выбери проект, чтобы увидеть версии.</p></div>
+          <div class="mc-revision-diff" id="mc-revision-diff" aria-live="polite"></div>
+        </section>
+
+        <section class="mc-vault-card mc-review-card" aria-labelledby="mc-review-heading">
+          <div class="mc-vault-card-head">
+            <div><p class="mc-panel-eyebrow">MANUAL / PRE-PUBLICATION GATE</p><h3 id="mc-review-heading" data-mcv-text="review">ПАКЕТ НА РУЧНУЮ МОДЕРАЦИЮ</h3></div>
+            <span class="mc-vault-hint" id="mc-current-version">—</span>
+          </div>
+          <p class="mc-review-lead" data-mcv-text="reviewLead">Чек-лист автора — не одобрение редактора. Проверку прав, безопасности и разрешение на публикацию должен выполнить независимый человек.</p>
+          <div class="mc-review-checks" id="mc-review-checks">
+            <label class="mc-vault-check"><input type="checkbox" id="mc-review-authorship"><span data-mcv-text="rights">Я автор материала или имею право использовать его.</span></label>
+            <label class="mc-vault-check"><input type="checkbox" id="mc-review-sponsorship"><span data-mcv-text="sponsor">Я проверил, что реклама/спонсорство обозначены явно, если они есть.</span></label>
+            <label class="mc-vault-check"><input type="checkbox" id="mc-review-editorial"><span data-mcv-text="editorial">Я вычитал тексты и проверил все четыре финала.</span></label>
+            <label class="mc-vault-check"><input type="checkbox" id="mc-review-privacy"><span data-mcv-text="privacy">Я проверил, что в тексте нет личных или секретных данных.</span></label>
+          </div>
+          <span class="mc-review-unsaved" id="mc-unsaved-label" hidden data-mcv-text="modified">Несохранённые изменения</span>
+          <button type="button" id="mc-export-review" class="mc-btn mc-btn-outline mc-export-review" disabled data-mcv-text="export">ЭКСПОРТ ПАКЕТА ДЛЯ ПРОВЕРКИ</button>
+          <p class="mc-vault-caveat" data-mcv-text="reviewFoot">Экспорт не публикует историю. Независимая проверка прав, редактура и ручное разрешение остаются обязательными.</p>
+        </section>
+      </div>
+    </section>
   </main>
-  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R8</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
+  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R9</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
 </div>
 </body>
 </html>

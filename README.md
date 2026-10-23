@@ -118,7 +118,23 @@ Every R5 story ending can be copied as a public fragment link containing only it
 - Local import/export of a strict **marcosa-original-story/v1** JSON document. Import is capped at 128 KiB; unknown fields and fake publication status are rejected.
 - Export requires fresh attestations of story rights and clear sponsorship disclosure where applicable. Neither represents independent approval.
 - Interfaces in RU, EN and Chinese, accessible input/choice controls, responsive player and reduced-motion support.
-- Zero user accounts, tracking, payments, cloud storage or automatic publication. **The browser tab is not persistent storage:** download the JSON to keep your draft.
+- Zero user accounts, tracking, payments, cloud storage or automatic publication. **The standalone R8 editor tab is not persistent storage:** download the JSON to keep your draft, or opt into the R9 on-device version archive.
 - [Creator technical and rights documentation](docs/ORIGINAL_STORY_CREATOR_R8_RU.md), [creator Node regression tests](tests/creator.test.cjs) and [Chromium desktop/mobile acceptance](tools/r5_browser_smoke.py).
 
-Only the standalone stateless public preview is extended. Original authenticated MARCOSA, Contabo production, Stripe and Supabase are untouched.
+Only the standalone public preview is extended. Original authenticated MARCOSA, Contabo production, Stripe and Supabase are untouched.
+
+## R9 — Local Project Vault, versioning and review handoff
+
+The public Creator Engine now includes a **deliberate, device-local project archive** based on IndexedDB (not cloud storage, not a login or a publishing system). It supports:
+
+- Up to **8 separate story projects**, up to **15 rolling immutable revisions** each. Saving is explicit; no autosave or network calls.
+- Restore an older revision into the editor, compare the changed writing fields with the previous revision and save the result as the next revision. Old snapshots are not edited in place.
+- Detect two-tab stale-write conflicts in one IndexedDB readwrite transaction; a conflicting save fails rather than erasing someone else's version.
+- Prepare an independent-human-review **JSON handoff** only from the latest saved matching story when all four author checks are complete. The export is *not* an approval, publication or submission to any server. Legal and editorial verification stay false in the output.
+- Delete a whole local project with explicit confirmation. Drafts are **not encrypted by this application**, and clearing browser site data deletes them. Download separate JSON backups using R8's editor.
+- Browser interaction QA now exercises actual IndexedDB (desktop and mobile Chromium via localhost); tests also cover invalid data, tampered review flags and the 15-revision cap.
+
+Documentation: [R9 architecture, privacy and review boundaries](docs/LOCAL_PROJECT_VAULT_R9_RU.md), [revision/security tests](tests/vault.test.cjs), and [browser workflow](tools/r9_cdp_smoke.cjs).
+
+**Important:** This is still the *public static preview*, not the authenticated production MARCOSA. No real moderator queues, live published author stories, contracts, commerce or existing user accounts were introduced.
+
