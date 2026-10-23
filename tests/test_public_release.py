@@ -66,6 +66,7 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertEqual(files, {
             "index.html", "network.css", "network.js",
             "immersive.css", "immersive.js",
+            "stories.html", "stories.css", "stories.js",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
