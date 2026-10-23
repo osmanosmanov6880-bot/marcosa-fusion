@@ -53,6 +53,7 @@ jobs:
           test -s dist/network.css
           test -s dist/immersive.js
           test -s dist/immersive.css
+          python tools/r4_browser_smoke.py
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
