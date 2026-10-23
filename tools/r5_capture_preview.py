@@ -15,7 +15,7 @@ DIST=ROOT/"dist"
 OUTPUT=ROOT/"qa-r5"
 CHROME=next((p for n in ("google-chrome","google-chrome-stable","chromium","chromium-browser")
              if (p:=shutil.which(n))),None)
-FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js","creator.html","creator.css","creator.js","creator-vault.js")
+FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js","creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js")
 
 def hook(mode:str)->tuple[str,str]:
     # Instead of JS scrollIntoView (which can produce a blank headless snapshot
@@ -71,7 +71,9 @@ def main()->None:
         ("desktop-r8-story-editor",1440,900,"r8-workspace"),
         ("mobile-r8-story-player",390,844,"r8-workspace"),
         ("desktop-r9-project-vault",1440,900,"r9-vault"),
-        ("mobile-r9-review-gates",390,844,"r9-vault")
+        ("mobile-r9-review-gates",390,844,"r9-vault"),
+        ("desktop-r10-vault-backup",1440,900,"r9-vault"),
+        ("mobile-r10-backup-actions",390,844,"r9-vault")
     ]
     reports=[]
     with tempfile.TemporaryDirectory(prefix="marcosa-r5-visual-") as temp:
@@ -107,7 +109,7 @@ def main()->None:
             reports.append({"case":label,"status":"captured","width":w,"height":h,"bytes":len(raw)})
     (OUTPUT/"summary.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("R5 visual captures:",reports)
-    if len([x for x in reports if x["status"]=="captured"])<9:
+    if len([x for x in reports if x["status"]=="captured"])<11:
         raise SystemExit("R5 critical browser snapshots missing")
 
 if __name__=="__main__":
