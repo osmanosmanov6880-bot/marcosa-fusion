@@ -36,13 +36,16 @@ jobs:
         run: |
           set -euo pipefail
           node --check site/network.js
-          node --test tests/film_kit.test.cjs
+          node --check site/immersive.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
           test -s dist/index.html
           test -s dist/network.js
           test -s dist/network.css
+          test -s dist/immersive.js
+          test -s dist/immersive.css
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
