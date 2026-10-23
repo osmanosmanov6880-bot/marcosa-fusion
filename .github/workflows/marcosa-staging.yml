@@ -20,6 +20,8 @@ concurrency:
 
 jobs:
   build:
+    # Public repositories use the separate Pages build. Never enter SSH staging here.
+    if: github.event.repository.private == true
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
