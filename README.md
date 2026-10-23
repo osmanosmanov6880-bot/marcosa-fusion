@@ -1,6 +1,6 @@
-# MARCOSA FUSION · Network OS R2
+# MARCOSA FUSION · Network OS R4
 
-**Public source release — 23 October 2026. R3 cinematic graphics layer (WebGL2 + CSS fallback).**
+**Public source release — 23 October 2026. R4 architectural materials, procedural animation, efficient bloom and an on-device GPU/RAF test.**
 
 An open, stateless preview of the MARCOSA discovery layer: 16 independent source-backed products, a catalogue, a 43-film-domain inventory template and browser-only promotional planning. **Not** a replacement for the authenticated MARCOSA platform, Supabase data, or an operational advertising exchange.
 
@@ -63,3 +63,15 @@ The standalone public preview now includes procedural digital-city architecture 
 To test locally: `python3 -m http.server 8765 -d site`, open the preview, then expand **DEVICE PERFORMANCE LAB**. See [R3 performance guide](docs/CINEMATIC_R3_QUALITY.md).
 
 Source: `site/immersive.js`, `site/immersive.css`, `tests/immersive.test.cjs`. The 16-product catalogue, rights checks and export flows are preserved from R2.
+
+## R4 — Lumen District / material and post-processing engine
+
+R4 builds directly on the source of the R3 scene. It adds architecture refinements, animated aerial lights, GGX-based physically inspired lighting with roughness, Fresnel, subtle procedural surface detail and height fog. Quarter-resolution separable bloom replaces expensive full-resolution blur. Adaptive pixel budgets prevent uncontrolled memory growth on high-DPI screens; ECO renders without bloom.
+
+The **Device Performance Lab** reports observed RAF frame-delivery FPS/p50/p95/jank and, when supported by the browser, optional asynchronous GPU timer-query p50/p95. It also records canvas resolution, adaptive scale, triangles and draw calls. No telemetry is transmitted. The targets in the UI are **not actual measured results**.
+
+- [R4 implementation details and real-device acceptance protocol](docs/CINEMATIC_R4_MATERIALS_GPU_QA.md)
+- [R4 regression tests](tests/r4_graphics.test.cjs) and [offline Chromium WebGL2 initialization check](tools/r4_browser_smoke.py)
+- Local preview: `python3 -m http.server 8765 -d site` and open `http://127.0.0.1:8765`.
+
+**What is not established:** FPS on your physical laptop/phone, genuine production traffic or changes to the authenticated `marcosa.club`. GitHub Actions uses a hosted runner and, when Chrome is available, an offscreen software renderer; this does **not** substitute for real-device GPU benchmarking.
