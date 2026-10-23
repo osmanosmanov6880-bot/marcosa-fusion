@@ -4,18 +4,19 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060b19">
-  <meta name="description" content="MARCOSA R9 Creator Engine — original branching stories, local revision history, human review handoff, and no automatic publication.">
-  <title>MARCOSA — Creator Engine R9 · Local Project Vault</title>
+  <meta name="description" content="MARCOSA R10 Creator Engine — original branching stories, local revision history, human review handoff, and no automatic publication.">
+  <title>MARCOSA — Creator Engine R10 · Local Project Vault</title>
   <link rel="stylesheet" href="./creator.css">
   <script src="./creator.js" defer></script>
   <script src="./creator-vault.js" defer></script>
+  <script src="./creator-backup.js" defer></script>
 </head>
 <body class="mc-body">
 <div class="mc-shell">
   <header class="mc-header">
     <a class="mc-brand" href="./index.html" aria-label="MARCOSA — главная">
       <span class="mc-monogram" aria-hidden="true">M</span>
-      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R9</small></span>
+      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R10</small></span>
     </a>
     <div class="mc-top-actions">
       <nav class="mc-language" aria-label="Интерфейс / Interface language">
@@ -31,10 +32,10 @@
   <main>
     <section class="mc-hero" aria-labelledby="mc-main-title">
       <div class="mc-hero-content">
-        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R9</span></p>
+        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R10</span></p>
         <h1 id="mc-main-title" data-mc-text="heading">Твоя история. Четыре разных финала.</h1>
         <p class="mc-hero-description" data-mc-text="intro">Напиши историю с четырьмя финалами. Сохраняй версии в локальном архиве, сравнивай изменения и готовь JSON для независимой проверки.</p>
-        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span><span>R9 / PROJECT VAULT</span></div>
+        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span><span>R10 / PROJECT VAULT</span></div>
         <p class="mc-hero-disclaimer"><span class="mc-crimson-pip" aria-hidden="true"></span><span data-mc-text="prototype">ЛОКАЛЬНЫЙ ПРОТОТИП · НЕ ПУБЛИКУЕТСЯ</span></p>
       </div>
       <div class="mc-hero-visual" aria-hidden="true">
@@ -120,7 +121,7 @@
     <section class="mc-vault-section" id="mc-vault" aria-labelledby="mc-vault-heading">
       <header class="mc-vault-heading">
         <div>
-          <p class="mc-panel-eyebrow">03 / AUTHOR WORKSPACE · R9</p>
+          <p class="mc-panel-eyebrow">03 / AUTHOR WORKSPACE · R10</p>
           <h2 id="mc-vault-heading" data-mcv-text="section">ЛОКАЛЬНЫЙ АРХИВ ПРОЕКТОВ</h2>
           <p data-mcv-text="intro">Создавай несколько историй, сохраняй версии вручную, сравнивай изменения и передавай JSON на независимую проверку. Данные остаются в этом браузере.</p>
         </div>
@@ -184,10 +185,34 @@
           <button type="button" id="mc-export-review" class="mc-btn mc-btn-outline mc-export-review" disabled data-mcv-text="export">ЭКСПОРТ ПАКЕТА ДЛЯ ПРОВЕРКИ</button>
           <p class="mc-vault-caveat" data-mcv-text="reviewFoot">Экспорт не публикует историю. Независимая проверка прав, редактура и ручное разрешение остаются обязательными.</p>
         </section>
+
+        <section class="mc-vault-card mc-backup-card" id="mc-backup" aria-labelledby="mc-backup-heading">
+          <div class="mc-vault-card-head">
+            <div>
+              <p class="mc-panel-eyebrow">BACKUP / OFFLINE RECOVERY · R10</p>
+              <h3 id="mc-backup-heading" data-mcb-text="title">РЕЗЕРВНАЯ КОПИЯ АРХИВА</h3>
+            </div>
+            <span class="mc-vault-hint">LOCAL JSON · ≤ 2 MiB</span>
+          </div>
+          <p class="mc-review-lead" data-mcb-text="intro">Скачай все локальные проекты со всеми сохранёнными редакциями в одном JSON. Восстановление бережно объединяет архивы и никогда не перезаписывает существующую историю.</p>
+          <div class="mc-backup-actions">
+            <button id="mc-backup-download" type="button" class="mc-btn mc-btn-primary" data-mcb-text="export">СКАЧАТЬ ВСЕ ПРОЕКТЫ</button>
+            <label class="mc-btn mc-btn-outline mc-upload">
+              <span data-mcb-text="import">ВОССТАНОВИТЬ АРХИВ JSON</span>
+              <input type="file" id="mc-backup-file" accept=".json,application/json" aria-label="Restore MARCOSA full vault JSON backup">
+            </label>
+          </div>
+          <p class="mc-backup-feedback" id="mc-backup-feedback" role="status" aria-live="polite"></p>
+          <div class="mc-vault-caution">
+            <span aria-hidden="true">◇</span>
+            <p data-mcb-text="warning">Файл содержит полные тексты историй и НЕ зашифрован. Храни в безопасном месте, не отправляй посторонним. Копия не означает публикацию или проверку авторских прав.</p>
+          </div>
+          <p class="mc-vault-caveat" data-mcb-text="help">Полное резервное копирование работает только в этом браузере. Импорт ограничен 2 МБ и максимум 8 проектами.</p>
+        </section>
       </div>
     </section>
   </main>
-  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R9</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
+  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R10</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
 </div>
 </body>
 </html>
