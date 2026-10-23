@@ -3,7 +3,7 @@
    Does NOT connect to Supabase, track visitors, buy ads or publish sites. */
 (function (root, factory) {
   'use strict';
-  const api = factory();
+  const api = factory(root);
   if (typeof module === 'object' && module.exports) module.exports = api;
   if (root && root.document) {
     root.MarcosaNetworkPreview = api;
@@ -11,7 +11,7 @@
       root.document.addEventListener('DOMContentLoaded', function () { api.mount(root.document); }, { once: true });
     else api.mount(root.document);
   }
-})(typeof window !== 'undefined' ? window : undefined, function () {
+})(typeof window !== 'undefined' ? window : undefined, function (root) {
   'use strict';
   const rows = [
     ['PRD-001','ados-network','AdOS Network','adtech','v17.0.0','Пилотная рекламная сеть: кабинеты, инвентарь и управление размещениями.','Advertising inventory and placement workflows.'],
