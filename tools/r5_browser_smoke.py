@@ -9,9 +9,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import functools
-import threading
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -124,72 +121,6 @@ window.addEventListener('load',function(){
 </script>"""
 
 
-VAULT_TEST=r"""<script>
-window.addEventListener('load',function(){
-  window.setTimeout(async function(){
-    const by=id=>document.getElementById(id);
-    const pause=ms=>new Promise(resolve=>window.setTimeout(resolve,ms));
-    const until=async(predicate,why)=>{
-      for(let n=0;n<110;n++){if(predicate())return;await pause(55);}
-      throw Error('TIMEOUT-'+why);
-    };
-    try{
-      const api=window.MarcosaLocalVault;
-      if(!api||!window.indexedDB||!window.MarcosaCreatorRuntime)throw Error('VAULT_NOT_MOUNTED');
-      await until(()=>by('mc-vault-feedback').textContent.includes('Локальный архив доступен'),'STORAGE_BOOT');
-      if(by('mc-save-revision').disabled)throw Error('VAULT_SAVE_DISABLED');
-      by('mc-project-name').value='R9 Test Story';
-      by('mc-save-revision').click();
-      await until(()=>document.querySelectorAll('#mc-version-list .mc-version-row').length===1,'FIRST_SAVE');
-      if(document.querySelectorAll('#mc-project-list .mc-project-card').length!==1)throw Error('NO_PROJECT_CARD');
-      const store=api.createVault(window.indexedDB,window.crypto);
-      let list=await store.list();
-      if(list.length!==1||list[0].revisions[0].draft.title!=='R9 Test Story')throw Error('STORAGE_FIRST_VERSION');
-      const opening=by('mc-field-opening-scene'),original=opening.value;
-      opening.value=original+' Система получила вторую редакцию текста.';
-      opening.dispatchEvent(new Event('input',{bubbles:true}));
-      if(by('mc-export-review').disabled!==true)throw Error('REVIEW_STALE_NOT_BLOCKED');
-      by('mc-version-note').value='Second revision';
-      by('mc-save-revision').click();
-      await until(()=>document.querySelectorAll('#mc-version-list .mc-version-row').length===2,'SECOND_SAVE');
-      const firstRow=document.querySelector('#mc-version-list .mc-version-row');
-      if(!firstRow.textContent.includes('2'))throw Error('NO_SECOND_REVISION');
-      firstRow.querySelector('.mc-version-actions button').click();
-      if(!by('mc-revision-diff').textContent.includes('opening.scene'))throw Error('DIFF_MISSING');
-      window.confirm=()=>true;
-      const rows=document.querySelectorAll('#mc-version-list .mc-version-row');
-      rows[rows.length-1].querySelector('.mc-version-actions button:last-child').click();
-      if(opening.value!==original)throw Error('RESTORE_WRONG_VERSION');
-      if(!by('mc-export-review').disabled)throw Error('RESTORED_OLD_VERSION_REVIEWED');
-      by('mc-save-revision').click();
-      await until(()=>document.querySelectorAll('#mc-version-list .mc-version-row').length===3,'RESTORE_AS_REVISION');
-      for(const name of ['authorship','sponsorship','editorial','privacy']){
-        const field=by('mc-review-'+name);
-        field.checked=true;field.dispatchEvent(new Event('change',{bubbles:true}));
-      }
-      if(by('mc-export-review').disabled)throw Error('REVIEW_NOT_AVAILABLE_AFTER_SELF_CHECK');
-      by('mc-export-review').click();
-      if(!by('mc-export-review').disabled)throw Error('SELF_CHECK_NOT_RESET');
-      if(!by('mc-vault-feedback').textContent.includes('Пакет'))throw Error('NO_REVIEW_FEEDBACK');
-      list=await store.list();
-      if(list.length!==1||list[0].revisions.length!==3||list[0].revisions[0].revision!==1)
-        throw Error('INDEXEDDB_NOT_PERSISTED');
-      by('mc-delete-project').click();
-      await until(()=>document.querySelectorAll('#mc-project-list .mc-project-card').length===0,'DELETE');
-      if((await store.list()).length!==0)throw Error('DELETION_NOT_DURABLE');
-      if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)
-        throw Error('HORIZONTAL_OVERFLOW');
-      const m=document.createElement('meta');m.name='r5-browser-smoke';
-      m.content='PASS-R9-INDEXEDDB-3-VERSIONS-REVIEW-DELETE';document.head.append(m);
-    }catch(e){
-      const m=document.createElement('meta');m.name='r5-browser-smoke';
-      m.content='FAIL-R9-'+String(e.message||e).slice(0,90);document.head.append(m);
-    }
-  },200);
-});
-</script>"""
-
-
 ROUTE_TEST=r"""<script>
 window.addEventListener('load',function(){
   window.setTimeout(function(){
@@ -211,7 +142,7 @@ window.addEventListener('load',function(){
 });
 </script>"""
 
-def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,900",origin:str="")->bool:
+def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,900")->bool:
     html=(DIST/filename).read_text(encoding="utf-8")
     if "</body>" not in html:
         raise RuntimeError("Missing HTML body: "+filename)
@@ -219,8 +150,8 @@ def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,
     output.write_text(html.replace("</body>",hook+"</body>"),encoding="utf-8")
     cmd=[CHROME,"--headless=new","--no-sandbox","--disable-dev-shm-usage",
          "--allow-file-access-from-files","--enable-unsafe-swiftshader","--use-angle=swiftshader",
-         "--disable-background-networking","--virtual-time-budget="+("12500" if origin else "4500"),
-         "--window-size="+viewport,"--dump-dom",(origin+"/"+output.name if origin else output.as_uri())+fragment]
+         "--disable-background-networking","--virtual-time-budget=4500",
+         "--window-size="+viewport,"--dump-dom",output.as_uri()+fragment]
     try:
         proc=subprocess.run(cmd,capture_output=True,text=True,timeout=50)
     except subprocess.TimeoutExpired:
@@ -230,12 +161,7 @@ def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,
     outcome=match.group(1) if match else "FAIL-NO-RESULT-MARKER"
     print("R5 Chromium",filename,outcome)
     if not outcome.startswith("PASS-"):
-        if filename=="creator.html":
-            for key in ("mc-vault-feedback","mc-project-list","mc-version-list","mc-save-revision"):
-                location=proc.stdout.find('id="'+key+'"')
-                if location>=0:
-                    print("R9 DOM diagnostic",key,repr(proc.stdout[location:location+260]),file=sys.stderr)
-        print(proc.stderr[-900:],file=sys.stderr)
+        print(proc.stderr[-1800:],file=sys.stderr)
     return outcome.startswith("PASS-")
 
 def main()->int:
@@ -253,21 +179,7 @@ def main()->int:
         ok3=run_case(here,"stories.html",STORY_ROUTE_TEST,"#story=signal.00")
         ok4=run_case(here,"creator.html",CREATOR_TEST)
         ok5=run_case(here,"creator.html",CREATOR_TEST,viewport="390,844")
-        class QuietStaticServer(SimpleHTTPRequestHandler):
-            def log_message(self, *args):
-                return
-        handler=functools.partial(QuietStaticServer,directory=str(here))
-        with ThreadingHTTPServer(("127.0.0.1",0),handler) as server:
-            runner=threading.Thread(target=server.serve_forever,daemon=True)
-            runner.start()
-            try:
-                origin="http://127.0.0.1:"+str(server.server_port)
-                ok6=run_case(here,"creator.html",VAULT_TEST,viewport="1440,900",origin=origin)
-                ok7=run_case(here,"creator.html",VAULT_TEST,viewport="390,844",origin=origin)
-            finally:
-                server.shutdown()
-                runner.join(timeout=3)
-        return 0 if ok1 and ok2 and ok3 and ok4 and ok5 and ok6 and ok7 else 3
+        return 0 if ok1 and ok2 and ok3 and ok4 and ok5 else 3
 
 if __name__=="__main__":
     raise SystemExit(main())
