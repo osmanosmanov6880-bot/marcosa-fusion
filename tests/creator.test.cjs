@@ -13,7 +13,7 @@ test('R8 ships a real two-decision tree with four independent, coherent endings'
   assert.equal(creator.SCHEMA,'marcosa-original-story/v1');
   assert.equal(creator.normalizeDraft(original).schema,creator.SCHEMA);
   assert.equal(creator.SECTIONS.length,8);
-  assert.equal(creator.FIELDS.length,26);
+  assert.equal(creator.FIELDS.length,22);
   assert.equal(original.branches.length,2);
   assert.equal(original.endings.length,4);
   assert.equal(original.publication_state,'not_published');
