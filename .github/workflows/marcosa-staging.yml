@@ -20,8 +20,8 @@ concurrency:
 
 jobs:
   build:
-    # Public repositories use the separate Pages build. Never enter SSH staging here.
-    if: github.event.repository.private == true
+    # Build from reviewed main even when the source repository is public.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -30,8 +30,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Public source builds are permitted. VPS staging deploy stays
-          # disabled in public repositories regardless of secrets/variables.
+          # Public source build only: staging publication is a separate isolated job.
           test -f tools/build_webroot.py
           test -s site/index.html
           test -s site/network.js
@@ -80,7 +79,9 @@ jobs:
 
   deploy_staging:
     needs: build
-    if: github.event.repository.private == true && github.ref == 'refs/heads/main' && vars.MARCOSA_STAGING_ENABLED == 'true'
+    # Staging is permitted from trusted main only. Remote marker + non-root
+    # user + host pin enforce the actual release boundary, not repo visibility.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: marcosa-staging
@@ -94,6 +95,18 @@ jobs:
         run: |
           set -euo pipefail
           sha256sum -c marcosa-site.tar.gz.sha256
+      - name: Diagnose SSH and confirm remote staging readiness (read-only)
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          bash scripts/diagnose-staging-ssh.sh
+
       - name: Upload and atomically activate STAGING release
         shell: bash
         env:
@@ -132,3 +145,24 @@ jobs:
           scp "${SCP_ARGS[@]}" marcosa-site.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:marcosa-staging/incoming/$GITHUB_SHA.tar.gz"
           DIGEST="$(sha256sum marcosa-site.tar.gz | awk '{print $1}')"
           ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "bash -s -- $GITHUB_SHA $DIGEST" < scripts/activate-staging.sh
+          # Validate the active isolated symlink before reporting success.
+          if ! ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "sh -s -- $GITHUB_SHA" <<'VERIFY'
+          set -eu
+          SHA="$1"
+          ROOT="$HOME/marcosa-staging"
+          test "$(readlink "$ROOT/current")" = "releases/$SHA"
+          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css build-manifest.json; do
+            test -s "$ROOT/current/$name" || {
+              printf 'Missing staging asset: %s\n' "$name" >&2
+              exit 10
+            }
+          done
+          printf 'STAGING_VERIFIED_RELEASE=%s\n' "$SHA"
+          printf 'STAGING_LOCATION=%s\n' "$ROOT/current"
+          VERIFY
+          then
+            echo "::error title=Staging post-deploy verification failed::Attempting staging-only rollback."
+            ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/rollback-staging.sh || true
+            exit 1
+          fi
+          echo "::notice title=Isolated staging complete::Files are active under marcosa-deploy only. A public domain or production Nginx has NOT been changed."

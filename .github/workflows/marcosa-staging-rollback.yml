@@ -17,12 +17,23 @@ concurrency:
 
 jobs:
   rollback_staging:
-    if: github.event.repository.private == true && vars.MARCOSA_STAGING_ENABLED == 'true'
+    # Manual request only, on trusted main, isolated to marcosa-deploy staging.
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'ROLLBACK-STAGING'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: marcosa-staging
     steps:
       - uses: actions/checkout@v4
+      - name: Confirm SSH identity and staging marker (read only)
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+        run: |
+          bash scripts/diagnose-staging-ssh.sh
       - name: Verify intent and perform a staging-only rollback
         shell: bash
         env:
