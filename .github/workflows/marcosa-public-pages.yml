@@ -19,8 +19,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: marcosa-public-preview-pages
@@ -94,17 +92,41 @@ jobs:
 
   publish:
     needs: verify-and-build
-    # GitHub Pages requires a one-time Settings > Pages enablement.
-    # Keep builds green until the owner explicitly enables the Pages preview.
-    if: github.event_name != 'pull_request' && vars.MARCOSA_PUBLIC_PAGES_ENABLED == 'true'
+    # Public source deploys from trusted main, independently of SSH staging keys.
+    # Pages source must be enabled once in Settings > Pages > GitHub Actions.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Configure Pages (requires Pages enabled in repo settings)
+      - name: Configure Pages
+        id: configure
         uses: actions/configure-pages@v5
+        continue-on-error: true
+      - name: Explain one-time GitHub Pages setup
+        if: steps.configure.outcome == 'failure'
+        shell: bash
+        run: |
+          echo "::error title=GitHub Pages needs one-time enablement::Open Settings > Pages > Build and deployment > Source > GitHub Actions. No private key or SSH configuration is needed for the public preview."
+          exit 1
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Show deployment URL and release identity
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+          LIVE_URL: ${{ steps.deployment.outputs.page_url }}
+        run: |
+          echo "MARCOSA_PREVIEW_RELEASE_SHA=$RELEASE_SHA"
+          echo "MARCOSA_PUBLIC_URL=$LIVE_URL"
+          test -n "$LIVE_URL"
+      - name: Explain failed Pages upload (if any)
+        if: failure()
+        run: |
+          echo "::notice title=Pages troubleshooting::If this is the first deployment, select GitHub Actions as the Pages Source in repository Settings. Repository secret keys do not enable Pages."
