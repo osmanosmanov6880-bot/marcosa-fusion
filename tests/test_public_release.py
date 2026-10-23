@@ -21,19 +21,28 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertIn('id="mn-grid"', html)
         self.assertIn('id="mn-campaign-form"', html)
         self.assertIn('href="./network.css"', html)
+        self.assertIn('href="./immersive.css"', html)
+        self.assertIn('src="./immersive.js"', html)
+        self.assertIn('id="mi-world-canvas"', html)
+        self.assertIn('id="mi-benchmark"', html)
+        self.assertIn('id="mi-diagnostics"', html)
         self.assertIn('src="./network.js"', html)
         self.assertTrue((SITE / "network.css").is_file())
         self.assertTrue((SITE / "network.js").is_file())
+        self.assertTrue((SITE / "immersive.js").is_file())
+        self.assertTrue((SITE / "immersive.css").is_file())
 
     def test_public_frontend_no_private_backend_or_tracking_calls(self):
         js = (SITE / "network.js").read_text(encoding="utf-8")
         html = (SITE / "index.html").read_text(encoding="utf-8")
+        immersive = (SITE / "immersive.js").read_text(encoding="utf-8")
         for forbidden in (
             "service_role", "-----BEGIN", "sk-proj-", "ghp_",
             "XMLHttpRequest(", "navigator.sendBeacon(", "document.cookie",
             "localStorage.setItem(", "sessionStorage.setItem(",
         ):
             self.assertNotIn(forbidden, js)
+            self.assertNotIn(forbidden, immersive)
         self.assertNotIn("marcosa-supabase.js", html)
         self.assertNotIn("https://", js.split("const rows = ")[0])
 
@@ -50,6 +59,7 @@ class PublicPreviewTests(unittest.TestCase):
         files = {p.name for p in dist.iterdir() if p.is_file()}
         self.assertEqual(files, {
             "index.html", "network.css", "network.js",
+            "immersive.css", "immersive.js",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
