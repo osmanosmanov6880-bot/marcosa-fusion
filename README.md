@@ -1,31 +1,49 @@
-# MARCOSA FUSION — source, CI/CD and safe staging
+# MARCOSA FUSION · Network OS R2
 
-**Current status:** Initial GitHub Actions automation is committed. **No successful VPS SSH connection, staging upload or production release has been confirmed.** The complete MARCOSA R2 source has **not** been imported into this repository yet.
+**Public source release — 23 October 2026.**
 
-## First-time setup
+An open, stateless preview of the MARCOSA discovery layer: 16 independent source-backed products, a catalogue, a 43-film-domain inventory template and browser-only promotional planning. **Not** a replacement for the authenticated MARCOSA platform, Supabase data, or an operational advertising exchange.
 
-1. **Change this repository visibility to Private** before importing the original MARCOSA source.
-2. Prepare the `marcosa-deploy` user on the verified Contabo VPS, with **no sudo** and staging-only access.
-3. Verify that repository secrets are set: `MARCOSA_STAGING_HOST`, `MARCOSA_STAGING_USER`, `MARCOSA_SSH_KEY`, `MARCOSA_SSH_KNOWN_HOSTS`.
-4. In **Actions**, manually run **MARCOSA | Verify staging SSH (read-only)**. This only checks SSH and reports safe server paths.
-5. Import all individual source files from the private R2 starter distribution (`site/`, `tests/`, `tools/`), not a lone ZIP.
-6. Wait for **MARCOSA | Build, test and deploy STAGING** to pass its build/test stage.
-7. Only once the host, source and staging marker are verified, set repository **Variable** `MARCOSA_STAGING_ENABLED=true`.
+[Actions — verified build & tests](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/workflows/marcosa-staging.yml) · [Original integration HTML reference](reference/integrated-index-r2.html) · [Product strategy](docs/MASTER_STRATEGY_RU.md)
 
-## Included automation
+## Run the public preview
 
-| Component | Purpose |
+No dependencies or API keys are needed:
+
+```bash
+python3 -m http.server 8765 -d site
+```
+
+Open **http://127.0.0.1:8765/**. Click “Открыть Network OS”.
+
+The preview supports RU/EN/中文, searchable product cards, category filters, A/B ad-text drafts exported as JSON, offline film-domain CSV import and HTML/JSON draft generation. It performs no user tracking, payment collection, advertising publication or domain-ownership verification.
+
+## Public source contents
+
+| Location | Content |
 |---|---|
-| [SSH preflight](.github/workflows/marcosa-ssh-preflight.yml) | Manual read-only SSH check; refused for public repositories and root accounts |
-| [Staging build/deploy](.github/workflows/marcosa-staging.yml) | CI tests, static build, SHA-256 verification and atomic deployment under staging user's home |
-| [Staging rollback](.github/workflows/marcosa-staging-rollback.yml) | Manual, confirmation-gated switch back to previous staging release |
-| [Setup runbook](docs/CONTABO_STAGING_SETUP_RU.md) | Commands for Windows PowerShell, Linux, GitHub and troubleshooting |
+| `site/index.html` | Working standalone Network OS preview; **not** the original social app |
+| `site/network.js` / `site/network.css` | Public app logic and responsive premium styling |
+| `reference/integrated-index-r2.html` | Source-derived HTML from the original MARCOSA integration (requires original external frontend modules) |
+| `inventory/film-sites.csv` | 43 unverified film slots; no invented domains |
+| `docs/` | Strategy, product bible, audits, SSH setup |
+| `tests/` | Python release and Node.js catalogue/CSV/XSS tests |
+| `tools/build_webroot.py` | Deterministic, allowlisted static preview builder |
+| `.github/workflows/` | Public CI; staging SSH workflows remain restricted |
+| `scripts/` | Staging-only activation/rollback, not production deployment |
 
-## Safety commitments
+## CI result
 
-- Deploys **only** to `$HOME/marcosa-staging` as `marcosa-deploy`. Never deploys to `/opt/marcosa/current`, OSGARD servers or Supabase production data.
-- Does not bypass SSH host-key verification, run as root, collect server databases or modify Nginx.
-- Production deployment requires independent server/DNS verification, backups, content-rights checks, Supabase/RLS tests, a tested rollback and explicit separate configuration.
-- Standalone user products remain independent systems; this repository is for the MARCOSA hub and approved integration points.
+The build at [Actions run #39877019560](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/runs/39877019560) completed successfully: **5 Python tests**, **6 Node tests**, JS syntax check, reproducible static build, SHA-256 manifest and downloadable build artifact.
 
-**Do not place SSH private keys, credentials, backup archives, `.env` or database dumps in the Git repository.**
+### Deployment policy
+
+- This repository is **Public** by user choice. Public source CI is enabled.
+- Staging SSH deployment is **disabled** while the repository remains public, even if secrets are present, to prevent risky unattended releases.
+- No production files, Supabase schemas, authentication flows, messages, Worlds, DNS or OSGARD VPS were modified.
+- Production and any full original-source import require separate secret checks, permission/RLS assessment, live-file comparison, private backups and a tested rollback.
+- Do not commit private SSH keys, passwords, database dumps, `.env`, personal handwritten materials, access tokens or customers' data.
+
+**Scope honesty:** This public repository currently contains the isolated R2 Network OS preview and source references, not all 118 files of the original R2 starter. The full offline starter ZIP from the earlier conversation is a separate artifact; uploading it without redacting sensitive material is not recommended.
+
+[План развития MARCOSA](docs/MASTER_STRATEGY_RU.md) · [Пошаговое подключение Contabo](docs/CONTABO_STAGING_SETUP_RU.md)
