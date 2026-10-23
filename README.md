@@ -34,12 +34,12 @@ The preview supports RU/EN/中文, searchable product cards, category filters, A
 
 ## CI result
 
-The build at [Actions run #39877019560](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/runs/39877019560) completed successfully: **5 Python tests**, **6 Node tests**, JS syntax check, reproducible static build, SHA-256 manifest and downloadable build artifact.
+R7 [GitHub Actions run #40014378002](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/runs/40014378002) passed tests and published the public demo on GitHub Pages. R8 adds new creator functionality and regression/browser QA; future results should be checked in Actions rather than assumed. The generated preview remains distinct from the authenticated MARCOSA app.
 
 ### Deployment policy
 
 - This repository is **Public** by user choice. Public source CI is enabled.
-- Staging SSH deployment is **disabled** while the repository remains public, even if secrets are present, to prevent risky unattended releases.
+- Staging SSH deployment is restricted to trusted `main`, a dedicated non-root account, pinned verified host key, explicit environment and on-server approval marker. **As of 23 Oct 2026, the external SSH host-key pin mismatches and VPS staging has not been deployed.** GitHub Pages publication is independent of SSH.
 - No production files, Supabase schemas, authentication flows, messages, Worlds, DNS or OSGARD VPS were modified.
 - Production and any full original-source import require separate secret checks, permission/RLS assessment, live-file comparison, private backups and a tested rollback.
 - Do not commit private SSH keys, passwords, database dumps, `.env`, personal handwritten materials, access tokens or customers' data.
@@ -105,3 +105,20 @@ Use `Actions → MARCOSA | SSH preflight / safe connection check` to distinguish
 - [Optional local VPS staging bootstrap](scripts/bootstrap-staging.sh)
 
 **Explicit limit:** this deploys the public **stateless demonstration**, not the original authenticated `marcosa.club` application. It does not change production Nginx, Supabase, users, Worlds, or any other Contabo site. Staging files are not publicly available until a separately validated web-server route is configured.
+
+## R7 — Deep-linkable fictional endings
+
+Every R5 story ending can be copied as a public fragment link containing only its story ID and two choices. The receiving browser reconstructs the same ending and recommendation without an account or telemetry. The link strips query parameters and credentials. See [R7 design and privacy checks](docs/STORY_SHARING_R7_RU.md).
+
+## R8 — Original Story Creator Engine
+
+**New user-facing page:** [Open the creator editor](site/creator.html). Rather than only drafting a sponsorship brief, visitors can author a **real branching story** with 2 decisions, 2 individual second scenes and 4 original endings, then test every route interactively.
+
+- 22 bounded fields, grouped into 8 independently editable narrative sections; sample fictional story included.
+- Local import/export of a strict **marcosa-original-story/v1** JSON document. Import is capped at 128 KiB; unknown fields and fake publication status are rejected.
+- Export requires fresh attestations of story rights and clear sponsorship disclosure where applicable. Neither represents independent approval.
+- Interfaces in RU, EN and Chinese, accessible input/choice controls, responsive player and reduced-motion support.
+- Zero user accounts, tracking, payments, cloud storage or automatic publication. **The browser tab is not persistent storage:** download the JSON to keep your draft.
+- [Creator technical and rights documentation](docs/ORIGINAL_STORY_CREATOR_R8_RU.md), [creator Node regression tests](tests/creator.test.cjs) and [Chromium desktop/mobile acceptance](tools/r5_browser_smoke.py).
+
+Only the standalone stateless public preview is extended. Original authenticated MARCOSA, Contabo production, Stripe and Supabase are untouched.

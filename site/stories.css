@@ -146,7 +146,8 @@ button,input,select,textarea{font:inherit}button{cursor:pointer}a{color:inherit}
 .ms-studio-intro{padding:23px 10px 0 0}
 .ms-studio-intro h2{font:normal clamp(36px,3.8vw,59px)/1.09 Georgia,serif;letter-spacing:-.036em;margin:0 0 26px;max-width:510px;color:#f4e6cb}
 .ms-studio-intro>p:not(.ms-kicker){font-size:16px;line-height:1.8;color:#b2c4ca;max-width:480px}
-.ms-studio-sample{display:grid;gap:11px;margin-top:40px;max-width:325px}
+.ms-creator-link{display:inline-flex;max-width:345px;margin-top:15px;margin-bottom:8px}
+.ms-studio-sample{display:grid;gap:11px;margin-top:28px;max-width:325px}
 .ms-studio-sample span{font:700 11px ui-monospace,Consolas,monospace;letter-spacing:.11em;color:#a9e2d9;border:1px solid #69978e6a;padding:11px 15px;border-radius:6px;background:#17303b66}
 .ms-studio-sample span:nth-of-type(2){color:#e8d0a5;border-color:#a08e6666}
 .ms-studio-sample i{color:#d7c69b;font-size:21px;font-style:normal;line-height:.7;margin-left:20px}

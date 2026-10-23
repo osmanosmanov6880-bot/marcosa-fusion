@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#060b19">
+  <meta name="description" content="MARCOSA R8 Creator Engine — local interactive story editor with two choices, four real branching endings, strict JSON export/import, and no tracking or publication.">
+  <title>MARCOSA — Creator Engine R8</title>
+  <link rel="stylesheet" href="./creator.css">
+  <script src="./creator.js" defer></script>
+</head>
+<body class="mc-body">
+<div class="mc-shell">
+  <header class="mc-header">
+    <a class="mc-brand" href="./index.html" aria-label="MARCOSA — главная">
+      <span class="mc-monogram" aria-hidden="true">M</span>
+      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R8</small></span>
+    </a>
+    <div class="mc-top-actions">
+      <nav class="mc-language" aria-label="Интерфейс / Interface language">
+        <button type="button" data-mc-lang="ru" aria-pressed="true" class="active">RU</button>
+        <button type="button" data-mc-lang="en" aria-pressed="false">EN</button>
+        <button type="button" data-mc-lang="zh" aria-pressed="false">中文</button>
+      </nav>
+      <a class="mc-top-link" href="./stories.html" data-mc-text="stories">ИГРАТЬ В ИСТОРИИ</a>
+      <a class="mc-top-link mc-home" href="./index.html" data-mc-text="home">ГЛАВНАЯ</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="mc-hero" aria-labelledby="mc-main-title">
+      <div class="mc-hero-content">
+        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R8</span></p>
+        <h1 id="mc-main-title" data-mc-text="heading">Твоя история. Четыре разных финала.</h1>
+        <p class="mc-hero-description" data-mc-text="intro">Напиши собственный сюжет с двумя решениями и четырьмя финалами. Проверь развилки в плеере справа и выгрузи готовый JSON-черновик.</p>
+        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span></div>
+        <p class="mc-hero-disclaimer"><span class="mc-crimson-pip" aria-hidden="true"></span><span data-mc-text="prototype">ЛОКАЛЬНЫЙ ПРОТОТИП · НЕ ПУБЛИКУЕТСЯ</span></p>
+      </div>
+      <div class="mc-hero-visual" aria-hidden="true">
+        <span class="mc-orbit mc-orbit-one"></span>
+        <span class="mc-orbit mc-orbit-two"></span>
+        <span class="mc-orbit mc-orbit-three"></span>
+        <span class="mc-hero-core">M<i>✦</i></span>
+        <span class="mc-axis mc-axis-top">STORY SYSTEM / 8.0</span>
+        <span class="mc-axis mc-axis-bottom">CREATE · TEST · EXPORT</span>
+      </div>
+    </section>
+
+    <section class="mc-workspace" aria-label="Creator studio">
+      <div class="mc-editor" id="mc-editor">
+        <header class="mc-panel-head">
+          <div><p class="mc-panel-eyebrow">01 / AUTHORING</p><h2 data-mc-text="editor">РЕДАКТОР ИСТОРИИ</h2></div>
+          <span class="mc-panel-chip" data-mc-text="source">СТАРТОВАЯ ДЕМОНСТРАЦИЯ</span>
+        </header>
+        <p class="mc-editor-help" data-mc-text="fields">Заполни сцены и решения. Нажми «Обновить предпросмотр», чтобы применить изменения.</p>
+        <label class="mc-story-locale">
+          <span data-mc-text="language">ЯЗЫК ИСТОРИИ</span>
+          <select id="mc-story-language" aria-label="Story content language">
+            <option value="ru">Русский</option>
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+          </select>
+        </label>
+        <div class="mc-section-stack" id="mc-fields"></div>
+        <div class="mc-consent">
+          <label class="mc-check"><input type="checkbox" id="mc-rights"><span data-mc-text="rights">Подтверждаю право использовать этот текст. Независимая проверка прав ещё не проводилась.</span></label>
+          <label class="mc-check"><input type="checkbox" id="mc-disclose"><span data-mc-text="disclose">Обязуюсь явно обозначать спонсорство, если история будет рекламной.</span></label>
+        </div>
+        <div class="mc-editor-actions">
+          <button type="button" id="mc-apply" class="mc-btn mc-btn-primary" data-mc-text="apply">ОБНОВИТЬ ПРЕДПРОСМОТР</button>
+          <button type="button" id="mc-download" class="mc-btn mc-btn-outline" disabled data-mc-text="download">СКАЧАТЬ JSON</button>
+          <label class="mc-btn mc-btn-quiet mc-upload"><span data-mc-text="import">ИМПОРТ JSON</span><input type="file" id="mc-import" accept=".json,application/json" aria-label="Import MARCOSA JSON story draft"></label>
+          <button type="button" id="mc-reset" class="mc-btn mc-btn-quiet" data-mc-text="reset">СБРОСИТЬ ПРИМЕР</button>
+        </div>
+        <p id="mc-feedback" class="mc-feedback" role="status" aria-live="polite"></p>
+      </div>
+
+      <aside class="mc-preview" id="mc-preview" aria-labelledby="mc-preview-heading">
+        <header class="mc-panel-head">
+          <div><p class="mc-panel-eyebrow">02 / PLAYTEST</p><h2 id="mc-preview-heading" data-mc-text="preview">ПРЕДПРОСМОТР</h2></div>
+          <span class="mc-live-chip"><span aria-hidden="true"></span> LOCAL ONLY</span>
+        </header>
+        <div class="mc-visual-stage" aria-hidden="true">
+          <span class="mc-stage-sky"></span><span class="mc-stage-lines"></span>
+          <span class="mc-stage-tower"></span><span class="mc-stage-light"></span>
+          <span class="mc-stage-caption">THE STORY IS YOURS / 8.0</span>
+        </div>
+        <div class="mc-story-player" id="mc-play-card" data-step="0">
+          <div class="mc-player-top">
+            <span id="mc-play-kicker">СЦЕНА 1</span>
+            <span id="mc-play-index" class="mc-player-count">01 / 03</span>
+          </div>
+          <div id="mc-progress" class="mc-progress" role="progressbar" aria-valuemin="1" aria-valuemax="3" aria-valuenow="1" aria-label="Story progress"><span id="mc-progress-fill" style="width:33.333%"></span></div>
+          <h3 id="mc-play-title">Город последнего сигнала</h3>
+          <p id="mc-play-copy">Одна история — несколько решений.</p>
+          <p id="mc-play-question" class="mc-question">Что ты сделаешь сначала?</p>
+          <div id="mc-choice-list" class="mc-choice-list" role="group" aria-label="Варианты решения"></div>
+          <div class="mc-player-actions">
+            <button type="button" id="mc-back" disabled>← НАЗАД</button>
+            <button type="button" id="mc-restart">ЗАНОВО</button>
+          </div>
+          <p id="mc-unverified" class="mc-unverified">Не опубликовано · права требуют проверки</p>
+        </div>
+        <div class="mc-map" aria-label="Branching story structure">
+          <div class="mc-map-title"><strong data-mc-text="map">СТРУКТУРА СЮЖЕТА</strong><span>1 → 2 → 4</span></div>
+          <div class="mc-map-diagram" id="mc-graph" data-position="start" aria-hidden="true">
+            <div class="mc-map-level mc-map-level-start"><i class="mc-map-node"></i></div>
+            <div class="mc-map-wires"><i></i><i></i></div>
+            <div class="mc-map-level mc-map-level-middle"><i class="mc-map-node"></i><i class="mc-map-node"></i></div>
+            <div class="mc-map-wires mc-map-wires-last"><i></i><i></i><i></i><i></i></div>
+            <div class="mc-map-level mc-map-level-end"><i class="mc-map-node"></i><i class="mc-map-node"></i><i class="mc-map-node"></i><i class="mc-map-node"></i></div>
+          </div>
+          <div class="mc-map-labels"><span id="mc-map-start">СТАРТ</span><span id="mc-map-branches">2 ВЕТКИ</span><span id="mc-map-end">4 ФИНАЛА</span></div>
+        </div>
+        <p class="mc-dirty" id="mc-dirty" hidden>● <span data-mc-text="statusDirty">Текст изменён. Обнови предпросмотр перед экспортом.</span></p>
+      </aside>
+    </section>
+  </main>
+  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R8</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
+</div>
+</body>
+</html>

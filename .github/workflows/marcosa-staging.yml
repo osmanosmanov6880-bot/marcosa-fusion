@@ -50,7 +50,8 @@ jobs:
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           node --check site/network.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs
+          node --check site/creator.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |
@@ -151,7 +152,7 @@ jobs:
           SHA="$1"
           ROOT="$HOME/marcosa-staging"
           test "$(readlink "$ROOT/current")" = "releases/$SHA"
-          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css build-manifest.json; do
+          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css creator.html creator.js creator.css build-manifest.json; do
             test -s "$ROOT/current/$name" || {
               printf 'Missing staging asset: %s\n' "$name" >&2
               exit 10

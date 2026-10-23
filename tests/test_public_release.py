@@ -31,6 +31,12 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertTrue((SITE / "network.js").is_file())
         self.assertTrue((SITE / "immersive.js").is_file())
         self.assertTrue((SITE / "immersive.css").is_file())
+        self.assertIn('href="./creator.html"', html)
+        creator = (SITE / "creator.html").read_text(encoding="utf-8")
+        self.assertIn('id="mc-editor"', creator)
+        self.assertIn('id="mc-preview"', creator)
+        self.assertIn('src="./creator.js"', creator)
+        self.assertTrue((SITE / "creator.css").is_file())
 
     def test_public_frontend_no_private_backend_or_tracking_calls(self):
         js = (SITE / "network.js").read_text(encoding="utf-8")
@@ -67,6 +73,7 @@ class PublicPreviewTests(unittest.TestCase):
             "index.html", "network.css", "network.js",
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
+            "creator.html", "creator.css", "creator.js",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
