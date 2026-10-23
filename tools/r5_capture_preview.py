@@ -15,7 +15,7 @@ DIST=ROOT/"dist"
 OUTPUT=ROOT/"qa-r5"
 CHROME=next((p for n in ("google-chrome","google-chrome-stable","chromium","chromium-browser")
              if (p:=shutil.which(n))),None)
-FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js")
+FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js","creator.html","creator.css","creator.js")
 
 def hook(mode:str)->tuple[str,str]:
     # Instead of JS scrollIntoView (which can produce a blank headless snapshot
@@ -43,6 +43,10 @@ def hook(mode:str)->tuple[str,str]:
         styles="""header.ms-topbar,.ms-hero,.ms-ticker,.ms-stories,.ms-stage,
             .ms-values,.ms-privacy,.ms-footer{display:none!important}
             .ms-studio{margin:0 auto!important;padding-top:18px!important}"""
+    elif mode=="r8-workspace":
+        script=""
+        styles="""header.mc-header,.mc-hero,.mc-footer{display:none!important}
+            .mc-workspace{margin:0 auto!important;padding-top:12px!important}"""
     else:
         raise ValueError(mode)
     js="<script>window.addEventListener('load',function(){setTimeout(function(){"+script+"},350);});</script>"
@@ -59,7 +63,9 @@ def main()->None:
         ("mobile-portal",390,844,"hero"),
         ("mobile-choice",390,844,"scene"),
         ("mobile-outcome",390,844,"ending"),
-        ("mobile-creator",390,844,"creator")
+        ("mobile-creator",390,844,"creator"),
+        ("desktop-r8-story-editor",1440,900,"r8-workspace"),
+        ("mobile-r8-story-player",390,844,"r8-workspace")
     ]
     reports=[]
     with tempfile.TemporaryDirectory(prefix="marcosa-r5-visual-") as temp:
@@ -67,9 +73,11 @@ def main()->None:
         for name in FILES:
             shutil.copyfile(DIST/name,here/name)
         base=(here/"stories.html").read_text(encoding="utf-8")
+        r8_base=(here/"creator.html").read_text(encoding="utf-8")
         for label,width,height,mode in cases:
             js,styles=hook(mode)
-            custom=base.replace("</head>",styles+"</head>").replace("</body>",js+"</body>")
+            page=r8_base if mode=="r8-workspace" else base
+            custom=page.replace("</head>",styles+"</head>").replace("</body>",js+"</body>")
             (here/"capture.html").write_text(custom,encoding="utf-8")
             png=OUTPUT/(label+".png")
             cmd=[CHROME,"--headless=new","--no-sandbox","--disable-dev-shm-usage",
@@ -93,7 +101,7 @@ def main()->None:
             reports.append({"case":label,"status":"captured","width":w,"height":h,"bytes":len(raw)})
     (OUTPUT/"summary.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("R5 visual captures:",reports)
-    if len([x for x in reports if x["status"]=="captured"])<5:
+    if len([x for x in reports if x["status"]=="captured"])<7:
         raise SystemExit("R5 critical browser snapshots missing")
 
 if __name__=="__main__":
