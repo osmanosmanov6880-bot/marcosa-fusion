@@ -138,3 +138,16 @@ Documentation: [R9 architecture, privacy and review boundaries](docs/LOCAL_PROJE
 
 **Important:** This is still the *public static preview*, not the authenticated production MARCOSA. No real moderator queues, live published author stories, contracts, commerce or existing user accounts were introduced.
 
+
+## R10 — Portable local project archive and server-readiness security model
+
+R10 adds a **complete local vault backup** to Creator Engine:
+
+- Export every saved project and retained revision in **one portable JSON** (v1 schema, up to 8 projects, 15 revisions per project).
+- Import a vetted file (maximum 2 MiB) with a preview of new / duplicate / conflicting entries. Exact duplicates are skipped. Diverged histories are saved under fresh project IDs; **existing records are never overwritten**.
+- Restores are atomic IndexedDB transactions. Insufficient archive capacity aborts the entire import. Files are unencrypted; authors should keep backups safe and not share manuscripts publicly.
+- Browser smoke QA covers real Chrome desktop and mobile: export, delete, restore, idempotent reimport and conflict-safe independent copies. No network requests other than the local test server.
+- A reviewed but **not executed** SQL design is included at [infra/supabase/r10_cloud_schema_review_only.sql](infra/supabase/r10_cloud_schema_review_only.sql). It describes authenticated, owner-isolated projects and immutable revisions, review submissions, and a separate private moderation decision table with RLS and least-privilege grants.
+- **No Supabase project was connected (project list empty on 2026-10-24).** This schema was NOT applied; user accounts, moderator accounts, public publishing, actual revenue and production services were not changed. The schema contract test only does static preflight, never a live SQL/RLS verification.
+
+See [full R10 boundaries and acceptance](docs/PORTABLE_ARCHIVE_AND_CLOUD_SECURITY_R10_RU.md), [archive security tests](tests/backup.test.cjs), [SQL preflight](tests/test_cloud_schema_contract.py) and [real Chromium recovery QA](tools/r9_cdp_smoke.cjs).
