@@ -302,7 +302,6 @@
         b.setAttribute('aria-pressed',String(active));
       });
       $('mc-choice-list').setAttribute('aria-label',t().ariaChoices);
-      $('mc-step-label').textContent=t().step;
       $('mc-map-start').textContent=t().mapStart;
       $('mc-map-branches').textContent=t().mapBranches;
       $('mc-map-end').textContent=t().mapEnd;
