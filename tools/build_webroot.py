@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its only inputs are three independently reviewed files in site/.
+Its inputs are five independently reviewed files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -29,9 +29,9 @@ def build() -> dict:
         if not (SOURCE / name).is_file() or (SOURCE / name).is_symlink():
             raise RuntimeError(f"Required public source missing or symlink: {name}")
     html = (SOURCE / "index.html").read_text(encoding="utf-8")
-    if 'src="./network.js"' not in html or 'href="./network.css"' not in html:
+    if any(anchor not in html for anchor in ('src="./network.js"', 'href="./network.css"', 'src="./immersive.js"', 'href="./immersive.css"')):
         raise RuntimeError("Preview HTML references were not found")
-    if 'id="mn-dialog"' not in html or 'id="mn-film-form"' not in html:
+    if any(anchor not in html for anchor in ('id="mn-dialog"', 'id="mn-film-form"', 'id="mi-world-canvas"', 'id="mi-benchmark"')):
         raise RuntimeError("Expected R2 UI elements are missing")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
