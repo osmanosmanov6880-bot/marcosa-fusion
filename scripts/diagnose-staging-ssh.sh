@@ -25,19 +25,44 @@ TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
 mkdir -m 700 "$TMP/ssh"
 printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$TMP/ssh/id_deploy"
-printf '%s\n' "$KNOWN_HOSTS" | sed 's/\r$//' > "$TMP/ssh/known_hosts"
-chmod 600 "$TMP/ssh/id_deploy" "$TMP/ssh/known_hosts"
+chmod 600 "$TMP/ssh/id_deploy"
 if ! ssh-keygen -y -P '' -f "$TMP/ssh/id_deploy" >/dev/null 2>&1; then
   fail "INVALID_PRIVATE_KEY" "Private key is invalid or encrypted with a passphrase. Check MARCOSA_SSH_KEY."
 fi
-if ! ssh-keygen -lf "$TMP/ssh/known_hosts" >/dev/null 2>&1; then
-  fail "INVALID_KNOWN_HOSTS" "Use complete independently verified OpenSSH host key lines, not SHA256 fingerprints."
-fi
 PIN="$DEPLOY_HOST"
 if [[ "$DEPLOY_PORT" != "22" ]]; then PIN="[$DEPLOY_HOST]:$DEPLOY_PORT"; fi
-if ! ssh-keygen -F "$PIN" -f "$TMP/ssh/known_hosts" >/dev/null 2>&1; then
-  fail "HOST_NOT_PINNED" "No matching host key pin for target host/port. Compare the host fingerprint in the Contabo console first."
+PIN_INPUT="$(printf '%s\n' "$KNOWN_HOSTS" | sed 's/\r$//' | sed '/^[[:space:]]*$/d')"
+PIN_FORMAT="full_known_hosts"
+
+if [[ "$PIN_INPUT" =~ ^ssh-ed25519[[:space:]]+[A-Za-z0-9+/=]+([[:space:]].*)?$ ]]; then
+  # A standalone SSH *host public key* from ssh_host_ed25519_key.pub is
+  # equivalent to a known_hosts entry once bound to this specific host.
+  PIN_FORMAT="host_public_key"
+  printf '%s %s\n' "$PIN" "$PIN_INPUT" > "$TMP/ssh/known_hosts"
+elif [[ "$PIN_INPUT" =~ ^SHA256:[A-Za-z0-9+/=]{40,60}$ ]]; then
+  # A SHA256 host fingerprint can serve as a pin too, if it was independently
+  # verified in the owner's Contabo console. Never trust an unchecked scan.
+  PIN_FORMAT="pinned_sha256_fingerprint"
+  if ! ssh-keyscan -T 12 -p "$DEPLOY_PORT" -t ed25519 "$DEPLOY_HOST" 2>/dev/null > "$TMP/ssh/scan"; then
+    fail "HOST_KEY_SCAN_UNAVAILABLE" "Cannot obtain the ED25519 host key. Check SSH network/port; no host identity was accepted."
+  fi
+  if [[ ! -s "$TMP/ssh/scan" ]]; then
+    fail "HOST_KEY_SCAN_UNAVAILABLE" "Remote server did not offer an ED25519 host key."
+  fi
+  ACTUAL="$(ssh-keygen -lf "$TMP/ssh/scan" -E sha256 2>/dev/null | awk 'NR==1 {print $2}')"
+  [[ "$ACTUAL" == "$PIN_INPUT" ]] || fail "HOST_KEY_MISMATCH" "Live ED25519 key does not match the pinned fingerprint. Verify via Contabo; do not disable pinning."
+  mv -- "$TMP/ssh/scan" "$TMP/ssh/known_hosts"
+else
+  printf '%s\n' "$PIN_INPUT" > "$TMP/ssh/known_hosts"
 fi
+chmod 600 "$TMP/ssh/known_hosts"
+if ! ssh-keygen -lf "$TMP/ssh/known_hosts" >/dev/null 2>&1; then
+  fail "INVALID_KNOWN_HOSTS" "Secret format unrecognized: provide a full known_hosts line, raw ssh-ed25519 host PUBLIC key, or verified SHA256: fingerprint. Never use the user's login key."
+fi
+if ! ssh-keygen -F "$PIN" -f "$TMP/ssh/known_hosts" >/dev/null 2>&1; then
+  fail "HOST_NOT_PINNED" "Server key belongs to another host/port. Verify the correct VPS identity and re-pin without disabling StrictHostKeyChecking."
+fi
+printf 'HOST_PIN_FORMAT=%s\n' "$PIN_FORMAT"
 printf 'SSH configuration: deploy_user=marcosa-deploy, port=%s, pinned_host=yes, private_key_format=valid\n' "$DEPLOY_PORT"
 SSH=(-i "$TMP/ssh/id_deploy" -p "$DEPLOY_PORT"
   -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes
