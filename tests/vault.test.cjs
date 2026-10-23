@@ -137,7 +137,7 @@ test('R9 rejects dangerous fields while keeping fiction as inert story text',()=
   ])assert.equal(js.includes(forbidden),false,'Forbidden API in local vault source: '+forbidden);
   assert.ok(js.includes('indexedDB.open('));
   assert.ok(js.includes("tx=db.transaction(STORE,mode)"),'transactions must be atomic');
-  assert.ok(js.includes("textContent=text"),'untrusted values must only appear as text');
+  assert.ok(js.includes("n.textContent=content"),'untrusted values must only appear as text');
 });
 
 test('R9 public archive ships its complete UI with correct localized and accessible controls',()=>{
