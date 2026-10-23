@@ -89,3 +89,19 @@ The next P0 master-plan milestone is implemented as real public-preview code: **
 - [R5 browser interaction test](tools/r5_browser_smoke.py)
 
 Full authenticated MARCOSA, Worlds, Contabo production and Supabase remain unchanged. The public GitHub build confirms source code and browser QA only; no verified registrations, traffic, revenue or paid deals are claimed.
+
+
+## R6 — Reliable publication (public preview + isolated Contabo staging)
+
+R6 fixes the former deployment **configuration blockers**. The static GitHub Pages release no longer needs the unused `MARCOSA_PUBLIC_PAGES_ENABLED` variable; when a commit reaches trusted `main`, it runs the public build and attempts Pages publication. GitHub Pages still needs its one-time **Settings → Pages → Source: GitHub Actions** selection. SSH keys do not enable GitHub Pages.
+
+The old `github.event.repository.private == true` and `MARCOSA_STAGING_ENABLED` gates caused all staging workflows to be **skipped** in this public repository, regardless of whether keys were correct. R6 replaces that broad guard with security-relevant checks: trusted main branch, `marcosa-staging` environment, explicitly pinned host key, validated private SSH key, dedicated non-root `marcosa-deploy`, server-side approval marker, SHA256 artifacts, atomic symlink staging deploy and post-release verification with attempted rollback.
+
+Use `Actions → MARCOSA | SSH preflight / safe connection check` to distinguish the remaining external setup from workflow errors. It is read-only and executes on trusted main. Bootstrap the staging-only account through a trusted Contabo console only if the diagnostics report it unprepared.
+
+- [R6 staging and Pages instructions (Russian)](docs/CONTABO_STAGING_SETUP_RU.md)
+- [Deployment guardrail tests](tests/test_deploy_guardrails.py)
+- [Read-only SSH diagnostics](scripts/diagnose-staging-ssh.sh)
+- [Optional local VPS staging bootstrap](scripts/bootstrap-staging.sh)
+
+**Explicit limit:** this deploys the public **stateless demonstration**, not the original authenticated `marcosa.club` application. It does not change production Nginx, Supabase, users, Worlds, or any other Contabo site. Staging files are not publicly available until a separately validated web-server route is configured.
