@@ -58,6 +58,7 @@ jobs:
           test -s dist/stories.css
           test -s dist/stories.js
           python tools/r4_browser_smoke.py
+          python tools/r5_browser_smoke.py
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
