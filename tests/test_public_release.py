@@ -46,6 +46,12 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertNotIn("marcosa-supabase.js", html)
         self.assertNotIn("https://", js.split("const rows = ")[0])
 
+    def test_network_browser_factory_receives_window_scope(self):
+        """Regression: opening catalogue must not raise 'root is not defined'."""
+        source = (SITE / "network.js").read_text(encoding="utf-8")
+        self.assertIn("const api = factory(root);", source)
+        self.assertIn("})(typeof window !== 'undefined' ? window : undefined, function (root) {", source)
+
     def test_builder_creates_only_allowlisted_files_and_manifest(self):
         result = subprocess.run(
             [sys.executable, str(ROOT / "tools" / "build_webroot.py")],
