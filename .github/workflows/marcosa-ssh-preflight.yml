@@ -1,29 +1,29 @@
-name: "MARCOSA | Verify staging SSH (read-only)"
+name: "MARCOSA | SSH preflight / safe connection check"
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/diagnose-staging-ssh.sh"
+      - ".github/workflows/marcosa-ssh-preflight.yml"
 
 permissions:
   contents: read
 
 concurrency:
   group: marcosa-ssh-preflight
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
-  verify-staging-host:
+  ssh-preflight:
+    # Secrets are examined only on trusted main, not PRs or forks.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify repository is private
-        env:
-          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
-        run: |
-          if [ "$REPOSITORY_PRIVATE" != "true" ]; then
-            echo "::error::First change repository visibility to Private in Settings."
-            exit 1
-          fi
-      - name: Verify pinned SSH access without modifying VPS
+      - uses: actions/checkout@v4
+      - name: Validate and probe pinned SSH access (READ ONLY)
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
@@ -33,43 +33,5 @@ jobs:
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
         run: |
           set -euo pipefail
-          : "${DEPLOY_HOST:?Missing MARCOSA_STAGING_HOST}"
-          : "${DEPLOY_USER:?Missing MARCOSA_STAGING_USER}"
-          : "${DEPLOY_KEY:?Missing MARCOSA_SSH_KEY}"
-          : "${KNOWN_HOSTS:?Missing MARCOSA_SSH_KNOWN_HOSTS}"
-          [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]] || exit 2
-          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || exit 2
-          [[ "$DEPLOY_USER" != "root" ]] || { echo "::error::Refusing root SSH"; exit 2; }
-          [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]] || exit 2
-          umask 077
-          install -d -m 700 "$HOME/.ssh"
-          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/marcosa_deploy"
-          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
-          chmod 600 "$HOME/.ssh/marcosa_deploy" "$HOME/.ssh/known_hosts"
-          ssh-keygen -y -P '' -f "$HOME/.ssh/marcosa_deploy" >/dev/null || {
-            echo "::error::Private key invalid or requires interactive passphrase"
-            exit 3
-          }
-          ssh -i "$HOME/.ssh/marcosa_deploy" -p "$DEPLOY_PORT" \
-            -o IdentitiesOnly=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -o BatchMode=yes -o ConnectTimeout=12 \
-            "$DEPLOY_USER@$DEPLOY_HOST" 'sh -s' <<'REMOTE'
-          set -eu
-          printf 'server='; hostname
-          printf 'connected_as='; id -un
-          for path in /opt/marcosa /opt/marcosa/site "$HOME/marcosa-staging"; do
-            if test -d "$path"; then
-              printf '%s: PRESENT\n' "$path"
-            else
-              printf '%s: ABSENT\n' "$path"
-            fi
-          done
-          if test -f "$HOME/marcosa-staging/.staging-approved"; then
-            echo "staging_marker=PRESENT"
-          else
-            echo "staging_marker=ABSENT"
-          fi
-          echo "Read-only SSH preflight completed; no files changed."
-          REMOTE
+          bash -n scripts/diagnose-staging-ssh.sh
+          bash scripts/diagnose-staging-ssh.sh
