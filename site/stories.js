@@ -184,7 +184,8 @@
       a.href=href;a.download=filename;doc.body.append(a);a.click();a.remove();
       win.setTimeout(()=>URL.revokeObjectURL(href),1500);
     }
-    function log(type,product){qa.record(type,state.storyId,state.answers.length,product);$('ms-qa-download').disabled=qa.size===0;}
+    function log(type,product){qa.record(type,state.storyId,state.answers.length,product);$('ms-qa-download').disabled=qa.size===0;
+      if(qa.size)$('ms-qa-info').textContent=dict().qaReady;}
     function renderCards(){
       const list=$('ms-story-list');list.replaceChildren();
       for(const story of STORIES){
@@ -208,6 +209,7 @@
       stage.dataset.theme=story.theme;
       $('ms-stage-number').textContent=story.number;
       $('ms-stage-progress').textContent=String(Math.min(step+1,3)).padStart(2,'0')+' / 03';
+      $('ms-progress').setAttribute('aria-valuenow',String(Math.min(step+1,3)));
       $('ms-visual-symbol').textContent=story.symbol;
       $('ms-visual-title').textContent=loc(story.title,lang);
       $('ms-visual-description').textContent=loc(story.tagline,lang);
@@ -228,7 +230,6 @@
         $('ms-project-link').textContent=dict().project;
         $('ms-campaign-link').textContent=dict().campaign;
         $('ms-result-note').textContent=dict().productNote;
-        log('recommendation_rendered',result.product);
       }else{
         const chapter=story.steps[step];
         $('ms-chapter-title').textContent=loc(chapter.title,lang);
@@ -241,7 +242,7 @@
           b.append(make('span','ms-choice-arrow','↗'));
           b.addEventListener('click',()=>{
             state=advance(state,index);log('choice_selected');
-            if(state.answers.length===2)log('film_completed');
+            if(state.answers.length===2){log('film_completed');log('recommendation_rendered',outcome(state).product);}
             renderStage();
           });pane.append(b);
         });
