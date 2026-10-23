@@ -44,7 +44,7 @@ jobs:
           set -euo pipefail
           node --check site/network.js
           node --check site/immersive.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -53,6 +53,21 @@ jobs:
           test -s dist/network.css
           test -s dist/immersive.js
           test -s dist/immersive.css
+          python tools/r4_browser_smoke.py
+      - name: Capture R4 Chromium render evidence (desktop / mobile / static)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/r4_capture_preview.py
+      - name: Upload browser screenshots for visual QA
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r4-visual-qa
+          path: qa-r4/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
