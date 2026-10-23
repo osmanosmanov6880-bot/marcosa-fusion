@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#070b12">
+  <meta name="description" content="MARCOSA R5 — three fictional interactive stories, voluntary project discovery, private local QA and creator campaign briefs.">
+  <title>MARCOSA R5 — Story Continuation Lab</title>
+  <link rel="stylesheet" href="./stories.css">
+  <script src="./network.js" defer></script>
+  <script src="./stories.js" defer></script>
+</head>
+<body>
+  <div class="ms-shell">
+    <header class="ms-topbar">
+      <a href="./index.html" class="ms-mark" aria-label="MARCOSA — главная страница">
+        <span class="ms-brand-icon" aria-hidden="true">M</span>
+        <span class="ms-brand-name">MARCOSA <small>THE STORY UNIVERSE / R5</small></span>
+      </a>
+      <div class="ms-top-actions">
+        <nav class="ms-language" aria-label="Language / Язык">
+          <button type="button" data-ms-lang="ru" class="active" aria-pressed="true">RU</button>
+          <button type="button" data-ms-lang="en" aria-pressed="false">EN</button>
+          <button type="button" data-ms-lang="zh" aria-pressed="false">中文</button>
+        </nav>
+        <a class="ms-back-link" href="./index.html"><span aria-hidden="true">←</span> <span data-ms-i18n="home">НАЗАД В MARCOSA</span></a>
+      </div>
+    </header>
+
+    <main>
+      <section class="ms-hero" aria-labelledby="ms-hero-title">
+        <div class="ms-hero-main">
+          <p class="ms-flag"><span class="ms-flag-led" aria-hidden="true"></span><span data-ms-i18n="eyebrow">MARCOSA / STORY CONTINUATION LAB · R5</span></p>
+          <h1 id="ms-hero-title" data-ms-i18n="hero">Истории, после которых хочется действовать.</h1>
+          <p class="ms-intro" data-ms-i18n="lead">Три небольших интерактивных мира. Твои решения меняют финал и рекомендацию. Никаких навязанных рекламных переходов.</p>
+          <div class="ms-hero-actions">
+            <a class="ms-button ms-button-gold" href="#ms-stories" data-ms-i18n="explore">ВЫБРАТЬ ИСТОРИЮ</a>
+            <a class="ms-button ms-button-ghost" href="#ms-studio" data-ms-i18n="studio">БРЕНД-СТУДИЯ</a>
+          </div>
+          <p class="ms-honesty"><span aria-hidden="true">◇</span> <span data-ms-i18n="disclaimer">Открытая демонстрация. Не реальные кино-сайты и не подтверждённые Worlds.</span></p>
+        </div>
+        <div class="ms-hero-art" aria-hidden="true">
+          <div class="ms-orbit ms-orbit-outer"></div><div class="ms-orbit ms-orbit-mid"></div><div class="ms-orbit ms-orbit-inner"></div>
+          <div class="ms-art-core"><span>M</span><i>∞</i></div>
+          <div class="ms-art-ray ms-art-ray-a"></div><div class="ms-art-ray ms-art-ray-b"></div>
+          <span class="ms-art-coord ms-art-coord-top">SCENE PROTOCOL / 005</span>
+          <span class="ms-art-coord ms-art-coord-bottom">OWN YOUR NEXT WORLD ↗</span>
+        </div>
+      </section>
+
+      <div class="ms-ticker" aria-label="MARCOSA pilot guardrails">
+        <span>01 / OPT-IN STORY</span><span>02 / MEANINGFUL CHOICE</span>
+        <span>03 / EXPLAINABLE MATCH</span><span>04 / NO TRACKING</span>
+        <span>05 / CREATOR OWNERSHIP</span>
+      </div>
+
+      <section class="ms-stories" id="ms-stories" aria-labelledby="ms-select-heading">
+        <div class="ms-section-header">
+          <div><p class="ms-kicker"><span aria-hidden="true">✦</span> CURATED STORY PORTALS</p><h2 id="ms-select-heading" data-ms-i18n="explore">ВЫБРАТЬ ИСТОРИЮ</h2></div>
+          <span class="ms-pilot-chip">03 STORIES <i></i> 12 OUTCOMES</span>
+        </div>
+        <div class="ms-story-list" id="ms-story-list" role="group" aria-label="Story selection">
+          <p>Loading story portals…</p>
+        </div>
+      </section>
+
+      <section class="ms-stage" id="ms-stage" aria-labelledby="ms-chapter-title" data-theme="time">
+        <div class="ms-story-visual" aria-hidden="true">
+          <div class="ms-stage-architecture">
+            <div class="ms-scene-sky"></div><div class="ms-scene-horizon"></div><div class="ms-scene-floor"></div>
+            <span class="ms-scene-sculpture"></span>
+            <div class="ms-scene-arc ms-arc-one"></div><div class="ms-scene-arc ms-arc-two"></div>
+            <div class="ms-scene-particles"></div>
+          </div>
+          <div class="ms-visual-top"><span data-ms-i18n="source">ДЕМОНСТРАЦИЯ / БЕЗ ТРЕКИНГА</span><span id="ms-stage-number">01</span></div>
+          <div class="ms-visual-glyph" id="ms-visual-symbol">◷</div>
+          <div class="ms-visual-bottom"><span id="ms-visual-title">Последняя минута</span><small id="ms-visual-description">История о времени, которое можно вернуть.</small></div>
+        </div>
+
+        <div class="ms-interaction">
+          <div class="ms-interaction-top">
+            <span class="ms-episode" id="ms-episode-status">ЭПИЗОД 1</span>
+            <span class="ms-steps" id="ms-stage-progress">01 / 03</span>
+          </div>
+          <div class="ms-progress" id="ms-progress" role="progressbar" aria-label="Story progress" aria-valuemin="0" aria-valuemax="3" aria-valuenow="1"><span id="ms-progress-fill" style="width:33.33%"></span></div>
+          <div class="ms-chapter-body" id="ms-narrative" aria-live="polite" aria-atomic="true">
+            <h2 id="ms-chapter-title">Город на паузе</h2>
+            <p id="ms-chapter-body">Один шаг может изменить историю.</p>
+            <h3 id="ms-chapter-question" data-ms-i18n="choice">Выбери направление</h3>
+            <div class="ms-choices" id="ms-choices"></div>
+          </div>
+          <div class="ms-ending" id="ms-finish" hidden aria-live="polite" aria-atomic="true">
+            <p class="ms-ending-kicker" data-ms-i18n="ending">ТВОЙ ФИНАЛ</p>
+            <h2 id="ms-end-title"></h2>
+            <p id="ms-end-copy"></p>
+            <div class="ms-recommendation">
+              <span class="ms-recommendation-mark">M</span>
+              <div><p data-ms-i18n="why">Почему рекомендовано</p><h3 id="ms-project-name"></h3><p id="ms-project-reason"></p></div>
+            </div>
+            <div class="ms-ending-actions">
+              <a id="ms-project-link" class="ms-button ms-button-gold" href="./index.html#network">СМОТРЕТЬ КАРТОЧКУ ПРОЕКТА ↗</a>
+              <a id="ms-campaign-link" class="ms-button ms-button-outline" href="./index.html#network">СОЗДАТЬ СВОЁ ПРОМО ↗</a>
+            </div>
+            <p class="ms-smallprint" id="ms-result-note"></p>
+          </div>
+          <div class="ms-stage-controls">
+            <button type="button" id="ms-back" class="ms-text-button" disabled data-ms-i18n="back">НАЗАД</button>
+            <button type="button" id="ms-restart" class="ms-text-button ms-restart" data-ms-i18n="again">ЗАНОВО</button>
+            <span class="ms-control-caption" data-ms-i18n="steps">2 решения → 1 результат</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="ms-values" aria-label="Story design principles">
+        <article><span>01</span><strong>CONTENT FIRST</strong><p data-ms-i18n="principle1">Сюжет не прерывается рекламой. Предложение — после выбора.</p></article>
+        <article><span>02</span><strong>HUMAN AGENCY</strong><p data-ms-i18n="principle2">Решение зрителя определяет финал и рекомендацию.</p></article>
+        <article><span>03</span><strong>NO HIDDEN METRICS</strong><p data-ms-i18n="principle3">Никаких придуманных показов, кликов или конверсий.</p></article>
+      </section>
+
+      <section class="ms-studio" id="ms-studio" aria-labelledby="ms-studio-title">
+        <div class="ms-studio-intro">
+          <p class="ms-kicker" data-ms-i18n="studioEyebrow">CREATOR / OWN-BRAND PILOT</p>
+          <h2 id="ms-studio-title" data-ms-i18n="studioTitle">Преврати интерес в честный рекламный сценарий.</h2>
+          <p data-ms-i18n="studioLead">Создай заявку на короткую интерактивную историю для своего бренда. Это экспортируемый бриф — без публикации, денег и фальшивых показов.</p>
+          <div class="ms-studio-sample" aria-hidden="true">
+            <span>YOUR IDEA</span><i>→</i><span>STORY CHOICES</span><i>→</i><span>VOLUNTARY CONTINUATION</span>
+          </div>
+        </div>
+        <div class="ms-studio-workbench">
+          <form id="ms-brief-form" novalidate>
+            <div class="ms-field-grid">
+              <label><span data-ms-i18n="brand">Название бренда или проекта</span><input id="ms-brief-brand" type="text" maxlength="100" minlength="2" required autocomplete="organization" placeholder="MARCOSA ORIGINAL"></label>
+              <label><span data-ms-i18n="audience">Кому адресована история</span><input id="ms-brief-audience" type="text" maxlength="160" minlength="4" required placeholder="Independent creators"></label>
+            </div>
+            <label><span data-ms-i18n="goal">Какую проблему должен решить сюжет</span><textarea id="ms-brief-goal" rows="3" maxlength="320" minlength="12" required data-ms-placeholder="goalPlaceholder" placeholder="Расскажи, какую пользу получает человек после завершения истории"></textarea></label>
+            <div class="ms-field-grid">
+              <label><span data-ms-i18n="template">Формат истории</span><select id="ms-brief-story" required></select></label>
+              <label><span data-ms-i18n="productField">Тематический проект</span><select id="ms-brief-product" required></select></label>
+            </div>
+            <label class="ms-checkbox"><input id="ms-brief-rights" type="checkbox" required><span data-ms-i18n="rights">Я подтверждаю, что могу использовать предоставленные материалы и проверю права до публикации.</span></label>
+            <label class="ms-checkbox"><input id="ms-brief-disclose" type="checkbox" required><span data-ms-i18n="disclose">Я согласен явно обозначать рекламный материал и не маскировать его под независимую историю.</span></label>
+            <div class="ms-form-actions">
+              <button class="ms-button ms-button-gold" type="submit" data-ms-i18n="generate">СОЗДАТЬ ПРЕДЛОЖЕНИЕ</button>
+              <button class="ms-button ms-button-outline" id="ms-brief-download" type="button" disabled data-ms-i18n="download">СКАЧАТЬ БРИФ JSON</button>
+              <button class="ms-button ms-button-outline" id="ms-brief-html" type="button" disabled data-ms-i18n="downloadProposal">СКАЧАТЬ ПРЕДЛОЖЕНИЕ HTML</button>
+            </div>
+            <p class="ms-form-feedback" id="ms-brief-feedback" role="status" aria-live="polite"></p>
+          </form>
+          <aside class="ms-brief-preview" id="ms-brief-preview" hidden aria-labelledby="ms-brief-preview-brand">
+            <span class="ms-draft-label" data-ms-i18n="draft">ЧЕРНОВИК / НЕ ОПУБЛИКОВАН</span>
+            <h3 id="ms-brief-preview-brand"></h3>
+            <p id="ms-brief-preview-goal"></p>
+            <span id="ms-brief-preview-product"></span>
+          </aside>
+        </div>
+      </section>
+
+      <details class="ms-privacy" id="ms-privacy">
+        <summary>LOCAL SESSION QA / TRANSPARENT VALIDATION <span aria-hidden="true">↘</span></summary>
+        <div class="ms-privacy-content">
+          <p data-ms-i18n="privacy">Формы, история и отчёты обрабатываются только в этой вкладке. Нет cookies, платёжной системы, сетевых запросов и учёта зрителей.</p>
+          <label class="ms-checkbox"><input type="checkbox" id="ms-qa-opt"><span data-ms-i18n="qaOn">Включить локальные события для проверки сценария (не отправляются в интернет)</span></label>
+          <button class="ms-button ms-button-outline" id="ms-qa-download" type="button" disabled data-ms-i18n="qa">СОХРАНИТЬ ЛОКАЛЬНЫЙ QA-ОТЧЁТ</button>
+          <p id="ms-qa-info" class="ms-smallprint" role="status" aria-live="polite"></p>
+        </div>
+      </details>
+    </main>
+
+    <footer class="ms-footer">
+      <span>M / MARCOSA STORY CONTINUATION R5</span>
+      <span data-ms-i18n="noTelemetry">0 сторонних трекеров · 0 оплат · 0 вымышленных просмотров</span>
+      <span data-ms-i18n="credits">ПРОТОТИП / НЕ PRODUCTION</span>
+    </footer>
+  </div>
+</body>
+</html>

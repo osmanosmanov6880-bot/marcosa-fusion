@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are five independently reviewed files in site/.
+Its inputs are eight independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -31,8 +31,11 @@ def build() -> dict:
     html = (SOURCE / "index.html").read_text(encoding="utf-8")
     if any(anchor not in html for anchor in ('src="./network.js"', 'href="./network.css"', 'src="./immersive.js"', 'href="./immersive.css"')):
         raise RuntimeError("Preview HTML references were not found")
-    if any(anchor not in html for anchor in ('id="mn-dialog"', 'id="mn-film-form"', 'id="mi-world-canvas"', 'id="mi-benchmark"')):
-        raise RuntimeError("Expected R2 UI elements are missing")
+    if any(anchor not in html for anchor in ('id="mn-dialog"', 'id="mn-film-form"', 'id="mi-world-canvas"', 'id="mi-benchmark"', 'href="./stories.html"')):
+        raise RuntimeError("Expected Network OS or R5 story entry points are missing")
+    stories = (SOURCE / 'stories.html').read_text(encoding='utf-8')
+    if any(anchor not in stories for anchor in ('id="ms-stage"', 'id="ms-brief-form"', 'id="ms-choices"', 'src="./stories.js"', 'href="./stories.css"', 'src="./network.js"')):
+        raise RuntimeError("R5 story pilot is missing an entry point or a functional control")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:

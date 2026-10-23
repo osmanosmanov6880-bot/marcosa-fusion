@@ -232,3 +232,27 @@ body{margin:0;background:var(--mi-night)!important;color:var(--mi-ink);font-fami
   .mn-tabs .mn-tab{min-height:44px;flex-shrink:0}
   .mn-language{flex:none}
 }
+
+
+/* R5 — functional Story Continuation entry. Existing R4 GPU canvas is unchanged. */
+.mi-r5-main-link{text-decoration:none;white-space:nowrap}
+.mi-r5-feature{position:relative;display:grid;grid-template-columns:minmax(0,.43fr) minmax(0,.57fr);min-height:360px;margin:24px 0 12px;overflow:hidden;border:1px solid rgba(190,214,200,.33);border-radius:21px;background:linear-gradient(122deg,#152c38,#111d2a 51%,#0d1520);box-shadow:0 26px 53px #0006,inset 0 1px #fce8c91c}
+.mi-r5-feature:after{pointer-events:none;position:absolute;inset:11px;border:1px solid rgba(245,229,194,.08);border-radius:14px;content:""}
+.mi-r5-feature-art{position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;border-right:1px solid rgba(184,217,209,.18);min-height:350px;background:radial-gradient(circle at 50% 44%,rgba(172,219,198,.23) 0%,rgba(42,92,101,.18) 35%,transparent 63%),repeating-linear-gradient(90deg,transparent 0 59px,rgba(165,230,220,.07) 60px),linear-gradient(149deg,#193e4b,#060d17)}
+.mi-r5-feature-art:before{pointer-events:none;content:"";position:absolute;inset:17%;border:1px solid rgba(164,228,207,.43);border-radius:50%;transform:rotateX(64deg) rotate(28deg);box-shadow:0 0 38px rgba(133,228,209,.17),inset 0 0 30px rgba(199,233,208,.11)}
+.mi-r5-feature-art:after{pointer-events:none;content:"";position:absolute;width:75%;height:75%;border:1px solid rgba(232,194,126,.64);border-radius:50%;transform:rotateX(47deg) rotate(-19deg);box-shadow:0 0 31px rgba(240,195,118,.11)}
+.mi-r5-feature-mark{display:flex;align-items:center;justify-content:center;height:162px;width:162px;aspect-ratio:1;border-radius:50%;color:#f5e2ba;font:normal 99px Georgia,serif;z-index:2;text-shadow:0 6px 25px #000a;box-shadow:inset 6px 8px 25px rgba(160,222,206,.35),inset -14px -16px 28px #000b,0 0 0 14px #d0bf8e10,0 0 52px #74d7c82c;background:radial-gradient(circle at 30% 20%,#476d73,#213b47 35%,#090f1b 85%);border:1px solid rgba(244,215,168,.72)}
+.mi-r5-feature-art .mi-r5-ring{position:absolute;transform:rotate(-27deg);width:70%;height:2px;background:linear-gradient(90deg,transparent,#b8ecdf,#f0d19c,transparent);box-shadow:0 0 14px #89dcc06e}
+.mi-r5-art-caption{position:absolute;bottom:28px;left:26px;color:#bfd4c7;font:10px ui-monospace,Consolas,monospace;letter-spacing:.15em}
+.mi-r5-feature-copy{position:relative;z-index:2;display:flex;flex-direction:column;justify-content:center;padding:clamp(28px,4.5vw,54px)}
+.mi-r5-feature-copy>p:first-child{color:#9fdfd0;font:700 10px ui-monospace,Consolas,monospace;letter-spacing:.16em;margin:0 0 20px}
+.mi-r5-feature-copy h3{font:normal clamp(35px,3.5vw,52px)/1.1 Georgia,serif;letter-spacing:-.034em;margin:0;color:#f6f1e1}
+.mi-r5-feature-copy h3 em{font-style:italic;color:#edd2a1}
+.mi-r5-feature-description{color:#b6cdd0;font-size:14px;line-height:1.7;max-width:480px;margin:22px 0 24px}
+.mi-r5-feature-foot{display:flex;align-items:center;flex-wrap:wrap;gap:13px;color:#96b9b7;font:700 10px ui-monospace,Consolas,monospace;letter-spacing:.06em}
+.mi-r5-feature-foot span{border:1px solid #6e9b9155;border-radius:5px;padding:8px}
+.mi-r5-feature-foot a{color:#f3dba9;text-decoration:none;display:inline-flex;align-items:center;min-height:42px;padding:8px 11px;border:1px solid #d8bf9170;border-radius:6px;transition:border-color .2s,background .2s}
+.mi-r5-feature-foot a:hover{border-color:#ffefc3;background:#bda16a18}
+@media(max-width:940px){.mi-r5-feature{grid-template-columns:1fr 1.2fr}.mi-r5-feature-copy{padding:28px}.mi-r5-feature-mark{height:130px;width:130px;font-size:78px}}
+@media(max-width:660px){.mi-r5-main-link{white-space:normal}.mi-r5-feature{grid-template-columns:1fr;min-height:auto}.mi-r5-feature-art{min-height:225px;border-right:0;border-bottom:1px solid rgba(184,217,209,.18)}.mi-r5-feature-mark{width:110px;height:110px;font-size:70px}.mi-r5-art-caption{bottom:16px;left:20px}.mi-r5-feature-copy{padding:29px 23px 32px}.mi-r5-feature-copy h3{font-size:38px}.mi-r5-feature-description{margin:17px 0 20px;font-size:13px}}
+@media(prefers-reduced-motion:reduce){.mi-r5-feature-foot a{transition:none!important}}

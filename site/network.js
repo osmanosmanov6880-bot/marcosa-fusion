@@ -94,6 +94,12 @@
     '<a style="color:#e1c590" href="https://marcosa.club/#network" rel="noopener noreferrer">Открыть MARCOSA ↗</a>'+
     '</aside>';
   }
+  function parseNetworkRoute(hash){
+    if(hash==='#network')return {tab:'products',slug:null};
+    const m=/^#network-(product|campaign)=([a-z0-9-]{1,64})$/.exec(String(hash||''));
+    if(!m||!products.some(p=>p.slug===m[2]))return null;
+    return {tab:m[1]==='campaign'?'campaign':'products',slug:m[2]};
+  }
   function mount(doc){
     const d=doc.getElementById('mn-dialog');if(!d)return;
     const $=id=>doc.getElementById(id);
@@ -219,8 +225,24 @@
     $('mn-film-download-html').addEventListener('click',()=>{if(latestFilm)download('marcosa-referral-card.html',movieSnippet(latestFilm)+'\n','text/html;charset=utf-8');});
     $('mn-product-count').textContent=products.length;$('mn-film-count').textContent='43';
     fillProducts();categories();cards();renderFilmRows();applyLanguage();showTab('products');
-    if(root?.location?.hash==='#network')open();
-    root?.addEventListener?.('hashchange',()=>{if(root.location.hash==='#network')open();});
+    function followNetworkRoute(){
+      const route=parseNetworkRoute(root?.location?.hash);
+      if(!route)return;
+      const p=route.slug?products.find(item=>item.slug===route.slug):null;
+      if(p && route.tab==='products'){
+        category='all';query=p.name.toLocaleLowerCase();
+        $('mn-search').value=p.name;categories();cards();
+        const more=$('mn-grid').querySelector('.mn-card-action');
+        if(more)more.click();
+      }else if(p && route.tab==='campaign'){
+        $('mn-product-select').value=p.slug;previewCampaign();
+      }else{
+        query='';$('mn-search').value='';category='all';categories();cards();
+      }
+      showTab(route.tab);open();
+    }
+    followNetworkRoute();
+    root?.addEventListener?.('hashchange',followNetworkRoute);
   }
-  return Object.freeze({products,film_slots:43,parseFilmImport,checkDomain,htmlEsc,movieSnippet,mount});
+  return Object.freeze({products,film_slots:43,parseFilmImport,checkDomain,htmlEsc,movieSnippet,parseNetworkRoute,mount});
 });

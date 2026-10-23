@@ -75,3 +75,17 @@ The **Device Performance Lab** reports observed RAF frame-delivery FPS/p50/p95/j
 - Local preview: `python3 -m http.server 8765 -d site` and open `http://127.0.0.1:8765`.
 
 **What is not established:** FPS on your physical laptop/phone, genuine production traffic or changes to the authenticated `marcosa.club`. GitHub Actions uses a hosted runner and, when Chrome is available, an offscreen software renderer; this does **not** substitute for real-device GPU benchmarking.
+
+
+## R5 — Story Continuation Pilot / creator commercialization path
+
+The next P0 master-plan milestone is implemented as real public-preview code: **three fictional branching interactive stories, two choices each and twelve explained outcomes**. Each ending offers an opt-in link to a specific existing source-backed project in the 16-product catalogue, or to its browser-only house-promotion draft. The new `stories.html` experience is accessible from the R4 home hero; RU/EN/中文 and reduced-motion support are included.
+
+**Creator / Brand Studio** produces a rights-gated `marcosa-branded-story-brief/v1` in JSON and a self-contained printable HTML pitch. It does not publish content or send network requests. Optional `marcosa-story-qa/v1` is a tab-local, opt-in manual test report, not audience analytics. The three stories are original **fictional demos**, not the still-unverified 43 real film sites.
+
+- [Open the story pilot locally](site/stories.html)
+- [R5 legal/technical rollout gates](docs/STORY_CONTINUATION_R5_RU.md)
+- [R5 branching, safe proposal and privacy tests](tests/stories.test.cjs)
+- [R5 browser interaction test](tools/r5_browser_smoke.py)
+
+Full authenticated MARCOSA, Worlds, Contabo production and Supabase remain unchanged. The public GitHub build confirms source code and browser QA only; no verified registrations, traffic, revenue or paid deals are claimed.
