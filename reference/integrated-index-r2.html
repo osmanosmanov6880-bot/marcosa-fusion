@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MARCOSA — A Social Universe</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="nexus.css">
+  <link rel="stylesheet" href="import.css">
+  <link rel="stylesheet" href="moderation.css">
+  <link rel="stylesheet" href="chat.css">
+  <link rel="stylesheet" href="world-home.css">
+  <link rel="stylesheet" href="discover-follow.css">
+  <link rel="stylesheet" href="marcosa-redesign.css">
+  <link rel="stylesheet" href="marcosa-auth.css">
+  <link rel="stylesheet" href="network/network-os.css">
+</head>
+<body>
+  <dialog class="world-dialog activity-dialog" id="business-world-dialog"><div class="world-dialog-head"><div><p class="eyebrow">BUSINESS / BRAND WORLD</p><h2>Brand workspace</h2></div><button class="dialog-close" data-close-dialog="business-world-dialog" aria-label="Close">x</button></div><p class="local-note">Workspace preview is stored on this device. Payments and ad billing are disabled.</p><form id="business-world-form" class="marcosa-account-form"><label for="business-brand-name">Brand name</label><input id="business-brand-name" maxlength="80" placeholder="Your brand or studio" required><label for="business-brand-purpose">World purpose</label><textarea id="business-brand-purpose" maxlength="240" placeholder="What should people experience here?" required></textarea><label for="business-brand-accent">Accent</label><input id="business-brand-accent" type="color" value="#73e6d0"><button class="profile-enter" type="submit">Create Brand World <span>-&gt;</span></button></form><div id="business-world-result" class="activity-group" hidden><p class="eyebrow">WORLD DRAFT</p><div class="activity-item"><span class="activity-dot gold-dot"></span><span id="business-world-summary"></span></div><section id="brand-verification-controls" class="marcosa-account-form" hidden><label>Brand verification</label><p data-brand-verification-status></p><button type="button" class="profile-enter" data-brand-verification-request>Request verification</button><div data-brand-verification-review hidden><label for="brand-verification-decision">Moderator decision</label><select id="brand-verification-decision"><option value="verified">Verify</option><option value="unverified">Remove verification</option></select><button type="button" class="profile-enter" data-brand-verification-review-button>Save decision</button></div><small data-brand-verification-note></small></section><form id="sponsored-object-form" class="marcosa-account-form"><label for="sponsored-object-copy">Sponsored object draft</label><textarea id="sponsored-object-copy" maxlength="500" placeholder="A transparent brand story or invitation"></textarea><button type="submit" class="profile-enter">Save object draft <span>-&gt;</span></button></form></div></dialog>
+  <section class="world-home" id="world-home" aria-label="MARCOSA Home">
+    <header class="world-header">
+      <a class="world-brand" href="#home" aria-label="MARCOSA Home"><span class="orbit-mark" aria-hidden="true"><i></i><b></b></span><span><strong>MARCOSA</strong><small>PRIVATE SOCIAL UNIVERSE</small></span></a>
+      <nav class="feed-tabs" aria-label="Лента">
+        <button class="feed-tab selected" data-feed-tab="for-you">Moments</button>
+        <button class="feed-tab" data-feed-tab="following">Worlds</button>
+        <button class="feed-tab" data-feed-tab="live">Live</button>
+        <button class="feed-tab" data-feed-tab="communities">Events</button>
+      </nav>
+      <div class="world-header-actions"><button type="button" class="mn-header-button" data-mn-open>◈ <span>Network OS</span></button><button class="header-icon-action" id="world-search" aria-label="Поиск" title="Discover">⌕</button><button class="header-icon-action" id="activity-open" aria-label="Уведомления" title="Activity">◌</button><button class="header-icon-action" id="world-message-open" aria-label="Сообщения" title="Messages">↗</button><button class="world-profile-trigger" id="world-profile-open" aria-label="Ваш профиль"><span class="profile-token">АК</span><span class="world-profile-name">Алексей</span><span class="status-seal" title="Участник с начала проекта">✦</span></button></div>
+    </header>
+
+    <aside class="floating-rail" aria-label="Основная навигация">
+      <a class="rail-brand" href="#home" aria-label="Главная MARCOSA"><span class="orbit-mark small" aria-hidden="true"><i></i><b></b></span></a>
+      <button class="world-nav active" data-world-nav="home" aria-label="Главная" title="Главная"><span>⌂</span><small>Home</small></button>
+      <button class="world-nav" data-world-action="search" aria-label="Поиск" title="Поиск"><span>⌕</span><small>Discover</small></button>
+      <button class="world-nav" data-world-action="community" aria-label="Миры сообщества" title="Миры"><span>◇</span><small>Worlds</small></button>
+      <button class="world-nav" data-world-action="messages" aria-label="Сообщения" title="Сообщения"><span>◌</span><small>Messages</small></button>
+      <button class="world-nav mn-rail-button" type="button" data-mn-open aria-label="Экосистема MARCOSA" title="Экосистема MARCOSA"><span aria-hidden="true">◈</span><small>Network</small></button>
+      <span class="rail-spacer"></span>
+      <button class="world-create-trigger" data-world-action="create" aria-label="Создать"><span>+</span><small>Create</small></button>
+      <button class="world-nav" id="world-profile-rail" aria-label="Профиль и атмосфера" title="Профиль"><span>АК</span><small>Profile</small></button>
+    </aside>
+
+    <main class="world-layout" id="home">
+      <div class="world-column">
+        <article class="hero-story" data-searchable="sophia carter the future is already here technology dubai">
+          <img class="hero-image" src="assets/dubai.jpg" alt="Панорама Дубая на закате, Бурдж-Халифа над городом" fetchpriority="high">
+          <div class="hero-content">
+            <div class="creator-line"><span class="creator-avatar">SC</span><span><strong>Sophia Carter</strong><small>Technology · Dubai</small></span><span class="verified-seal" title="Creator verified">✦</span></div>
+            <p class="story-kicker">A MARCOSA ORIGINAL &nbsp; / &nbsp; 02:14</p>
+            <h1>THE FUTURE<br>IS ALREADY HERE.</h1>
+            <p class="hero-deck">A new perspective on the cities we are still learning to imagine.</p>
+            <div class="hero-foot"><span>2.4M views <i></i> 4.8K responses</span><button class="immersive-trigger" data-world-action="immersive" aria-label="Открыть историю на весь экран" title="Immersive view">⛶</button></div>
+          </div>
+          <div class="hero-index"><span>01</span><i></i><span>05</span></div>
+        </article>
+
+        <section class="moments-section" aria-labelledby="moments-title">
+          <div class="section-heading"><div><p class="eyebrow">A WINDOW INTO THEIR WORLDS</p><h2 id="moments-title">Moments <span>around you</span></h2></div><button class="text-action" data-world-action="create-story">Share a moment <b>+</b></button></div>
+          <div class="moments-track" id="moments-track">
+            <button class="moment-card moment-add" data-world-action="create-story"><span class="moment-plus">+</span><strong>Your moment</strong><small>Make one worth keeping</small></button>
+            <button class="moment-card" data-moment="Sophia Carter — Dubai after dark" data-searchable="sophia carter dubai technology"><img src="assets/creator.jpg" alt="Портрет Sophia Carter" loading="lazy"><span class="moment-ring"><i>SC</i></span><span class="moment-copy"><strong>Sophia</strong><small>Dubai after dark</small></span></button>
+            <button class="moment-card" data-moment="Ari Lane — Somewhere above the noise" data-searchable="ari lane explorer travel"><img src="assets/explorer.jpg" alt="Горный пейзаж на рассвете" loading="lazy"><span class="moment-ring violet-ring"><i>AL</i></span><span class="moment-copy"><strong>Ari Lane</strong><small>Above the noise</small></span></button>
+            <button class="moment-card" data-moment="Maya Chen — The quiet side of Paris" data-searchable="maya chen paris artist"><img src="assets/artist.jpg" alt="Портрет Maya Chen" loading="lazy"><span class="moment-ring ruby-ring"><i>MC</i></span><span class="moment-copy"><strong>Maya Chen</strong><small>Paris, slowly</small></span></button>
+          </div>
+        </section>
+
+        <section class="story-stream" aria-labelledby="stream-title">
+          <div class="stream-heading"><div><p class="eyebrow">SELECTED FOR YOUR WORLD</p><h2 id="stream-title">Stories</h2></div><span class="stream-date">WEDNESDAY &nbsp;·&nbsp; 30 SEP</span></div>
+          <article class="feed-story editorial-story" data-feed="for-you following" data-searchable="maya chen quiet design paris artist">
+            <div class="story-author"><span class="author-avatar lilac">MC</span><span><strong>Maya Chen <i class="verified-seal">✦</i></strong><small>Artist · Paris &nbsp; · &nbsp; 18 min</small></span><button class="more-action" aria-label="Другие действия">···</button></div>
+            <p class="editorial-label">FIELD NOTES &nbsp; / &nbsp; 014</p><h3>The quiet side of the city<br>is never truly quiet.</h3><p class="story-copy">There is a particular hour when the last train leaves and a city belongs to the people who stayed. I started collecting those small sounds: a shutter, a kettle, someone opening a window above the street.</p>
+            <div class="story-actions"><button class="story-like" aria-pressed="false"><span>♡</span><b>128K</b></button><button data-world-action="messages"><span>◌</span><b>4.8K</b></button><button class="story-share"><span>↗</span><b>Share</b></button><span class="story-format">EDITORIAL</span></div>
+          </article>
+          <article class="feed-story cinematic-story" data-feed="for-you communities" data-searchable="sophia city geometry tomorrow dubai">
+            <div class="story-author"><span class="author-avatar gold-avatar">SC</span><span><strong>Sophia Carter <i class="verified-seal">✦</i></strong><small>Technology · Dubai &nbsp; · &nbsp; 42 min</small></span><button class="more-action" aria-label="Другие действия">···</button></div>
+            <img src="assets/dubai.jpg" alt="Геометрия делового центра Дубая в лучах вечернего солнца" loading="lazy">
+            <div class="cinematic-caption"><p class="eyebrow">CINEMATIC &nbsp; / &nbsp; CITY STUDIES</p><h3>Tomorrow has<br>a skyline.</h3><p>Dubai, in the hour when the glass catches the last light.</p></div>
+            <div class="story-actions"><button class="story-like" aria-pressed="false"><span>♡</span><b>86K</b></button><button data-world-action="messages"><span>◌</span><b>2.1K</b></button><button class="story-share"><span>↗</span><b>Share</b></button><span class="story-format">CINEMATIC</span></div>
+          </article>
+          <article class="feed-story social-story" data-feed="for-you following" data-searchable="ari lane collaboration imagine new chapter creator">
+            <div class="story-author"><span class="author-avatar blue-avatar">AL</span><span><strong>Ari Lane</strong><small>Creator · Vancouver &nbsp; · &nbsp; 1 h</small></span><button class="more-action" aria-label="Другие действия">···</button></div>
+            <p class="story-copy">Every good collaboration starts with a question you cannot stop thinking about. Ours is simple: what does a more human internet feel like?</p><a class="world-link" href="#community" data-world-action="community"><span>◉</span><span><strong>Inside the New Creators' Room</strong><small>34 people shaping the next chapter</small></span><b>→</b></a>
+            <div class="story-actions"><button class="story-like" aria-pressed="false"><span>♡</span><b>12K</b></button><button data-world-action="messages"><span>◌</span><b>980</b></button><button class="story-share"><span>↗</span><b>Share</b></button><span class="story-format">SOCIAL</span></div>
+          </article>
+          <article class="feed-story live-feed-story" data-feed="live" data-searchable="live after hours design internet conversation">
+            <div class="live-feed-art"><div><span class="live-indicator"><i></i> LIVE NOW</span><p class="eyebrow">COMMUNITY BROADCAST</p><h3>What should the<br>next internet feel like?</h3><p>After Hours / 04 &nbsp;·&nbsp; 28 listening</p><button data-world-action="community">Enter the room <span>→</span></button></div><div class="live-orbit" aria-hidden="true"><i></i><b></b></div></div>
+            <div class="story-author"><span class="author-avatar lilac">AH</span><span><strong>After Hours / 04</strong><small>Creator communities &nbsp;·&nbsp; live now</small></span></div>
+          </article>
+        </section>
+      </div>
+
+      <aside class="world-rail-context" aria-label="Сейчас в MARCOSA">
+        <section class="rail-section live-section"><div class="rail-section-head"><p class="eyebrow">HAPPENING NOW</p><span class="live-indicator"><i></i> LIVE</span></div><button class="live-room" data-world-action="community"><span class="live-art">◉</span><span><strong>After Hours / 04</strong><small>Designing the next internet</small></span><b>28</b></button><button class="rail-text-link" data-world-action="community">Enter the room <span>↗</span></button></section>
+        <section class="rail-section people-section"><div class="rail-section-head"><p class="eyebrow">PEOPLE TO MEET</p><button aria-label="Другие люди">···</button></div><div class="person-row"><span class="person-avatar mint-avatar">JM</span><span><strong>Jules Moreau</strong><small>Architecture · Paris</small></span><button class="follow-person" aria-label="Подписаться на Jules Moreau">+</button></div><div class="person-row"><span class="person-avatar coral-avatar">NF</span><span><strong>Noah Flores</strong><small>Film · Mexico City</small></span><button class="follow-person" aria-label="Подписаться на Noah Flores">+</button></div></section>
+        <section class="rail-section worlds-section"><div class="rail-section-head"><p class="eyebrow">TRENDING WORLDS</p><button aria-label="Показать все миры" data-world-action="community">All</button></div><button class="trending-world" data-world-action="community"><span>01</span><span><strong>New Creators</strong><small>1,240 members · 18 live</small></span><b>↗</b></button><button class="trending-world" data-world-action="community"><span>02</span><span><strong>Beyond the Frame</strong><small>860 members · 4 live</small></span><b>↗</b></button></section>
+        <section class="next-event"><p class="eyebrow">NEXT GATHERING</p><div class="event-number">03 <span>OCT<br>SAT</span></div><h3>Night city / field walk</h3><p>20:00 &nbsp;·&nbsp; Mayakovsky Square</p><button data-world-action="community">View gathering <span>→</span></button></section>
+        <footer class="world-footer"><span>© MARCOSA 2026</span><button data-world-action="community">COMMUNITY SPACE</button></footer>
+      </aside>
+    </main>
+
+    <nav class="mobile-world-nav" aria-label="Навигация">
+      <button class="active" data-world-nav="home"><span>⌂</span><small>Home</small></button><button data-world-action="search"><span>⌕</span><small>Discover</small></button><button class="mobile-create" data-world-action="create" aria-label="Create"><span>+</span></button><button data-world-action="messages"><span>◌</span><small>Private</small></button><button type="button" class="mn-mobile-button" data-mn-open aria-label="Экосистема MARCOSA"><span>◈</span><small>Network</small></button><button id="world-profile-mobile"><span>АК</span><small>Profile</small></button>
+    </nav>
+
+    <dialog class="world-dialog discover-dialog" id="discover-dialog"><div class="world-dialog-head"><div><p class="eyebrow">FIND YOUR NEXT WORLD</p><h2>Discover</h2></div><button class="dialog-close" data-close-dialog="discover-dialog" aria-label="Закрыть">×</button></div><label class="discover-search"><span>⌕</span><input id="discover-query" type="search" placeholder="People, worlds, stories, events" autocomplete="off"><kbd>ESC</kbd></label><div class="discover-suggestions" id="discover-results"></div></dialog>
+
+    <dialog class="world-dialog activity-dialog" id="activity-dialog"><div class="world-dialog-head"><div><p class="eyebrow">YOUR WORLD, IN MOTION</p><h2>Activity</h2></div><button class="dialog-close" data-close-dialog="activity-dialog" aria-label="Закрыть">×</button></div><div class="activity-group"><p class="eyebrow">PEOPLE</p><div class="activity-item"><span class="activity-dot"></span><span><strong>Jules Moreau</strong> started following your world.<small>12 min ago</small></span></div></div><div class="activity-group"><p class="eyebrow">COMMUNITIES</p><div class="activity-item"><span class="activity-dot gold-dot"></span><span><strong>After Hours / 04</strong> starts in 20 minutes.<small>Today · 20:00</small></span><button data-world-action="community">Open</button></div></div><div class="activity-group"><p class="eyebrow">YOUR CONTENT</p><div class="activity-item"><span class="activity-dot lilac-dot"></span><span>Your story reached <strong>2,400 people</strong>.<small>Yesterday</small></span></div></div></dialog>
+    <dialog class="world-dialog activity-dialog" id="creator-hub-dialog"><div class="world-dialog-head"><div><p class="eyebrow">CREATOR OPERATIONS</p><h2>Creator Hub</h2></div><button class="dialog-close" data-close-dialog="creator-hub-dialog" aria-label="Закрыть">×</button></div><p class="local-note" id="creator-hub-source">Local workspace metrics</p><div class="profile-stats creator-metrics"><span><strong id="creator-post-count">0</strong><small>published objects</small></span><span><strong id="creator-draft-count">0</strong><small>saved drafts</small></span><span><strong id="creator-message-count">0</strong><small>responses</small></span></div><div class="activity-group"><p class="eyebrow">RECENT WORK</p><div id="creator-recent-work" class="activity-item"><span class="activity-dot lilac-dot"></span><span>Open Create to publish your first object.<small>Ready when you are</small></span></div></div><button class="profile-enter" data-world-action="create" data-close-dialog="creator-hub-dialog">Create an object <span>→</span></button></dialog>
+
+    <dialog class="world-dialog profile-dialog" id="profile-dialog"><button class="dialog-close" data-close-dialog="profile-dialog" aria-label="Закрыть">×</button><div class="profile-world-cover"><span class="profile-world-mark">M</span><span class="status-seal large-seal">✦</span></div><div class="profile-world-copy"><p class="eyebrow">YOUR DIGITAL RESIDENCE</p><h2>Alexey K.</h2><p>Creator &nbsp;·&nbsp; Explorer</p><div class="profile-stats"><span><strong>1.2K</strong><small>followers</small></span><span><strong>842</strong><small>following</small></span><span><strong>12</strong><small>worlds</small></span></div><p class="eyebrow atmosphere-label">PERSONAL ATMOSPHERE</p><div class="atmosphere-options"><button data-atmosphere="explorer"><i class="swatch explorer-swatch"></i>Explorer</button><button data-atmosphere="creator"><i class="swatch creator-swatch"></i>Creator</button><button data-atmosphere="founder"><i class="swatch founder-swatch"></i>Founder</button><button data-atmosphere="artist"><i class="swatch artist-swatch"></i>Artist</button></div><button class="profile-enter" data-world-action="creator-hub" data-close-dialog="profile-dialog">Open Creator Hub <span>→</span></button></div></dialog>
+
+    <dialog class="world-dialog create-dialog" id="create-dialog"><div class="world-dialog-head"><div><p class="eyebrow">MAKE SOMETHING WORTH KEEPING</p><h2>Create</h2></div><button class="dialog-close" data-close-dialog="create-dialog" aria-label="Закрыть">×</button></div><div class="create-modes"><button class="create-mode selected" data-create-mode="post"><span>◉</span><strong>Post</strong><small>A thought, an image, a conversation</small></button><button class="create-mode" data-create-mode="story"><span>◇</span><strong>Story</strong><small>A moment from your world</small></button><button class="create-mode" data-create-mode="live"><span>◎</span><strong>Live</strong><small>Open a room for your people</small></button></div><form id="create-form"><label for="create-copy">Your story</label><textarea id="create-copy" maxlength="800" placeholder="What are you thinking about?"></textarea><div class="create-form-foot"><span id="create-mode-note">Visible to your followers</span><button class="publish-button" type="submit">Publish <span>→</span></button></div></form><div class="live-preview-note" id="live-preview-note" hidden>Live broadcasting is not connected. You can open the local community room preview.</div></dialog>
+
+    <dialog class="world-dialog message-dialog" id="message-dialog"><div class="world-dialog-head"><div><p class="eyebrow">PRIVATE SPACE</p><h2>Messages</h2></div><button class="dialog-close" data-close-dialog="message-dialog" aria-label="Закрыть">×</button></div><div class="message-thread" id="message-thread"><div class="thread-message received">A good idea deserves a room of its own.<small>Jules · 10:42</small></div><div class="thread-message sent">Let's make something together.<small>You · 10:44</small></div></div><form id="message-form"><input id="message-input" maxlength="360" placeholder="Write a private message"><button aria-label="Send message">↑</button></form><p class="local-note">Private messages are a local prototype on this device.</p></dialog>
+
+    <dialog class="moment-viewer" id="moment-viewer"><button class="dialog-close" data-close-dialog="moment-viewer" aria-label="Закрыть">×</button><img id="moment-viewer-image" alt=""><div><p class="eyebrow">MOMENT</p><h2 id="moment-viewer-title"></h2></div></dialog>
+  </section>
+
+  <section class="marcosa-world" id="world-space" hidden aria-label="New Creators World">
+    <header class="world-space-header">
+      <button class="world-back" id="world-home-return" aria-label="Return to Discover">←</button>
+      <p class="eyebrow">MARCOSA WORLD / 01</p>
+      <div class="world-space-tools"><button data-world-action="messages" title="Messages">◌</button><button data-world-action="create" title="Create object">+</button></div>
+    </header>
+    <div class="world-space-hero">
+      <img src="assets/dubai.jpg" alt="City skyline for New Creators World">
+      <div class="world-space-hero-copy"><span class="world-monogram">NC</span><p class="eyebrow">A PLACE FOR PEOPLE MAKING WHAT COMES NEXT</p><h1>New Creators</h1><p>Ideas, tools and collaborations for people who are building a more human internet.</p><div><span>1,240 members</span><span>18 live now</span><button id="world-enter">Enter World <b>→</b></button></div></div>
+    </div>
+    <nav class="world-space-tabs" aria-label="World navigation"><button class="selected" data-world-tab="discover">Discover</button><button data-world-tab="discuss">Discuss</button><button data-world-tab="live">Live <i></i></button><button data-world-tab="events">Events</button><button data-world-tab="media">Media</button><button data-world-tab="market">Market</button><button data-world-tab="members">Members</button><button data-world-tab="info">Info</button></nav>
+    <main class="world-space-main">
+      <section class="world-tab-panel" data-world-panel="discover"><div class="world-section-head"><div><p class="eyebrow">SELECTED INSIDE THIS WORLD</p><h2>Objects shaping the conversation.</h2></div><button data-world-action="create">Create object +</button></div><article class="world-object"><div class="object-author"><span>MC</span><strong>Maya Chen <small>Creator</small></strong><time>18 min</time></div><h3>What would a social space feel like if it was designed for presence?</h3><p>We collected notes from the last month of late-night conversations. The recurring idea: fewer surfaces, more context.</p><footer><button class="story-like" aria-pressed="false"><span>♡</span><b>128</b></button><button data-world-action="messages">◌ <b>24 responses</b></button><button class="story-share">↗ <b>Share object</b></button><span>ARTICLE</span></footer></article></section>
+      <section class="world-tab-panel" data-world-panel="discuss" hidden><div class="world-section-head"><div><p class="eyebrow">PUBLIC ROOM</p><h2>General discussion</h2></div><button data-world-action="messages">Open messages ↗</button></div><div class="world-discussion"><p><b>Jules Moreau</b> The best product conversations begin before a product exists.</p><p><b>Sophia Carter</b> Then the World should be the prototype, not the pitch deck.</p><form id="world-discuss-form"><input maxlength="360" placeholder="Add to the conversation"><button>↑</button></form></div></section>
+      <section class="world-tab-panel" data-world-panel="live" hidden><div class="world-live-panel"><p class="eyebrow">LIVE ROOM / 28 PRESENT</p><h2>After Hours:<br>the next internet.</h2><p>Voice, shared objects and open conversation.</p><button data-world-action="live-room">Enter live room <b>→</b></button></div></section>
+      <section class="world-tab-panel" data-world-panel="events" hidden><div class="world-section-head"><div><p class="eyebrow">SHARED EXPERIENCES</p><h2>Next in this World</h2></div></div><article class="world-event"><time>03 <small>OCT / SAT</small></time><div><h3>Night city / field walk</h3><p>20:00 · Mayakovsky Square · 18 going</p></div><button>RSVP →</button></article></section>
+      <section class="world-tab-panel placeholder-panel" data-world-panel="media" hidden><p class="eyebrow">WORLD MEDIA</p><h2>Archives, stories and creative work.</h2></section>
+      <section class="world-tab-panel placeholder-panel" data-world-panel="market" hidden><p class="eyebrow">WORLD MARKET</p><h2>Creator tools and selected objects.</h2></section>
+      <section class="world-tab-panel placeholder-panel" data-world-panel="members" hidden><p class="eyebrow">PEOPLE IN THIS WORLD</p><h2>1,240 members, connected by intent.</h2></section>
+      <section class="world-tab-panel placeholder-panel" data-world-panel="info" hidden><p class="eyebrow">WORLD IDENTITY</p><h2>Rules, hosts and the shared purpose.</h2></section>
+      <aside class="world-side-context"><p class="eyebrow">WORLD SIGNAL</p><strong>18 people are live</strong><p>In After Hours / 04</p><button data-world-tab-target="live">See live space →</button><hr><p class="eyebrow">UP NEXT</p><strong>Night city / field walk</strong><p>03 Oct · 20:00</p></aside>
+    </main>
+  </section>
+
+  <div class="app" id="community-space" hidden>
+    <aside class="rail" aria-label="Сообщества">
+      <a class="logo" href="#" aria-label="MARCOSA">M</a><button class="rail-item selected">MC</button><button class="rail-item blue">N</button><button class="rail-item coral">PG</button><button class="rail-add" id="new-community" aria-label="Новое сообщество">+</button><span></span><button class="user">АК</button>
+    </aside>
+    <aside class="nav">
+      <div class="community"><i></i><div><strong>MARCOSA Clans</strong><small>приватное сообщество</small></div><b>···</b></div>
+      <button class="invite" id="invite">+ Пригласить участников</button>
+      <label>ОБЗОР</label><button class="nav-link active">⌂ &nbsp; Обзор</button><button class="nav-link">◉ &nbsp; Участники <b>46</b></button><button class="nav-link">▣ &nbsp; События <b>2</b></button>
+      <label>ТЕКСТОВЫЕ КОМНАТЫ</label><button class="room active-room" data-room="площадь"># &nbsp; площадь</button><button class="room" data-room="общий"># &nbsp; общий</button><button class="room" data-room="сбор-команды"># &nbsp; сбор-команды</button><button class="room" data-room="идеи"># &nbsp; идеи</button>
+      <label>ГОЛОСОВЫЕ КОМНАТЫ</label><button class="voice" data-voice="Костёр"><i></i> Костёр <small>8</small></button><button class="voice" data-voice="Рейд-комната"><i></i> Рейд-комната <small>4</small></button><button class="voice" data-voice="Тихая зона"><i class="idle"></i> Тихая зона <small>2</small></button>
+      <div class="profile"><b>АК</b><div><strong>Алексей К.</strong><small><i></i> онлайн</small></div><em>⚙</em></div>
+    </aside>
+    <main>
+      <header><div><p>MARCOSA CLANS / КОМНАТА</p><h1 id="title"># площадь</h1></div><div class="tools"><button id="world-home-return" aria-label="На главную MARCOSA">← Home</button><button id="quiet">◒ Тихий режим</button><button id="search" aria-label="Поиск">⌕</button><button id="bell" aria-label="Уведомления">♧</button></div></header>
+      <section class="hero"><div><p>VOICE-FIRST COMMUNITY</p><h2>Собирайтесь быстро.<br><em>Оставайтесь ближе.</em></h2><article>Приватное пространство для клана: голос, роли, события и общая история без шума открытых социальных сетей.</article><button class="join" id="join">Войти в «Костёр» <b>→</b></button><button class="rules" id="rules">Правила сообщества</button></div><aside class="voice-card"><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><p>СЕЙЧАС В ГОЛОСЕ</p><strong>Костёр</strong><div class="faces"><span>ЛМ</span><span>ИС</span><span>АИ</span><b>+5</b></div><button id="join2">Подключиться</button></aside></section>
+      <section class="grid">
+        <article class="chat"><div class="card-head"><div><p>LIVE CHANNEL</p><h2>Что нового в сообществе</h2></div><button id="info">О канале</button></div><div id="messages"><div class="message"><div class="avatar mint">ЛМ</div><div><strong>Лея Марсо <b>Хранитель</b></strong><small>18:32</small><p>В субботу собираемся на вечерний квест. Открыла событие и добавила роли для отрядов.</p><span>Событие</span></div></div><div class="message"><div class="avatar violet">ИС</div><div><strong>Илья Серов <b class="violet-tag">Навигатор</b></strong><small>18:47</small><p>Залил маршрут и отметил точки, где будет голосовая связь. Кто идёт — поставьте реакцию.</p><span>⚡ 12</span><span>◉ 6</span></div></div></div><form id="form"><input id="input" maxlength="360" placeholder="Написать в #площадь"><button>Отправить</button></form></article>
+        <aside class="right"><section class="event"><p>БЛИЖАЙШЕЕ СОБЫТИЕ</p><div><b>03</b><span>ОКТ<br>СБ</span></div><h3>Ночной городской квест</h3><article>20:00 · Площадь Маяковского</article><footer><span><b id="event-going-count">18</b> идут</span><button id="event">Я иду</button></footer></section><section class="online"><div class="card-head"><h3>В комнате <span>12</span></h3><button>Все</button></div><p><span class="mini-avatar mint">АИ</span><span>Алина Исаева<small>говорит в «Костре»</small></span><i></i></p><p><span class="mini-avatar coral">ДЛ</span><span>Дарья Лунина<small>в сети</small></span><i></i></p><p><span class="mini-avatar violet">МР</span><span>Михаил Р.<small>просматривает идеи</small></span><i></i></p></section><section class="safety"><strong>▣ Безопасное пространство</strong><p>Пожалуйтесь на проблему в любой комнате. В этом прототипе обращения сохраняются локально.</p><button id="report">Сообщить о проблеме</button><button class="import" id="import-community">Импортировать сообщество</button></section></aside>
+      </section>
+    </main>
+  </div>
+  <dialog id="dialog"><div id="dialogText"></div><button id="close">Закрыть</button></dialog>
+  <dialog id="import-dialog" class="import-dialog"><div class="wizard-head"><div><p id="wizard-kicker">ПЕРЕНОС СООБЩЕСТВА</p><h2 id="wizard-title">Откуда переносим?</h2></div><button class="icon-close" id="import-close" aria-label="Закрыть">×</button></div><div class="wizard-progress"><i class="active"></i><i></i><i></i></div><div id="wizard-body"></div><div class="wizard-actions"><button class="secondary" id="wizard-back">Назад</button><button class="primary" id="wizard-next">Продолжить</button></div></dialog>
+  <dialog id="mn-dialog" class="mn-dialog" aria-labelledby="mn-title">
+    <div class="mn-shell">
+      <header class="mn-topbar">
+        <div class="mn-topbrand"><span class="mn-glyph" aria-hidden="true">◈</span><span><strong>MARCOSA <em>NETWORK OS</em></strong><small data-mn-text="topline">Экосистема независимых цифровых миров</small></span></div>
+        <div class="mn-top-actions"><span class="mn-preview-tag" data-mn-text="demoTag">Локальный пилот · без оплаты</span><button class="mn-close" id="mn-close" aria-label="Закрыть каталог" type="button">✕</button></div>
+      </header>
+      <div class="mn-scroll">
+        <section class="mn-hero">
+          <div><p class="mn-eyebrow">MARCOSA / DISCOVERY PROTOCOL 01</p><h2 id="mn-title" data-mn-text="headline">Открой мир возможностей.</h2><p class="mn-lead" data-mn-text="lead">Независимые инструменты, интерактивные истории и рабочие продукты — в единой точке входа. Каждый проект остаётся самостоятельным.</p><div class="mn-hero-actions"><button class="mn-primary" type="button" data-mn-goto="products" data-mn-text="seeProducts">Исследовать проекты ↗</button><button class="mn-secondary" type="button" data-mn-goto="campaign" data-mn-text="buildCampaign">Создать промо-черновик</button></div></div>
+          <div class="mn-orbit-panel" aria-hidden="true"><div class="mn-orbit-a"></div><div class="mn-orbit-b"></div><div class="mn-orbit-core">M<span>◇</span></div><span class="mn-orbit-dot one"></span><span class="mn-orbit-dot two"></span><span class="mn-orbit-dot three"></span><span class="mn-orbit-label">INDEPENDENT · CONNECTED</span></div>
+        </section>
+        <div class="mn-metrics"><div><b id="mn-product-count">16</b><span data-mn-text="productsMetric">продуктов с известным источником</span></div><div><b id="mn-film-count">43</b><span data-mn-text="filmMetric">кино-площадки требуют подтверждения</span></div><div><b>0</b><span data-mn-text="paymentsMetric">публичных платежей в этом модуле</span></div></div>
+        <nav class="mn-tabs" aria-label="Разделы Network OS">
+          <button type="button" class="mn-tab is-current" data-mn-tab="products" aria-pressed="true" data-mn-text="tabProducts">Проекты</button>
+          <button type="button" class="mn-tab" data-mn-tab="films" aria-pressed="false" data-mn-text="tabFilms">Кино-сеть</button>
+          <button type="button" class="mn-tab" data-mn-tab="campaign" aria-pressed="false" data-mn-text="tabCampaign">Промо-лаборатория</button>
+          <button type="button" class="mn-tab" data-mn-tab="about" aria-pressed="false" data-mn-text="tabAbout">Архитектура</button>
+          <div class="mn-language" aria-label="Язык"><button type="button" data-mn-lang="ru" class="selected" aria-pressed="true">RU</button><button type="button" data-mn-lang="en" aria-pressed="false">EN</button><button type="button" data-mn-lang="zh" aria-pressed="false">中文</button></div>
+        </nav>
+        <section class="mn-pane" id="mn-pane-products" aria-labelledby="mn-products-heading">
+          <div class="mn-section-heading"><div><p class="mn-eyebrow" data-mn-text="catalogKicker">КУРАТОРСКИЙ КАТАЛОГ</p><h3 id="mn-products-heading" data-mn-text="catalogTitle">Разные продукты. Общая точка входа.</h3></div><span class="mn-count" id="mn-results" role="status" aria-live="polite">16</span></div>
+          <p class="mn-catalog-note" data-mn-text="notLive">Это каталог известных исходников, а не список запущенных сервисов. Рабочие ссылки появятся только после проверки запуска и прав на публикацию.</p>
+          <div class="mn-filters"><label class="mn-search-label"><span class="mn-visually-hidden" data-mn-text="searchLabel">Поиск проекта</span><span aria-hidden="true">⌕</span><input id="mn-search" type="search" autocomplete="off" data-mn-placeholder="searchPlaceholder" placeholder="Название, направление, задача"></label><div class="mn-category-buttons" id="mn-categories" aria-label="Категории проектов"></div></div>
+          <div class="mn-grid" id="mn-grid" aria-live="polite"></div><div class="mn-empty" id="mn-empty" hidden data-mn-text="noResults">По вашему запросу проектов не найдено.</div>
+        </section>
+        <section class="mn-pane" id="mn-pane-films" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">CINEMA NETWORK / 43 SOURCES</p><h3 data-mn-text="filmTitle">43 истории — одна сеть открытий</h3></div></div>
+          <div class="mn-editorial-card"><span class="mn-icon-xl" aria-hidden="true">✧</span><div><h4 data-mn-text="filmMissing">Площадки ждут инвентаризации</h4><p data-mn-text="filmDetail">В исходном пакете нет подтверждённого списка 43 доменов. Их адреса, доступность и права не придуманы. Первый релиз подключит три проверенных сайта: просмотр истории → добровольная рекомендация → тематический World или продукт.</p><button class="mn-secondary" id="mn-show-worlds" type="button" data-mn-text="openWorlds">Открыть Worlds в MARCOSA ↗</button></div></div>
+          <div class="mn-film-workbench" aria-label="MARCOSA / cinema onboarding studio">
+            <div class="mn-film-band"><div><span class="mn-eyebrow">FILM ONBOARDING / SOURCE REVIEW</span><h4 data-mn-film-text="candidate">Кандидаты на проверку</h4><p data-mn-film-text="unverified">Данные из файла пользователя. Владение доменами и права независимо не проверены.</p></div><strong id="mn-film-quantity" aria-live="polite">0 / 43</strong></div>
+            <div class="mn-film-importbar">
+              <button class="mn-secondary" id="mn-film-template" type="button" data-mn-film-text="template">Скачать шаблон 43 сайтов · CSV</button>
+              <label class="mn-film-upload"><span data-mn-film-text="chooseFile">Импортировать заполненный CSV</span><input id="mn-film-csv" type="file" accept=".csv,text/csv" aria-label="Импорт CSV со списком кино-сайтов"></label>
+              <button class="mn-film-clear" id="mn-film-reset" type="button" data-mn-film-text="reset">Очистить импорт</button>
+            </div>
+            <p class="mn-film-status" id="mn-film-status" role="status" aria-live="polite">Пока не импортировано ни одного домена.</p>
+            <div class="mn-film-list" id="mn-film-list"></div>
+            <div class="mn-film-composer"><form id="mn-film-form" class="mn-film-form">
+              <p class="mn-eyebrow">MARCOSA / FILM → DISCOVERY</p>
+              <h4>POST-STORY REFERRAL</h4>
+              <label><span data-mn-film-text="selectSite">Кино-сайт для пилота</span><select id="mn-film-source" required disabled></select></label>
+              <label><span data-mn-film-text="selectProduct">Рекомендуемый проект</span><select id="mn-film-product" required></select></label>
+              <label><span data-mn-film-text="message">Короткое предложение после финала</span><textarea id="mn-film-message" required minlength="10" maxlength="160" rows="3" placeholder="История закончилась, но выбор продолжается. Открой связанный цифровой мир."></textarea></label>
+              <label class="mn-film-checkbox"><input id="mn-film-own" type="checkbox"><span data-mn-film-text="attestDomain">Я управляю указанным сайтом или уполномочен владельцем (самодекларация).</span></label>
+              <label class="mn-film-checkbox"><input id="mn-film-rights" type="checkbox"><span data-mn-film-text="attestRights">У меня есть разрешение на размещение материалов и ссылок (самодекларация).</span></label>
+              <button class="mn-primary" id="mn-film-prepare" type="submit" disabled data-mn-film-text="preview">Сформировать черновик перехода</button>
+              <div class="mn-film-actions"><button class="mn-secondary" id="mn-film-download-json" type="button" disabled data-mn-film-text="downloadJson">Скачать план JSON</button><button class="mn-secondary" id="mn-film-download-html" type="button" disabled data-mn-film-text="downloadHtml">Скачать пример HTML</button></div>
+              <p id="mn-film-feedback" class="mn-hint" role="status" aria-live="polite"></p>
+            </form><aside class="mn-film-preview-panel"><div class="mn-preview-top">DISTRIBUTION / DRAFT ONLY</div><p class="mn-film-watermark">NOT DEPLOYED · NO TRACKING</p><pre><code id="mn-film-preview">Для подготовки пакета сначала импортируй реальный кино-домен из CSV.</code></pre></aside></div>
+          </div>
+
+        </section>
+        <section class="mn-pane" id="mn-pane-campaign" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">FIRST-PARTY / CREATIVE LAB</p><h3 data-mn-text="campaignTitle">Собери собственную рекламную идею.</h3></div></div><p class="mn-catalog-note" data-mn-text="campaignNote">Черновик создаётся только в браузере. Он не запускает рекламу, не отслеживает зрителей и не списывает деньги.</p>
+          <div class="mn-campaign-layout"><form id="mn-campaign-form" class="mn-campaign-form"><label><span data-mn-text="chooseProduct">Какой продукт рекламируем?</span><select id="mn-product-select" required></select></label><label><span data-mn-text="headlineA">Заголовок A</span><input id="mn-headline-a" maxlength="100" required placeholder="Открой новый мир" value="Открой новый мир"></label><label><span data-mn-text="copyA">Описание A</span><textarea id="mn-copy-a" maxlength="240" rows="3" required placeholder="Короткое объяснение ценности"></textarea></label><div class="mn-form-split"><label><span data-mn-text="headlineB">Заголовок B (необязательно)</span><input id="mn-headline-b" maxlength="100"></label><label><span data-mn-text="copyB">Описание B (если указан заголовок)</span><textarea id="mn-copy-b" maxlength="240" rows="2"></textarea></label></div><button class="mn-primary" type="submit" data-mn-text="exportDraft">Скачать черновик JSON ↓</button><p id="mn-form-feedback" class="mn-hint" role="status" aria-live="polite"></p></form>
+          <aside class="mn-campaign-preview"><div class="mn-preview-top"><span data-mn-text="previewTitle">ПРЕДПРОСМОТР · ФИНАЛ ИСТОРИИ</span><span>◈ OWN BRAND</span></div><div class="mn-preview-stage"><span class="mn-preview-mark">MARCOSA ORIGINAL</span><h4 id="mn-preview-headline">Открой новый мир</h4><p id="mn-preview-copy" data-mn-text="previewEmpty">Добавьте описание своего проекта.</p><span class="mn-preview-link" data-mn-text="previewLink">Узнать о проекте ↗</span></div><p class="mn-preview-disclaimer" data-mn-text="rawCounters">В текущем выпуске нет верифицированных показов или продаж. A/B — два текста, не статистически доказанный победитель.</p></aside></div>
+        </section>
+        <section class="mn-pane" id="mn-pane-about" hidden><div class="mn-section-heading"><div><p class="mn-eyebrow">MARCOSA / NETWORK CONSTITUTION</p><h3 data-mn-text="aboutTitle">Единое открытие без единой зависимости.</h3></div></div><div class="mn-principles"><article><b>01</b><h4 data-mn-text="principle1Title">Каждый проект независим</h4><p data-mn-text="principle1">Собственные исходники, домены, данные, права и жизненный цикл. MARCOSA отвечает за обнаружение, рекомендации и переходы.</p></article><article><b>02</b><h4 data-mn-text="principle2Title">Художественный опыт важнее рекламы</h4><p data-mn-text="principle2">Не прерывать фильмы. Уместные рекомендации и прозрачное спонсорство — после сцены или завершения истории.</p></article><article><b>03</b><h4 data-mn-text="principle3Title">Доверие прежде измерений</h4><p data-mn-text="principle3">Никаких выдуманных зрителей, дохода, лайков и конверсий. Источник данных, права, подтверждение домена и согласия проверяются отдельно.</p></article></div></section>
+        <footer class="mn-footer"><span>© MARCOSA NETWORK OS · SOURCE-BASED INTEGRATION</span><span data-mn-text="footerStatus">Локальная интеграция · без публичного деплоя</span></footer>
+      </div>
+    </div>
+  </dialog>
+  <div id="toast" role="status"></div><script src="import-core.js"></script><script src="moderation-core.js"></script><script src="invite-core.js"></script><script src="events-core.js"></script><script src="support-core.js"></script><script src="chat-core.js"></script><script src="voice-core.js"></script><script src="nexus.js"></script><script src="moderation-ui.js"></script><script src="invite-ui.js"></script><script src="events-ui.js"></script><script src="support-ui.js"></script><script src="chat-ui.js"></script><script src="marcosa-config.js"></script><script src="marcosa-ai.js"></script><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js" crossorigin="anonymous"></script><script src="marcosa-supabase.js"></script><script src="world-home.js"></script><script src="interaction-bridge.js"></script>
+<script src="marcosa-mini-app-sdk.js"></script><div id="create-media-preview" aria-live="polite"></div><input id="create-media" type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,audio/mpeg,audio/wav,.gltf,.glb,model/gltf+json,model/gltf-binary" hidden>
+<script src="marcosa-e2ee.js"></script>
+<script src="recording-core.js"></script><script src="world-events.js"></script>
+<script src="developer-console.js"></script>
+<script src="network/catalog-data.js"></script><script src="network/film-kit.js"></script><script src="network/network-os.js"></script><script src="network/film-studio.js"></script>
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+</body>
+</html>
