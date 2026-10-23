@@ -365,3 +365,26 @@ textarea.mc-input{resize:vertical;min-height:80px;white-space:pre-wrap}
 @media print{
   .mc-vault-section{display:none!important}
 }
+
+
+/* R10: one-click portable backup / non-destructive recovery */
+.mc-backup-card{
+  border-color:#c9b08a8c;
+  background:linear-gradient(135deg,#1b2d41 0%,#111d31 55%,#151827);
+}
+.mc-backup-card:before{
+  background:linear-gradient(90deg,transparent,#87d5c1 30%,#ebc599 63%,#bd506c 94%);
+}
+.mc-backup-actions{display:grid;grid-template-columns:1fr 1fr;gap:11px;margin:21px 0 13px}
+.mc-backup-actions .mc-btn{min-height:55px}
+.mc-backup-feedback{color:#addfd4;font-size:12px;line-height:1.6;min-height:20px;margin:12px 0 17px}
+.mc-backup-card .mc-vault-caution{border-top-color:#c9a97b6b}
+@media(max-width:1060px){
+  .mc-backup-actions{grid-template-columns:1fr}
+}
+@media(max-width:800px){
+  .mc-backup-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:570px){
+  .mc-backup-actions{grid-template-columns:1fr}
+}
