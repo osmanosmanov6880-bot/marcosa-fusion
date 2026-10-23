@@ -43,6 +43,13 @@ def hook(mode:str)->tuple[str,str]:
         styles="""header.ms-topbar,.ms-hero,.ms-ticker,.ms-stories,.ms-stage,
             .ms-values,.ms-privacy,.ms-footer{display:none!important}
             .ms-studio{margin:0 auto!important;padding-top:18px!important}"""
+    elif mode=="r10-backup":
+        script=""
+        styles="""header.mc-header,.mc-hero,.mc-workspace,.mc-footer{display:none!important}
+            .mc-vault-heading{display:none!important}
+            .mc-vault-section{margin:8px auto!important;padding-top:4px!important}
+            .mc-vault-card:not(.mc-backup-card){display:none!important}
+            .mc-vault-main{grid-template-columns:1fr!important;max-width:760px;margin:0 auto}"""
     elif mode=="r9-vault":
         script=""
         styles="""header.mc-header,.mc-hero,.mc-workspace,.mc-footer{display:none!important}
@@ -72,8 +79,8 @@ def main()->None:
         ("mobile-r8-story-player",390,844,"r8-workspace"),
         ("desktop-r9-project-vault",1440,900,"r9-vault"),
         ("mobile-r9-review-gates",390,844,"r9-vault"),
-        ("desktop-r10-vault-backup",1440,900,"r9-vault"),
-        ("mobile-r10-backup-actions",390,844,"r9-vault")
+        ("desktop-r10-vault-backup",1440,900,"r10-backup"),
+        ("mobile-r10-backup-actions",390,844,"r10-backup")
     ]
     reports=[]
     with tempfile.TemporaryDirectory(prefix="marcosa-r5-visual-") as temp:
@@ -84,7 +91,7 @@ def main()->None:
         r8_base=(here/"creator.html").read_text(encoding="utf-8")
         for label,width,height,mode in cases:
             js,styles=hook(mode)
-            page=r8_base if mode in ("r8-workspace","r9-vault") else base
+            page=r8_base if mode in ("r8-workspace","r9-vault","r10-backup") else base
             custom=page.replace("</head>",styles+"</head>").replace("</body>",js+"</body>")
             (here/"capture.html").write_text(custom,encoding="utf-8")
             png=OUTPUT/(label+".png")
