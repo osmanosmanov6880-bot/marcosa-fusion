@@ -13,7 +13,7 @@ const {spawn,spawnSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const DIST=path.join(ROOT,'dist');
 const SHOTS=path.join(ROOT,'qa-r5');
-const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js']);
+const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js','creator-backup.js']);
 const MIME={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',js:'text/javascript; charset=utf-8'};
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function browser(){
@@ -156,6 +156,92 @@ function liveTest(){
       width:document.documentElement.clientWidth,review_exported:true};
   })();
 }
+
+function r10BackupPrepare(){
+  return (async function(){
+    const api=window.MarcosaVaultBackup;
+    if(!api||!window.MarcosaBackupRuntime)throw Error('BACKUP_RUNTIME_MISSING');
+    const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
+    const records=await store.list();
+    if(records.length!==1||records[0].revisions.length!==3)throw Error('BACKUP_SOURCE_VERSIONS');
+    const file=api.stringifyBackup(records,new Date().toISOString());
+    const parsed=api.parseBackup(file);
+    if(parsed.projects.length!==1||parsed.projects[0].revisions.length!==3)
+      throw Error('BACKUP_SERIALIZATION_BROKEN');
+    window.__r10_test_backup=file;
+    document.getElementById('mc-backup-download').click();
+    if(!document.getElementById('mc-backup-feedback').textContent.includes('Резервная копия'))
+      throw Error('BACKUP_EXPORT_FEEDBACK');
+    return {result:'PASS_R10_PORTABLE_BACKUP',bytes:new TextEncoder().encode(file).byteLength,versions:3};
+  })();
+}
+function r10BackupRestore(){
+  return (async function(){
+    const $=id=>document.getElementById(id);
+    const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+    const wait=async(check,reason)=>{
+      for(let i=0;i<120;i++){if(await check())return;await sleep(45);}
+      throw Error('R10_WAIT_'+reason+' / '+$('mc-backup-feedback').textContent);
+    };
+    const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
+    const json=window.__r10_test_backup;
+    if(!json||!json.includes('marcosa-local-vault-backup/v1'))
+      throw Error('BACKUP_MISSING');
+    if((await store.list()).length!==0)throw Error('BACKUP_EXPECTED_EMPTY_VAULT');
+    window.confirm=()=>true;
+    const apply=async()=>{
+      const file=new File([json],'marcosa-restore.json',{type:'application/json'});
+      const transfer=new DataTransfer();transfer.items.add(file);
+      const input=$('mc-backup-file');
+      input.files=transfer.files;input.dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    await apply();
+    await wait(async()=>document.querySelectorAll('#mc-project-list .mc-project-card').length===1
+      &&(await store.list()).length===1,'FIRST_RESTORE');
+    let records=await store.list();
+    if(records[0].revisions.length!==3||records[0].revisions[0].revision!==1)
+      throw Error('BACKUP_LOST_REVISIONS');
+    // Reimporting identical data is idempotent; no extra project is created.
+    $('mc-backup-feedback').textContent='R10-SECOND-RESTORE';
+    await apply();
+    await wait(()=>/совпадений пропущено:\s*1/.test($('mc-backup-feedback').textContent),'IDEMPOTENT_MERGE');
+    records=await store.list();
+    if(records.length!==1)throw Error('DUPLICATE_CREATED');
+    // Create a diverging version in the live project; restoring the old backup must
+    // produce a second copy rather than replacing the latest revision.
+    const latest=records[0];
+    const story=window.MarcosaCreatorStudio.normalizeDraft(latest.revisions[2].draft);
+    story.title='Новая редакция после резервного копирования';
+    await store.save({id:latest.id,expected_revision:3,draft:story,message:'Changed since backup'});
+    $('mc-backup-feedback').textContent='R10-CONFLICT-RESTORE';
+    await apply();
+    await wait(async()=>(await store.list()).length===2,'SAFE_CONFLICT_COPY');
+    records=await store.list();
+    const current=records.find(item=>item.id===latest.id);
+    const restored=records.find(item=>item.id!==latest.id);
+    if(!current||!restored||current.revisions.length!==4||restored.revisions.length!==3)
+      throw Error('CONFLICT_OVERWROTE_EXISTING_HISTORY');
+    if(current.title!==story.title||restored.title===story.title)
+      throw Error('CONFLICT_STORY_CORRUPTED');
+    $('mc-backup').scrollIntoView({block:'start',behavior:'auto'});
+    await sleep(150);
+    if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)
+      throw Error('BACKUP_MOBILE_HORIZONTAL_OVERFLOW');
+    return {result:'PASS_R10_RESTORE_IDEMPOTENT_CONFLICT_SAFE',projects:records.length,
+      versions:[current.revisions.length,restored.revisions.length]};
+  })();
+}
+function r10Cleanup(){
+  return (async function(){
+    const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
+    const list=await store.list();
+    for(const record of list)await store.remove(record.id);
+    await window.MarcosaLocalVaultRuntime.refresh();
+    if((await store.list()).length!==0)throw Error('R10_CLEANUP_NOT_DURABLE');
+    return 'PASS_R10_CLEANUP';
+  })();
+}
+
 function deleteTest(){
   return (async function(){
     const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
@@ -223,11 +309,26 @@ async function main(){
       const raw=Buffer.from(shot.data,'base64');
       if(raw.length<10000||raw.toString('hex',0,4)!=='89504e47')throw Error('R9_BAD_PNG_'+device.name);
       fs.writeFileSync(path.join(SHOTS,'r9-live-'+device.name+'-vault.png'),raw);
+      const backedUp=await evaluate(cdp,'('+r10BackupPrepare.toString()+')()',20000);
+      if(backedUp?.result!=='PASS_R10_PORTABLE_BACKUP')throw Error('R10_EXPORT_FAILED '+JSON.stringify(backedUp));
+      console.log('R10 real Chrome '+device.name+':',JSON.stringify(backedUp));
       const deleted=await evaluate(cdp,'('+deleteTest.toString()+')()',20000);
       if(deleted!=='PASS_R9_LOCAL_DELETE')throw Error('R9_DELETE_FAILED '+deleted);
       console.log('R9 real Chrome '+device.name+':',deleted,'screenshot bytes:',raw.length);
+      const recovery=await evaluate(cdp,'('+r10BackupRestore.toString()+')()',30000);
+      if(recovery?.result!=='PASS_R10_RESTORE_IDEMPOTENT_CONFLICT_SAFE')
+        throw Error('R10_RESTORE_FAILED '+JSON.stringify(recovery));
+      console.log('R10 real Chrome '+device.name+':',JSON.stringify(recovery));
+      const backupShot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+      const backupPng=Buffer.from(backupShot.data,'base64');
+      if(backupPng.length<10000||backupPng.toString('hex',0,4)!=='89504e47')
+        throw Error('R10_BAD_PNG_'+device.name);
+      fs.writeFileSync(path.join(SHOTS,'r10-live-'+device.name+'-vault-restore.png'),backupPng);
+      const clean=await evaluate(cdp,'('+r10Cleanup.toString()+')()',20000);
+      if(clean!=='PASS_R10_CLEANUP')throw Error('R10_CLEANUP_FAILED');
+      console.log('R10 real Chrome '+device.name+':',clean,'screenshot bytes:',backupPng.length);
     }
-    console.log('R9 CDP end-to-end: PASS (desktop/mobile, real IndexedDB, localhost only)');
+    console.log('R9/R10 CDP end-to-end: PASS (desktop/mobile, real IndexedDB and full archive recovery)');
   }finally{
     if(cdp)try{cdp.close();}catch(err){}
     if(chrome){
