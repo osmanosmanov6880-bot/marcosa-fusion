@@ -24,22 +24,18 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
-      - name: Require private repository and complete source checkout
-        env:
-          REPOSITORY_PRIVATE: ${{ github.event.repository.private }}
+      - name: Require isolated source preview and tests
         shell: bash
         run: |
           set -euo pipefail
-          [[ "$REPOSITORY_PRIVATE" == "true" ]] || {
-            echo "::error::Set marcosa-fusion repository visibility to Private."
-            exit 1
-          }
-          test -f tools/build_webroot.py || {
-            echo "::error::R2 source files are not imported yet. Deployment is blocked."
-            exit 1
-          }
-          test -d site
-          test -d tests
+          # Public source builds are permitted. VPS staging deploy stays
+          # disabled in public repositories regardless of secrets/variables.
+          test -f tools/build_webroot.py
+          test -s site/index.html
+          test -s site/network.js
+          test -s site/network.css
+          test -f tests/film_kit.test.cjs
+          test -f tests/test_public_release.py
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -51,6 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s tests -q
+          node --check site/network.js
           node --test tests/film_kit.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
