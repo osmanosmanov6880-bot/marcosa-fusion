@@ -78,6 +78,48 @@ window.addEventListener('load',function(){
 });
 </script>"""
 
+CREATOR_TEST=r"""<script>
+window.addEventListener('load',function(){
+  window.setTimeout(function(){
+    try{
+      const by=id=>document.getElementById(id);
+      const studio=window.MarcosaCreatorStudio;
+      if(!studio||!studio.FIELDS||studio.FIELDS.length!==22)throw Error('EDITOR_NOT_MOUNTED');
+      if(document.querySelectorAll('#mc-fields .mc-field').length!==22)throw Error('EDITOR_FIELDS');
+      if(document.querySelectorAll('#mc-choice-list .mc-choice').length!==2)throw Error('OPENING_CHOICE_COUNT');
+      document.querySelectorAll('#mc-choice-list .mc-choice')[1].click();
+      if(document.querySelectorAll('#mc-choice-list .mc-choice').length!==2)throw Error('BRANCH_CHOICE_COUNT');
+      document.querySelectorAll('#mc-choice-list .mc-choice')[0].click();
+      if(by('mc-play-title').textContent!=='Открытый маяк')throw Error('WRONG_BRANCH_ENDING');
+      if(by('mc-choice-list').children.length!==0)throw Error('ENDING_CHOICES_VISIBLE');
+      by('mc-back').click();
+      if(by('mc-play-index').textContent!=='02 / 03')throw Error('BACK');
+      by('mc-restart').click();
+      if(by('mc-play-index').textContent!=='01 / 03')throw Error('RESTART');
+      const title=by('mc-field-title');
+      title.value='Новая тестовая история';
+      title.dispatchEvent(new Event('input',{bubbles:true}));
+      if(by('mc-dirty').hidden||!by('mc-download').disabled)throw Error('STALE_EXPORT_NOT_BLOCKED');
+      for(const id of ['mc-rights','mc-disclose']){
+        const x=by(id);x.checked=true;x.dispatchEvent(new Event('change',{bubbles:true}));
+      }
+      by('mc-apply').click();
+      if(by('mc-play-title').textContent!=='Новая тестовая история')throw Error('PREVIEW_NOT_UPDATED');
+      if(by('mc-download').disabled)throw Error('VALID_EXPORT_BLOCKED');
+      document.querySelector('[data-mc-lang="en"]').click();
+      if(!by('mc-main-title').textContent.includes('Your story'))throw Error('TRANSLATION_MISSING');
+      if(title.value!=='Новая тестовая история')throw Error('LANGUAGE_LOST_CONTENT');
+      if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)throw Error('HORIZONTAL_OVERFLOW');
+      const m=document.createElement('meta');m.name='r5-browser-smoke';m.content='PASS-R8-STORY-BUILDER';
+      document.head.append(m);
+    }catch(e){
+      const m=document.createElement('meta');m.name='r5-browser-smoke';m.content='FAIL-R8-'+String(e.message||e).slice(0,90);
+      document.head.append(m);
+    }
+  },600);
+});
+</script>"""
+
 ROUTE_TEST=r"""<script>
 window.addEventListener('load',function(){
   window.setTimeout(function(){
@@ -99,7 +141,7 @@ window.addEventListener('load',function(){
 });
 </script>"""
 
-def run_case(here:Path,filename:str,hook:str,fragment:str="")->bool:
+def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,900")->bool:
     html=(DIST/filename).read_text(encoding="utf-8")
     if "</body>" not in html:
         raise RuntimeError("Missing HTML body: "+filename)
@@ -108,7 +150,7 @@ def run_case(here:Path,filename:str,hook:str,fragment:str="")->bool:
     cmd=[CHROME,"--headless=new","--no-sandbox","--disable-dev-shm-usage",
          "--allow-file-access-from-files","--enable-unsafe-swiftshader","--use-angle=swiftshader",
          "--disable-background-networking","--virtual-time-budget=4500",
-         "--window-size=1440,900","--dump-dom",output.as_uri()+fragment]
+         "--window-size="+viewport,"--dump-dom",output.as_uri()+fragment]
     try:
         proc=subprocess.run(cmd,capture_output=True,text=True,timeout=50)
     except subprocess.TimeoutExpired:
@@ -128,12 +170,15 @@ def main()->int:
     with tempfile.TemporaryDirectory(prefix="marcosa-r5-chrome-") as temp:
         here=Path(temp)
         for filename in ("index.html","network.css","network.js","immersive.css","immersive.js",
-                         "stories.html","stories.css","stories.js"):
+                         "stories.html","stories.css","stories.js",
+                         "creator.html","creator.css","creator.js"):
             shutil.copyfile(DIST/filename,here/filename)
         ok1=run_case(here,"stories.html",STORY_TEST)
         ok2=run_case(here,"index.html",ROUTE_TEST,"#network-product=proofos")
         ok3=run_case(here,"stories.html",STORY_ROUTE_TEST,"#story=signal.00")
-        return 0 if ok1 and ok2 and ok3 else 3
+        ok4=run_case(here,"creator.html",CREATOR_TEST)
+        ok5=run_case(here,"creator.html",CREATOR_TEST,viewport="390,844")
+        return 0 if ok1 and ok2 and ok3 and ok4 and ok5 else 3
 
 if __name__=="__main__":
     raise SystemExit(main())
