@@ -98,9 +98,9 @@
     'signal-worlds','protocol-zero','impossible-ai','impossible-ventures'
   ]);
   const I18N={
-    ru:{home:'НАЗАД В MARCOSA',eyebrow:'MARCOSA / STORY CONTINUATION LAB · R5',hero:'Истории, после которых хочется действовать.',lead:'Три небольших интерактивных мира. Твои решения меняют финал и рекомендацию. Никаких навязанных рекламных переходов.',disclaimer:'Открытая демонстрация. Не реальные кино-сайты и не подтверждённые Worlds.',explore:'ВЫБРАТЬ ИСТОРИЮ',studio:'БРЕНД-СТУДИЯ',source:'ДЕМОНСТРАЦИЯ / БЕЗ ТРЕКИНГА',scene:'СЦЕНА',choice:'Выбери направление',ending:'ТВОЙ ФИНАЛ',why:'Почему рекомендовано',project:'СМОТРЕТЬ КАРТОЧКУ ПРОЕКТА ↗',campaign:'СОЗДАТЬ СВОЁ ПРОМО ↗',productNote:'Рекомендация основана только на двух выборах. Сервис и права на публикацию не подтверждены.',back:'НАЗАД',again:'ЗАНОВО',steps:'2 решения → 1 результат',chapter:'ЭПИЗОД',qa:'СОХРАНИТЬ ЛОКАЛЬНЫЙ QA-ОТЧЁТ',qaOn:'Включить локальные события для проверки сценария (не отправляются в интернет)',qaEmpty:'Включите локальную диагностику, затем пройдите историю.',qaReady:'Локальный отчёт доступен — без персональных идентификаторов.',studioEyebrow:'CREATOR / OWN-BRAND PILOT',studioTitle:'Преврати интерес в честный рекламный сценарий.',studioLead:'Создай заявку на короткую интерактивную историю для своего бренда. Это экспортируемый бриф — без публикации, денег и фальшивых показов.',brand:'Название бренда или проекта',audience:'Кому адресована история',goal:'Какую проблему должен решить сюжет',template:'Формат истории',productField:'Тематический проект',rights:'Я подтверждаю, что могу использовать предоставленные материалы и проверю права до публикации.',disclose:'Я согласен явно обозначать рекламный материал и не маскировать его под независимую историю.',generate:'СОЗДАТЬ ПРЕДЛОЖЕНИЕ',download:'СКАЧАТЬ БРИФ JSON',downloadProposal:'СКАЧАТЬ ПРЕДЛОЖЕНИЕ HTML',draft:'ЧЕРНОВИК / НЕ ОПУБЛИКОВАН',briefReady:'Бриф сформирован локально. Следующие этапы: права → сценарий → согласование → проверка → публикация.',briefError:'Заполни название (2–100 символов), аудиторию (4–160), задачу (12–320) и подтвердите два условия.',privacy:'Формы, история и отчёты обрабатываются только в этой вкладке. Нет cookies, платёжной системы, сетевых запросов и учёта зрителей.',principle1:'Сюжет не прерывается рекламой. Предложение — после выбора.',principle2:'Решение зрителя определяет финал и рекомендацию.',principle3:'Никаких придуманных показов, кликов или конверсий.',goalPlaceholder:'Расскажи, какую пользу получает человек после завершения истории',credits:'ПРОТОТИП / НЕ PRODUCTION',noTelemetry:'0 сторонних трекеров · 0 оплат · 0 вымышленных просмотров'},
-    en:{home:'BACK TO MARCOSA',eyebrow:'MARCOSA / STORY CONTINUATION LAB · R5',hero:'Stories that lead somewhere meaningful.',lead:'Three small interactive worlds. Your choices change the ending and the recommendation. No forced ad redirects.',disclaimer:'Public fictional demo. Not verified film websites or working Worlds.',explore:'CHOOSE A STORY',studio:'BRAND STUDIO',source:'DEMO / NO TRACKING',scene:'SCENE',choice:'Choose your direction',ending:'YOUR ENDING',why:'Why this fits',project:'EXPLORE PROJECT CARD ↗',campaign:'DRAFT YOUR OWN PROMO ↗',productNote:'Recommendation uses only your two choices. Live service and publication rights are unverified.',back:'BACK',again:'RESTART',steps:'2 decisions → 1 outcome',chapter:'EPISODE',qa:'DOWNLOAD LOCAL QA REPORT',qaOn:'Enable in-memory QA events (never transmitted)',qaEmpty:'Enable local QA, then complete a story.',qaReady:'Local report is ready — no personal identifiers.',studioEyebrow:'CREATOR / OWN-BRAND PILOT',studioTitle:'Turn attention into a transparent story proposal.',studioLead:'Create a brief for an interactive branded story. Export locally; no publication, billing or fabricated reach.',brand:'Brand or project name',audience:'Who should this help?',goal:'What problem should the story address?',template:'Story template',productField:'Relevant project',rights:'I confirm I may use these materials and will verify rights before publishing.',disclose:'I will label promotional content clearly and will not disguise advertising as independent storytelling.',generate:'GENERATE PROPOSAL',download:'DOWNLOAD BRIEF JSON',downloadProposal:'DOWNLOAD PROPOSAL HTML',draft:'DRAFT / NOT PUBLISHED',briefReady:'Draft created locally. Next: rights → script → review → QA → publication.',briefError:'Enter brand (2–100 characters), audience (4–160), goal (12–320) and accept both conditions.',privacy:'Forms, stories and QA reports remain in this tab only. No cookies, payments, network requests or audience tracking.',principle1:'Promotion never interrupts the story. The suggestion comes after a choice.',principle2:'The viewers own decisions determine the ending and recommendation.',principle3:'No invented impressions, clicks or conversions.',goalPlaceholder:'Describe the real benefit for a person after completing the story',credits:'PROTOTYPE / NOT PRODUCTION',noTelemetry:'0 third-party trackers · 0 payments · 0 invented views'},
-    zh:{home:'返回 MARCOSA',eyebrow:'MARCOSA / 故事延续实验室 · R5',hero:'让故事通向真正有意义的选择。',lead:'三个互动故事。你的选择改变结局与推荐，没有强制广告跳转。',disclaimer:'公开虚构演示，并非已验证的电影网站或 Worlds。',explore:'选择故事',studio:'品牌工作室',source:'演示 / 不跟踪',scene:'场景',choice:'选择方向',ending:'你的结局',why:'推荐理由',project:'查看项目卡片 ↗',campaign:'创建宣传草稿 ↗',productNote:'推荐只根据两个选择。服务上线和发布权利尚未核实。',back:'返回',again:'重新开始',steps:'2 次决定 → 1 个结果',chapter:'章节',qa:'下载本地测试报告',qaOn:'启用仅在内存中的测试事件（不会上传）',qaEmpty:'先启用本地测试，再体验故事。',qaReady:'本地报告可下载，不含个人标识。',studioEyebrow:'创作者 / 自有品牌试点',studioTitle:'把注意力转化为透明的故事提案。',studioLead:'为品牌创作互动故事简报，仅本地导出，不发布、不收费、不虚构观看量。',brand:'品牌或项目名称',audience:'服务的观众是谁',goal:'故事要解决的问题',template:'故事模板',productField:'相关项目',rights:'我有权使用这些材料，并将在发布前核实权利。',disclose:'我会清楚标记品牌内容，不会伪装成独立故事。',generate:'生成提案',download:'下载 JSON 简报',downloadProposal:'下载 HTML 提案',draft:'草稿 / 未发布',briefReady:'本地草稿完成。下一步：权利、剧本、审核、测试、发布。',briefError:'请填写品牌（2–100 字符）、观众（4–160）、目标（12–320），并同意两项条款。',privacy:'表单、故事和测试报告仅存在于此标签页。没有 cookie、付款、网络请求或受众跟踪。',principle1:'广告不打断故事。推荐只在观众主动选择之后出现。',principle2:'观众的决定改变结局和推荐。',principle3:'不虚构浏览量、点击量或转化率。',goalPlaceholder:'说明观众完成故事后可以获得什么真实价值',credits:'原型 / 非正式上线',noTelemetry:'0 第三方跟踪 · 0 付款 · 0 虚构浏览量'}
+    ru:{home:'НАЗАД В MARCOSA',eyebrow:'MARCOSA / STORY CONTINUATION LAB · R5',hero:'Истории, после которых хочется действовать.',lead:'Три небольших интерактивных мира. Твои решения меняют финал и рекомендацию. Никаких навязанных рекламных переходов.',disclaimer:'Открытая демонстрация. Не реальные кино-сайты и не подтверждённые Worlds.',explore:'ВЫБРАТЬ ИСТОРИЮ',studio:'БРЕНД-СТУДИЯ',source:'ДЕМОНСТРАЦИЯ / БЕЗ ТРЕКИНГА',scene:'СЦЕНА',choice:'Выбери направление',ending:'ТВОЙ ФИНАЛ',why:'Почему рекомендовано',project:'СМОТРЕТЬ КАРТОЧКУ ПРОЕКТА ↗',campaign:'СОЗДАТЬ СВОЁ ПРОМО ↗',productNote:'Рекомендация основана только на двух выборах. Сервис и права на публикацию не подтверждены.',back:'НАЗАД',again:'ЗАНОВО',steps:'2 решения → 1 результат',share:'СКОПИРОВАТЬ ССЫЛКУ НА ФИНАЛ',shareCopied:'Ссылка скопирована. В ней только название истории и два выбора.',shareManual:'Автоматическое копирование недоступно. Выделенная ссылка ниже готова для копирования вручную.',chapter:'ЭПИЗОД',qa:'СОХРАНИТЬ ЛОКАЛЬНЫЙ QA-ОТЧЁТ',qaOn:'Включить локальные события для проверки сценария (не отправляются в интернет)',qaEmpty:'Включите локальную диагностику, затем пройдите историю.',qaReady:'Локальный отчёт доступен — без персональных идентификаторов.',studioEyebrow:'CREATOR / OWN-BRAND PILOT',studioTitle:'Преврати интерес в честный рекламный сценарий.',studioLead:'Создай заявку на короткую интерактивную историю для своего бренда. Это экспортируемый бриф — без публикации, денег и фальшивых показов.',brand:'Название бренда или проекта',audience:'Кому адресована история',goal:'Какую проблему должен решить сюжет',template:'Формат истории',productField:'Тематический проект',rights:'Я подтверждаю, что могу использовать предоставленные материалы и проверю права до публикации.',disclose:'Я согласен явно обозначать рекламный материал и не маскировать его под независимую историю.',generate:'СОЗДАТЬ ПРЕДЛОЖЕНИЕ',download:'СКАЧАТЬ БРИФ JSON',downloadProposal:'СКАЧАТЬ ПРЕДЛОЖЕНИЕ HTML',draft:'ЧЕРНОВИК / НЕ ОПУБЛИКОВАН',briefReady:'Бриф сформирован локально. Следующие этапы: права → сценарий → согласование → проверка → публикация.',briefError:'Заполни название (2–100 символов), аудиторию (4–160), задачу (12–320) и подтвердите два условия.',privacy:'Формы, история и отчёты обрабатываются только в этой вкладке. Нет cookies, платёжной системы, сетевых запросов и учёта зрителей.',principle1:'Сюжет не прерывается рекламой. Предложение — после выбора.',principle2:'Решение зрителя определяет финал и рекомендацию.',principle3:'Никаких придуманных показов, кликов или конверсий.',goalPlaceholder:'Расскажи, какую пользу получает человек после завершения истории',credits:'ПРОТОТИП / НЕ PRODUCTION',noTelemetry:'0 сторонних трекеров · 0 оплат · 0 вымышленных просмотров'},
+    en:{home:'BACK TO MARCOSA',eyebrow:'MARCOSA / STORY CONTINUATION LAB · R5',hero:'Stories that lead somewhere meaningful.',lead:'Three small interactive worlds. Your choices change the ending and the recommendation. No forced ad redirects.',disclaimer:'Public fictional demo. Not verified film websites or working Worlds.',explore:'CHOOSE A STORY',studio:'BRAND STUDIO',source:'DEMO / NO TRACKING',scene:'SCENE',choice:'Choose your direction',ending:'YOUR ENDING',why:'Why this fits',project:'EXPLORE PROJECT CARD ↗',campaign:'DRAFT YOUR OWN PROMO ↗',productNote:'Recommendation uses only your two choices. Live service and publication rights are unverified.',back:'BACK',again:'RESTART',steps:'2 decisions → 1 outcome',share:'COPY ENDING LINK',shareCopied:'Link copied. It contains only the story and two fictional decisions.',shareManual:'Clipboard access is unavailable. Copy the selected link below manually.',chapter:'EPISODE',qa:'DOWNLOAD LOCAL QA REPORT',qaOn:'Enable in-memory QA events (never transmitted)',qaEmpty:'Enable local QA, then complete a story.',qaReady:'Local report is ready — no personal identifiers.',studioEyebrow:'CREATOR / OWN-BRAND PILOT',studioTitle:'Turn attention into a transparent story proposal.',studioLead:'Create a brief for an interactive branded story. Export locally; no publication, billing or fabricated reach.',brand:'Brand or project name',audience:'Who should this help?',goal:'What problem should the story address?',template:'Story template',productField:'Relevant project',rights:'I confirm I may use these materials and will verify rights before publishing.',disclose:'I will label promotional content clearly and will not disguise advertising as independent storytelling.',generate:'GENERATE PROPOSAL',download:'DOWNLOAD BRIEF JSON',downloadProposal:'DOWNLOAD PROPOSAL HTML',draft:'DRAFT / NOT PUBLISHED',briefReady:'Draft created locally. Next: rights → script → review → QA → publication.',briefError:'Enter brand (2–100 characters), audience (4–160), goal (12–320) and accept both conditions.',privacy:'Forms, stories and QA reports remain in this tab only. No cookies, payments, network requests or audience tracking.',principle1:'Promotion never interrupts the story. The suggestion comes after a choice.',principle2:'The viewers own decisions determine the ending and recommendation.',principle3:'No invented impressions, clicks or conversions.',goalPlaceholder:'Describe the real benefit for a person after completing the story',credits:'PROTOTYPE / NOT PRODUCTION',noTelemetry:'0 third-party trackers · 0 payments · 0 invented views'},
+    zh:{home:'返回 MARCOSA',eyebrow:'MARCOSA / 故事延续实验室 · R5',hero:'让故事通向真正有意义的选择。',lead:'三个互动故事。你的选择改变结局与推荐，没有强制广告跳转。',disclaimer:'公开虚构演示，并非已验证的电影网站或 Worlds。',explore:'选择故事',studio:'品牌工作室',source:'演示 / 不跟踪',scene:'场景',choice:'选择方向',ending:'你的结局',why:'推荐理由',project:'查看项目卡片 ↗',campaign:'创建宣传草稿 ↗',productNote:'推荐只根据两个选择。服务上线和发布权利尚未核实。',back:'返回',again:'重新开始',steps:'2 次决定 → 1 个结果',share:'复制结局链接',shareCopied:'链接已复制，仅包含故事名称和两次虚构选择。',shareManual:'无法自动复制。请手动复制下面已选中的链接。',chapter:'章节',qa:'下载本地测试报告',qaOn:'启用仅在内存中的测试事件（不会上传）',qaEmpty:'先启用本地测试，再体验故事。',qaReady:'本地报告可下载，不含个人标识。',studioEyebrow:'创作者 / 自有品牌试点',studioTitle:'把注意力转化为透明的故事提案。',studioLead:'为品牌创作互动故事简报，仅本地导出，不发布、不收费、不虚构观看量。',brand:'品牌或项目名称',audience:'服务的观众是谁',goal:'故事要解决的问题',template:'故事模板',productField:'相关项目',rights:'我有权使用这些材料，并将在发布前核实权利。',disclose:'我会清楚标记品牌内容，不会伪装成独立故事。',generate:'生成提案',download:'下载 JSON 简报',downloadProposal:'下载 HTML 提案',draft:'草稿 / 未发布',briefReady:'本地草稿完成。下一步：权利、剧本、审核、测试、发布。',briefError:'请填写品牌（2–100 字符）、观众（4–160）、目标（12–320），并同意两项条款。',privacy:'表单、故事和测试报告仅存在于此标签页。没有 cookie、付款、网络请求或受众跟踪。',principle1:'广告不打断故事。推荐只在观众主动选择之后出现。',principle2:'观众的决定改变结局和推荐。',principle3:'不虚构浏览量、点击量或转化率。',goalPlaceholder:'说明观众完成故事后可以获得什么真实价值',credits:'原型 / 非正式上线',noTelemetry:'0 第三方跟踪 · 0 付款 · 0 虚构浏览量'}
   };
   const loc=(x,lang)=>x&&typeof x==='object'?(x[lang]||x.en||x.ru||''):String(x||'');
   const getStory=id=>STORIES.find(s=>s.id===id)||null;
@@ -123,6 +123,27 @@
     const story=getStory(state&&state.storyId);
     if(!story||!Array.isArray(state.answers)||state.answers.length!==2||state.answers.some(x=>x!==0&&x!==1))return null;
     return story.endings[state.answers.join('')]||null;
+  }
+  // A share link contains only the public story id and two fictional choices.
+  // It never contains a session identifier, a user id, a private brief or QA events.
+  function encodeStoryRoute(state){
+    if(!state||!getStory(state.storyId)||!Array.isArray(state.answers)||
+       state.answers.length!==2||state.answers.some(x=>x!==0&&x!==1))
+      throw Error('INVALID_STORY_ROUTE');
+    return '#story='+state.storyId+'.'+state.answers.join('');
+  }
+  function parseStoryRoute(hash){
+    if(typeof hash!=='string'||hash.length>90)return null;
+    const match=/^#story=([a-z0-9-]{1,40})\.([01]{2})$/.exec(hash);
+    if(!match||!getStory(match[1]))return null;
+    return {storyId:match[1],answers:match[2].split('').map(Number)};
+  }
+  function buildShareUrl(href,state){
+    const url=new URL(String(href));
+    if(!['https:','http:','file:'].includes(url.protocol))throw Error('INVALID_SHARE_URL');
+    url.username='';url.password='';url.search='';
+    url.hash=encodeStoryRoute(state);
+    return url.href;
   }
   function buildBrief(input){
     if(!input||typeof input!=='object')throw Error('INVALID_BRIEF');
@@ -233,7 +254,7 @@
     const catalog=win.MarcosaNetworkPreview?.products||[];
     const name=slug=>catalog.find(p=>p.slug===slug)?.name||slug;
     const qa=createQaRecorder();
-    let lang='ru',state=createState('last-minute'),latestBrief=null;
+    let lang='ru',state=parseStoryRoute(win.location&&win.location.hash)||createState('last-minute'),latestBrief=null;
     function make(tag,cls,text){const e=doc.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;}
     function download(filename,data,html){
       const text=html?String(data):JSON.stringify(data,null,2)+'\n';
@@ -258,7 +279,14 @@
         list.append(button);
       }
     }
+    function clearSharedRoute(){
+      if(win.location&&parseStoryRoute(win.location.hash)&&win.history&&typeof win.history.replaceState==='function'){
+        const url=new URL(win.location.href);url.hash='';
+        win.history.replaceState(null,'',url.href);
+      }
+    }
     function selectStory(id){
+      clearSharedRoute();
       state=createState(id);
       log('film_started');renderCards();renderStage();
     }
@@ -274,6 +302,10 @@
       $('ms-progress-fill').style.width=((step+1)/3*100)+'%';
       $('ms-episode-status').textContent=done?dict().ending:dict().chapter+' '+(step+1);
       $('ms-back').disabled=step===0;
+      $('ms-share-copy').hidden=!done;
+      $('ms-share-copy').textContent=dict().share;
+      $('ms-share-field').hidden=true;
+      $('ms-share-feedback').textContent='';
       $('ms-restart').textContent=dict().again;
       const pane=$('ms-choices');pane.replaceChildren();
       $('ms-finish').hidden=!done;$('ms-narrative').hidden=done;
@@ -299,6 +331,7 @@
           b.append(make('span','ms-choice-label',loc(choice,lang)));
           b.append(make('span','ms-choice-arrow','↗'));
           b.addEventListener('click',()=>{
+            clearSharedRoute();
             state=advance(state,index);log('choice_selected');
             if(state.answers.length===2){log('film_completed');log('recommendation_rendered',outcome(state).product);}
             renderStage();
@@ -329,15 +362,35 @@
       });
       renderCards();renderStage();fillBriefOptions();
     }
-    $('ms-back').addEventListener('click',()=>{state=rewind(state);renderStage();});
+    $('ms-back').addEventListener('click',()=>{clearSharedRoute();state=rewind(state);renderStage();});
     $('ms-restart').addEventListener('click',()=>selectStory(state.storyId));
     doc.querySelectorAll('[data-ms-lang]').forEach(button=>
       button.addEventListener('click',()=>switchLanguage(button.dataset.msLang)));
+    if(typeof win.addEventListener==='function')win.addEventListener('hashchange',()=>{
+      const route=parseStoryRoute(win.location&&win.location.hash);
+      if(route){state=route;renderCards();renderStage();}
+    });
     $('ms-project-link').addEventListener('click',()=>{
       const result=outcome(state);if(result)log('recommendation_clicked',result.product);
     });
     $('ms-campaign-link').addEventListener('click',()=>{
       const result=outcome(state);if(result)log('recommendation_clicked',result.product);
+    });
+    $('ms-share-copy').addEventListener('click',async()=>{
+      if(!outcome(state))return;
+      const link=buildShareUrl(win.location.href,state);
+      const field=$('ms-share-url');field.value=link;
+      try{
+        if(!win.isSecureContext||!win.navigator||!win.navigator.clipboard||
+           typeof win.navigator.clipboard.writeText!=='function')throw Error('COPY_NOT_AVAILABLE');
+        await win.navigator.clipboard.writeText(link);
+        $('ms-share-feedback').textContent=dict().shareCopied;
+        $('ms-share-field').hidden=true;
+      }catch(err){
+        $('ms-share-field').hidden=false;
+        $('ms-share-feedback').textContent=dict().shareManual;
+        field.focus();field.select();
+      }
     });
     $('ms-qa-opt').addEventListener('change',event=>{
       qa.enable(Boolean(event.target.checked));
@@ -381,5 +434,6 @@
       get locale(){return lang;},selectStory,switchLanguage,getQaReport(){return qa.report();}});
   }
   return Object.freeze({STORIES,PRODUCT_SLUGS,I18N,getStory,createState,advance,rewind,outcome,
+    encodeStoryRoute,parseStoryRoute,buildShareUrl,
     buildBrief,buildProposalHtml,escapeHtml,createQaRecorder,mount});
 });
