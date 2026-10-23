@@ -8,7 +8,7 @@
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root&&root.document){
     root.MarcosaCreatorStudio=api;
-    const start=()=>api.mount(root.document,root);
+    const start=()=>{root.MarcosaCreatorRuntime=api.mount(root.document,root);};
     if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',start,{once:true});
     else start();
   }
@@ -327,6 +327,18 @@
       for(const key of FIELDS)writePath(raw,key,$(fieldId(key)).value);
       return normalizeDraft(raw);
     }
+    function loadLocalDraft(raw){
+      const restored=normalizeDraft(raw);
+      // A restored/local version never carries forward old legal attestations.
+      restored.rights_self_attested=false;
+      restored.sponsorship_disclosure_committed=false;
+      fillForm(restored);
+      current=restored;history=[];dirty=false;
+      $('mc-dirty').hidden=true;
+      $('mc-download').disabled=true;
+      render();message('statusImported');
+      return normalizeDraft(restored);
+    }
     function render(){
       const part=atStep(current,history);
       $('mc-play-index').textContent=String(part.index+1).padStart(2,'0')+' / 03';
@@ -417,7 +429,9 @@
       get preview(){return normalizeDraft(current);},
       get history(){return history.slice();},
       get locale(){return language;},
-      apply,render
+      get dirty(){return dirty;},
+      getEditedDraft(){return readForm();},
+      loadLocalDraft,apply,render
     });
   }
   return Object.freeze({SCHEMA,LANGS,SECTIONS,FIELDS,REVIEW_GATES,UI,demoDraft,
