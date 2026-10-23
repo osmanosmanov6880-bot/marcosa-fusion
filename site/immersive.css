@@ -106,3 +106,11 @@ body{margin:0;background:var(--mi-night)!important;color:var(--mi-ink);font-fami
 @media(max-height:630px) and (min-width:801px){.mi-stage{min-height:500px}.mi-copy h1{font-size:clamp(51px,5vw,78px)}.mi-copy-lead{margin-top:18px}.mi-actions{margin-top:19px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.mi-world-canvas{display:none!important}.mi-webgl-active .mi-fallback{opacity:1!important}.mi-main-btn,.mi-quiet-btn,.mi-pillar,.mi-outline-link,.mn-card,.mn-tab,.mn-chip,.mn-primary,.mn-secondary{transition:none!important;transform:none!important}}
 @media(prefers-contrast:more){.mi-copy-lead,.mi-pillar p,.mi-under-head p{color:#f4f5ef}.mi-stage{border-color:#e7eac4}.mi-quiet-btn,.mi-outline-link{border-color:#e2dcc0}}
+/* Fallback animation is transform/opacity-only. No repaint-heavy filters per frame. */
+@keyframes mi-beacon-orbit{from{transform:rotateX(66deg) rotate(21deg)}to{transform:rotateX(66deg) rotate(381deg)}}
+@keyframes mi-facade-light{0%,100%{opacity:.68}50%{opacity:.92}}
+.mi-fallback .mi-beacon{animation:mi-beacon-orbit 32s linear infinite}
+.mi-fallback .mi-tower::after{animation:mi-facade-light 8s ease-in-out infinite}
+.mi-fallback .mi-tower:nth-child(2n)::after{animation-delay:-4s}
+.mi-webgl-active .mi-beacon,.mi-webgl-active .mi-tower::after,.mi-save-data .mi-beacon,.mi-save-data .mi-tower::after{animation:none!important}
+@media(prefers-reduced-motion:reduce){.mi-fallback .mi-beacon,.mi-fallback .mi-tower::after{animation:none!important}}
