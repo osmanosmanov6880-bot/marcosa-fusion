@@ -1,0 +1,73 @@
+"""MARCOSA Network OS R2 public-preview CI safety and build tests.
+
+Deliberately verifies only the isolated, stateless preview. It cannot claim
+end-to-end verification of the private/social MARCOSA production application.
+"""
+import hashlib
+import json
+import subprocess
+import sys
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+SITE = ROOT / "site"
+
+class PublicPreviewTests(unittest.TestCase):
+    def test_preview_has_all_required_modules_and_usable_navigation(self):
+        html = (SITE / "index.html").read_text(encoding="utf-8")
+        self.assertIn('id="mn-dialog"', html)
+        self.assertIn('id="mn-film-form"', html)
+        self.assertIn('id="mn-grid"', html)
+        self.assertIn('id="mn-campaign-form"', html)
+        self.assertIn('href="./network.css"', html)
+        self.assertIn('src="./network.js"', html)
+        self.assertTrue((SITE / "network.css").is_file())
+        self.assertTrue((SITE / "network.js").is_file())
+
+    def test_public_frontend_no_private_backend_or_tracking_calls(self):
+        js = (SITE / "network.js").read_text(encoding="utf-8")
+        html = (SITE / "index.html").read_text(encoding="utf-8")
+        for forbidden in (
+            "service_role", "-----BEGIN", "sk-proj-", "ghp_",
+            "XMLHttpRequest(", "navigator.sendBeacon(", "document.cookie",
+            "localStorage.setItem(", "sessionStorage.setItem(",
+        ):
+            self.assertNotIn(forbidden, js)
+        self.assertNotIn("marcosa-supabase.js", html)
+        self.assertNotIn("https://", js.split("const rows = ")[0])
+
+    def test_builder_creates_only_allowlisted_files_and_manifest(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "tools" / "build_webroot.py")],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self.assertIn("public_static_preview_only", result.stdout)
+        dist = ROOT / "dist"
+        files = {p.name for p in dist.iterdir() if p.is_file()}
+        self.assertEqual(files, {
+            "index.html", "network.css", "network.js",
+            "build-manifest.json", ".marcosa-preview-generated",
+        })
+        manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
+        for name, digest in manifest["files"].items():
+            self.assertEqual(digest, hashlib.sha256((dist / name).read_bytes()).hexdigest())
+        self.assertNotIn("supabase", " ".join(files))
+
+    def test_staging_workflow_stays_disabled_in_public_repository(self):
+        yml = (ROOT / ".github" / "workflows" / "marcosa-staging.yml").read_text(encoding="utf-8")
+        self.assertIn("github.event.repository.private == true", yml)
+        self.assertIn("MARCOSA_STAGING_ENABLED", yml)
+        self.assertIn("MARCOSA_SSH_KNOWN_HOSTS", yml)
+        self.assertIn("MARCOSA_SSH_KEY", yml)
+
+    def test_no_private_notes_or_runtime_data_in_public_distribution(self):
+        names = {str(p.relative_to(ROOT)) for p in (SITE).rglob("*") if p.is_file()}
+        self.assertFalse(any("brief-crops/" in name for name in names))
+        self.assertFalse(any(name.endswith((".sqlite", ".pem", ".key", ".env")) for name in names))
+
+if __name__ == "__main__":
+    unittest.main()
