@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+"""Capture the *actual* R4 static preview using CI's Chromium software renderer.
+
+Snapshots are local CI evidence; they cannot certify user-device GPU FPS.
+"""
+from __future__ import annotations
+
+import json
+import shutil
+import struct
+import subprocess
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+DIST = ROOT / "dist"
+OUTPUT = ROOT / "qa-r4"
+BROWSER = next((path for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
+                if (path := shutil.which(name))), None)
+
+
+def main() -> None:
+    if not BROWSER:
+        print("Browser screenshot QA skipped: Chrome/Chromium absent")
+        return
+    OUTPUT.mkdir(exist_ok=True)
+    cases = [
+        ("desktop-webgl", 1440, 900, False),
+        ("mobile-webgl", 390, 844, False),
+        ("mobile-static", 390, 844, True),
+    ]
+    reports = []
+    with tempfile.TemporaryDirectory(prefix="marcosa-r4-snap-") as tmp:
+        here = Path(tmp)
+        for filename in ("index.html", "network.js", "network.css", "immersive.js", "immersive.css"):
+            shutil.copyfile(DIST / filename, here / filename)
+        for label, width, height, disable_gl in cases:
+            target = OUTPUT / (label + ".png")
+            cmd = [
+                BROWSER, "--headless=new", "--no-sandbox",
+                "--disable-dev-shm-usage", "--allow-file-access-from-files",
+                "--disable-background-networking", "--enable-unsafe-swiftshader",
+                "--use-angle=swiftshader", "--hide-scrollbars",
+                "--force-device-scale-factor=1", "--virtual-time-budget=3000",
+                "--window-size={},{}".format(width,height),
+                "--screenshot={}".format(target),
+            ]
+            if disable_gl:
+                cmd += ["--disable-webgl", "--disable-gpu"]
+            cmd.append((here / "index.html").as_uri())
+            try:
+                p = subprocess.run(cmd, capture_output=True, text=True, timeout=45)
+            except subprocess.TimeoutExpired:
+                reports.append({"case":label,"result":"browser_timeout"})
+                continue
+            if not target.is_file() or target.stat().st_size < 1024:
+                reports.append({"case":label,"result":"capture_unavailable","exit_code":p.returncode})
+                continue
+            data = target.read_bytes()
+            if data[:8] != bytes((137,80,78,71,13,10,26,10)):
+                reports.append({"case":label,"result":"invalid_png"})
+                continue
+            pw,ph = struct.unpack(">II",data[16:24])
+            reports.append({"case":label,"result":"captured","size":[pw,ph],"bytes":len(data)})
+    (OUTPUT / "summary.json").write_text(json.dumps(reports,indent=2)+"\n",encoding="utf-8")
+    for row in reports:
+        print("R4 browser screenshot",row)
+
+if __name__ == "__main__":
+    main()
