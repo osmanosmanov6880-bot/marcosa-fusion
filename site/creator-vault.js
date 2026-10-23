@@ -10,7 +10,7 @@
   if(typeof module==='object'&&module.exports)module.exports=api;
   if(root&&root.document){
     root.MarcosaLocalVault=api;
-    const boot=()=>api.mount(root.document,root);
+    const boot=()=>{root.MarcosaLocalVaultRuntime=api.mount(root.document,root);};
     if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',boot,{once:true});
     else boot();
   }
