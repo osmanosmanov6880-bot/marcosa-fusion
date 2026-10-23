@@ -1,4 +1,4 @@
-/* MARCOSA R8 — local-first branching story creator.
+/* MARCOSA R9 — local-first branching story creator.
  * 2 decisions / 4 endings. Strict allowlist schema, zero persistence/network.
  * Fictional draft editor only: no publication, accounts, payments or analytics.
  */
@@ -33,8 +33,8 @@
   ]);
   const UI={
     ru:{
-      home:'ГЛАВНАЯ',stories:'ИГРАТЬ В ИСТОРИИ',eyebrow:'MARCOSA / CREATOR ENGINE · R8',
-      heading:'Твоя история. Четыре разных финала.',intro:'Напиши собственный сюжет с двумя решениями и четырьмя финалами. Проверь развилки в плеере справа и выгрузи готовый JSON-черновик.',
+      home:'ГЛАВНАЯ',stories:'ИГРАТЬ В ИСТОРИИ',eyebrow:'MARCOSA / CREATOR ENGINE · R9',
+      heading:'Твоя история. Четыре разных финала.',intro:'Напиши историю с четырьмя финалами. Сохраняй новые версии по кнопке в локальный архив и передавай JSON на независимую проверку.',
       prototype:'ЛОКАЛЬНЫЙ ПРОТОТИП · НЕ ПУБЛИКУЕТСЯ',editor:'РЕДАКТОР ИСТОРИИ',preview:'ПРЕДПРОСМОТР',
       source:'СТАРТОВАЯ ДЕМОНСТРАЦИЯ',language:'ЯЗЫК ИСТОРИИ',fields:'Заполни сцены и решения. Нажми «Обновить предпросмотр», чтобы применить изменения.',
       apply:'ОБНОВИТЬ ПРЕДПРОСМОТР',download:'СКАЧАТЬ JSON',import:'ИМПОРТ JSON',reset:'СБРОСИТЬ ПРИМЕР',
@@ -46,7 +46,7 @@
       statusNeedRights:'Для скачивания отметь оба условия, затем обнови предпросмотр.',
       statusExport:'Черновик JSON сохранён на устройство. Ничего не опубликовано.',
       statusImported:'JSON загружен локально. Подтверди права заново, прежде чем экспортировать.',
-      statusImportError:'Не удалось импортировать: нужен корректный черновик MARCOSA R8 размером до 128 КБ.',
+      statusImportError:'Не удалось импортировать: нужен корректный черновик MARCOSA R9 размером до 128 КБ.',
       statusError:'Проверь поле: ',statusReset:'Образец восстановлен. Несохранённые изменения удалены.',
       confirmReset:'Сбросить изменения и загрузить демонстрационный сюжет?',
       back:'← НАЗАД',again:'ЗАНОВО',step:'СЦЕНА',ending:'ФИНАЛ',
@@ -58,8 +58,8 @@
       ariaChoices:'Варианты решения',unverified:'Не опубликовано · права требуют проверки'
     },
     en:{
-      home:'HOME',stories:'PLAY THE STORIES',eyebrow:'MARCOSA / CREATOR ENGINE · R8',
-      heading:'Your story. Four different endings.',intro:'Write an original interactive story with two decisions and four endings. Explore each path in the player and export a portable JSON draft.',
+      home:'HOME',stories:'PLAY THE STORIES',eyebrow:'MARCOSA / CREATOR ENGINE · R9',
+      heading:'Your story. Four different endings.',intro:'Write a branching story with four endings. Save revisions explicitly to this device and export JSON for independent human review.',
       prototype:'LOCAL PREVIEW · NOT PUBLISHED',editor:'STORY EDITOR',preview:'INTERACTIVE PREVIEW',
       source:'FICTIONAL STARTER EXAMPLE',language:'STORY LANGUAGE',fields:'Write the scenes and choices, then apply your changes to the player.',
       apply:'UPDATE PREVIEW',download:'DOWNLOAD JSON',import:'IMPORT JSON',reset:'RESET DEMO',
@@ -71,7 +71,7 @@
       statusNeedRights:'Check both conditions and update the preview before downloading.',
       statusExport:'JSON draft saved locally. Nothing has been published.',
       statusImported:'JSON imported locally. Reconfirm rights before exporting.',
-      statusImportError:'Could not import: use a valid MARCOSA R8 draft under 128 KB.',
+      statusImportError:'Could not import: use a valid MARCOSA R9 draft under 128 KB.',
       statusError:'Check field: ',statusReset:'Example restored. Unsaved edits were cleared.',
       confirmReset:'Discard changes and restore the fictional example?',
       back:'← BACK',again:'RESTART',step:'SCENE',ending:'ENDING',
@@ -84,7 +84,7 @@
     },
     zh:{
       home:'首页',stories:'体验故事',eyebrow:'MARCOSA / 创作者引擎 · R8',
-      heading:'你的故事，四个不同的结局。',intro:'编写包含两次选择和四种结局的原创互动故事。在右侧测试分支，并导出便携的 JSON 草稿。',
+      heading:'你的故事，四个不同的结局。',intro:'创作包含四种结局的互动故事。手动在此设备保存版本，导出 JSON 交由人工审核。',
       prototype:'仅限本地预览 · 不会发布',editor:'故事编辑器',preview:'交互式预览',
       source:'虚构示例',language:'故事语言',fields:'填写场景和选项，然后更新预览。',
       apply:'更新预览',download:'下载 JSON',import:'导入 JSON',reset:'重置示例',
@@ -96,7 +96,7 @@
       statusNeedRights:'请勾选两项声明并更新预览后再下载。',
       statusExport:'草稿已保存到本地，未发布任何内容。',
       statusImported:'JSON 已在本地导入。导出前请再次确认权利。',
-      statusImportError:'无法导入：必须是有效且小于 128 KB 的 MARCOSA R8 草稿。',
+      statusImportError:'无法导入：必须是有效且小于 128 KB 的 MARCOSA R9 草稿。',
       statusError:'请检查字段：',statusReset:'示例已恢复，未保存的修改已清除。',
       confirmReset:'放弃修改并恢复虚构示例吗？',
       back:'← 返回',again:'重新开始',step:'场景',ending:'结局',
