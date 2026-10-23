@@ -89,6 +89,30 @@ test('creator campaign brief requires rights, disclosure and bounded actual inpu
   assert.equal(inject.brand,'<svg onload=alert(1)>','JSON retains source text, UI must use textContent');
 });
 
+test('branded pitch exports safe self-contained HTML for print and never invents economics',()=>{
+  const brief=story.buildBrief({
+    brand:'<img src=x onerror=alert(1)>',audience:'Independent creative studios',
+    goal:'Demonstrate the concept without any audience statistics, tracking or automatic publication.',
+    storyId:'world-zero',product:'signal-worlds',rightsAttested:true,sponsorshipDisclosed:true
+  });
+  for(const lang of ['ru','en','zh']){
+    const html=story.buildProposalHtml(brief,lang);
+    assert.ok(html.startsWith('<!doctype html>'));
+    assert.ok(html.includes('lang="'+lang+'"'));
+    assert.ok(html.includes('&lt;img src=x onerror=alert(1)&gt;'));
+    assert.ok(!html.includes('<img src=x onerror=alert(1)>'));
+    assert.ok(!html.includes('<script'));
+    assert.ok(!html.includes('<iframe'));
+    assert.ok(!html.includes('<link'));
+    assert.ok(html.includes('Content-Security-Policy'));
+    assert.ok(html.includes('NOT FOR PUBLICATION')||html.includes('НЕ ПУБЛИКОВАТЬ')||html.includes('不得发布'));
+    assert.ok(html.includes('SIGNAL')||html.includes('signal-worlds'));
+    assert.ok(html.includes('@media print'));
+  }
+  assert.throws(()=>story.buildProposalHtml({status:'published'}),/INVALID_PROPOSAL/);
+  assert.throws(()=>story.buildProposalHtml({...brief,continuation_product:'fake'}),/INVALID_PROPOSAL/);
+});
+
 test('local QA is explicitly opt-in, bounded, session-only and never fabricates visitors',()=>{
   const qa=story.createQaRecorder();
   assert.equal(qa.record('film_started','signal',0),false);
@@ -121,7 +145,7 @@ test('R5 page and home navigation provide keyboard-ready, localized, accessible 
   const home=fs.readFileSync(path.join(dir,'index.html'),'utf8');
   const css=fs.readFileSync(path.join(dir,'stories.css'),'utf8');
   for(const id of ['ms-story-list','ms-stage','ms-choices','ms-finish','ms-project-link',
-    'ms-campaign-link','ms-brief-form','ms-brief-download','ms-qa-opt','ms-qa-download'])
+    'ms-campaign-link','ms-brief-form','ms-brief-download','ms-brief-html','ms-qa-opt','ms-qa-download'])
     assert.ok(html.includes('id="'+id+'"'),id);
   for(const file of ['stories.html','stories.js','stories.css'])
     assert.ok(home.includes('./stories.html')||file!=='stories.html');
