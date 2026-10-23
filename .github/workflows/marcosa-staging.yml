@@ -46,6 +46,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           node --check site/network.js
           node --test tests/film_kit.test.cjs
