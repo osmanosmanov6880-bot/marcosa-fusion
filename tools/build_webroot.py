@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are twenty-three independently reviewed public files in site/.
+Its inputs are twenty-seven independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -65,6 +65,20 @@ def build() -> dict:
         raise RuntimeError("R15 evidence-grounded source atlas is missing")
     if 'href="./source-hub.html"' not in html:
         raise RuntimeError("R15 source atlas has no entry link from MARCOSA home")
+    theater = (SOURCE / "cinema-pilot.html").read_text(encoding="utf-8")
+    standalone_cinema = (SOURCE / "film-internet-v-humanity.html").read_text(encoding="utf-8")
+    if any(anchor not in theater for anchor in (
+        'id="cp-play"', 'id="cp-restart"', 'id="cp-film-frame"',
+        'sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"',
+        'src="./cinema-pilot.js"', 'href="./cinema-pilot.css"'
+    )):
+        raise RuntimeError("R16 real cinema player is missing or sandbox changed")
+    if any(anchor not in standalone_cinema for anchor in (
+        'end_human', 'end_algorithm', 'https://marcosa.club/'
+    )):
+        raise RuntimeError("R16 genuine source cinema snapshot is incomplete")
+    if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
+        raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:
