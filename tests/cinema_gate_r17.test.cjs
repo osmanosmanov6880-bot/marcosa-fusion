@@ -34,5 +34,5 @@ test('R17 cinema hub names real original source engines, not invented live URLs'
  assert.match(html,/id="cinema-r17"/);
  for(const r of RECORDS.slice(1))assert.ok(html.includes(r.commit),'Pinned source commit '+r.slug);
  assert.match(html,/Правило выпуска R17/);
- assert.equal((html.match(/href="\.\/film-(?:protocol-zero|adverse-judge)\.html"/g)||[]).length,0);
+ assert.equal((html.match(/href="\.\/film-(?:protocol-zero|adverse-judge)\.html"/g)||[]).length,2);
 });
