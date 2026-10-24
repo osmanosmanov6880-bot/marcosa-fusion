@@ -240,14 +240,6 @@ jobs:
           path: qa-r21/
           retention-days: 7
           if-no-files-found: error
-      - name: Upload R22 original-source cinematic reference screenshots
-        if: github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: r22-marcosa-cinematic-reference-desktop-mobile
-          path: qa-r22/
-          retention-days: 7
-          if-no-files-found: error
       - name: Upload R23 quiet-luxury desktop/mobile browser screenshots
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
