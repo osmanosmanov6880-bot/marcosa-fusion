@@ -172,7 +172,7 @@ def main()->int:
         here=Path(temp)
         for filename in ("index.html","network.css","network.js","immersive.css","immersive.js",
                          "stories.html","stories.css","stories.js",
-                         "creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js"):
+                         "creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js","creator-crypto.js"):
             shutil.copyfile(DIST/filename,here/filename)
         ok1=run_case(here,"stories.html",STORY_TEST)
         ok2=run_case(here,"index.html",ROUTE_TEST,"#network-product=proofos")

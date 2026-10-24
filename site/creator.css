@@ -388,3 +388,50 @@ textarea.mc-input{resize:vertical;min-height:80px;white-space:pre-wrap}
 @media(max-width:570px){
   .mc-backup-actions{grid-template-columns:1fr}
 }
+
+
+/* R11: opt-in password-protected archive — no cloud storage or login. */
+.mc-crypto-card{
+  border-color:#a884ba8a;
+  background:linear-gradient(142deg,#182b43 0%,#10172b 62%,#24152c 100%);
+  box-shadow:0 31px 88px #0008,inset 0 1px #debfe620;
+}
+.mc-crypto-card:before{
+  background:linear-gradient(90deg,transparent,#e0a1af 13%,#f1d7a5 55%,#85cfe3 91%,transparent);
+}
+.mc-crypto-security{
+  flex:none;color:#e6c4dd;white-space:nowrap;
+  font:750 10px/1.7 ui-monospace,Consolas,monospace;
+  letter-spacing:.07em;border:1px solid #be9bb888;
+  border-radius:8px;background:#271d39a3;padding:9px 10px;
+}
+.mc-crypto-security span{color:#e7cd9d;margin-right:5px}
+.mc-crypto-fields{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.mc-crypto-fields .mc-vault-field input{
+  border:1px solid #acaccc8a;
+  background:linear-gradient(100deg,#0c1a2e,#131b32);
+  box-shadow:inset 0 0 0 1px #e6cee212,0 9px 23px #0003;
+}
+.mc-crypto-fields .mc-vault-field input:hover{border-color:#e3cbcb}
+.mc-crypto-fields .mc-vault-field input:focus-visible{
+  outline:3px solid #a3eedc;outline-offset:2px;
+}
+.mc-crypto-help{
+  color:#b8cdda;font-size:11px;line-height:1.7;margin:13px 0 20px;
+}
+.mc-crypto-card .mc-backup-actions{margin-top:17px}
+.mc-crypto-card .mc-vault-caution{
+  border-top:1px solid #c795aa61;
+  color:#d4c2d2;
+}
+.mc-crypto-card .mc-vault-caution span{color:#f4c2ce}
+@media(max-width:1060px){
+  .mc-crypto-fields{grid-template-columns:1fr}
+}
+@media(max-width:800px){
+  .mc-crypto-fields{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:570px){
+  .mc-crypto-fields{grid-template-columns:1fr}
+  .mc-crypto-security{font-size:9px}
+}

@@ -151,3 +151,17 @@ R10 adds a **complete local vault backup** to Creator Engine:
 - **No Supabase project was connected (project list empty on 2026-10-24).** This schema was NOT applied; user accounts, moderator accounts, public publishing, actual revenue and production services were not changed. The schema contract test only does static preflight, never a live SQL/RLS verification.
 
 See [full R10 boundaries and acceptance](docs/PORTABLE_ARCHIVE_AND_CLOUD_SECURITY_R10_RU.md), [archive security tests](tests/backup.test.cjs), [SQL preflight](tests/test_cloud_schema_contract.py) and [real Chromium recovery QA](tools/r9_cdp_smoke.cjs).
+
+
+## R11 — Password-encrypted archive exports (browser-only)
+
+The Creator Engine now offers an **opt-in encrypted whole-vault export** alongside the R10 plain JSON backup:
+
+- AES-256-GCM authenticated encryption with a fresh random 16-byte salt and 12-byte nonce; 600,000 PBKDF2-HMAC-SHA-256 iterations derive the key from a user-supplied long passphrase.
+- Export every saved project and revision as an encrypted JSON envelope. Decrypt and restore with the same passphrase. Invalid passwords, changed ciphertext and malformed envelopes fail closed **before** any project is written.
+- Restore uses the same atomic R10 merge transaction: duplicate entries are ignored and conflicting history remains separate rather than being overwritten.
+- Password fields are cleared after every completed or failed encrypt/decrypt; there is no password recovery, server key escrow, account sync, analytics or network upload.
+- **Important:** only the downloaded encrypted file is protected. Browser IndexedDB and the still-available legacy R10 JSON export remain unencrypted. A guessable password can be attacked offline.
+- RU/EN/Chinese authoring UI, keyboard-focusable inputs, mobile layout, live WebCrypto tests in desktop/mobile Chromium, Node encryption/tamper tests, and screenshots.
+
+See [R11 encryption format and cautions](docs/ENCRYPTED_ARCHIVE_R11_RU.md) and [cryptographic tests](tests/crypto.test.cjs). The Supabase connector currently lists **zero available projects**; R10's RLS SQL remains an unexecuted design. Production MARCOSA, Contabo, Stripe, authentication and server moderation were not changed.

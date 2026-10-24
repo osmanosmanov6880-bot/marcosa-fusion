@@ -38,6 +38,10 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertIn('src="./creator.js"', creator)
         self.assertIn('src="./creator-vault.js"', creator)
         self.assertIn('src="./creator-backup.js"', creator)
+        self.assertIn('src="./creator-crypto.js"', creator)
+        self.assertIn('id="mc-crypto"', creator)
+        self.assertIn('id="mc-crypto-pass"', creator)
+        self.assertIn('id="mc-crypto-file"', creator)
         self.assertIn('id="mc-backup"', creator)
         self.assertIn('id="mc-backup-download"', creator)
         self.assertIn('id="mc-backup-file"', creator)
@@ -46,6 +50,7 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertIn('id="mc-export-review"', creator)
         self.assertTrue((SITE / "creator-vault.js").is_file())
         self.assertTrue((SITE / "creator-backup.js").is_file())
+        self.assertTrue((SITE / "creator-crypto.js").is_file())
         self.assertTrue((SITE / "creator.css").is_file())
 
     def test_public_frontend_no_private_backend_or_tracking_calls(self):
@@ -83,7 +88,7 @@ class PublicPreviewTests(unittest.TestCase):
             "index.html", "network.css", "network.js",
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
-            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js",
+            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
