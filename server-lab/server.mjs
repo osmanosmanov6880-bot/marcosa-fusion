@@ -111,10 +111,27 @@ function upgradeLegacySponsorStatuses(db){
  }
 }
 
+
+/* R31 local-only, real activity records; all rows are scoped by recipient.
+ * Triggers keep the event and its notification in the SAME SQLite transaction.
+ * They do not fabricate reads, views, impressions or advertising conversion.
+ */
+const R31_SCHEMA=[
+ "CREATE TABLE IF NOT EXISTS notifications (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('world_follow','new_comment','sponsor_requested','sponsor_accepted','sponsor_rejected','sponsor_approved')), reference_id TEXT NOT NULL, created_at INTEGER NOT NULL, read_at INTEGER)",
+ "CREATE INDEX IF NOT EXISTS idx_notifications_inbox ON notifications(recipient_id,id DESC)",
+ "CREATE INDEX IF NOT EXISTS idx_notifications_unread ON notifications(recipient_id,read_at)",
+ "CREATE TRIGGER IF NOT EXISTS r31_on_follow AFTER INSERT ON world_follows BEGIN INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT w.owner_id,NEW.user_id,'world_follow',NEW.world_id,NEW.created_at FROM worlds w WHERE w.id=NEW.world_id AND w.owner_id<>NEW.user_id; END",
+ "CREATE TRIGGER IF NOT EXISTS r31_on_comment AFTER INSERT ON comments WHEN NEW.status='published' BEGIN INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT p.author_id,NEW.author_id,'new_comment',CAST(NEW.post_id AS TEXT),NEW.created_at FROM posts p WHERE p.id=NEW.post_id AND p.status='published' AND p.author_id<>NEW.author_id; END",
+ "CREATE TRIGGER IF NOT EXISTS r31_on_sponsor_request AFTER INSERT ON sponsor_proposals BEGIN INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT w.owner_id,NEW.owner_id,'sponsor_requested',CAST(NEW.id AS TEXT),NEW.created_at FROM worlds w WHERE w.id=NEW.world_id AND w.owner_id<>NEW.owner_id; END",
+ "CREATE TRIGGER IF NOT EXISTS r31_on_creator_decision AFTER UPDATE OF status ON sponsor_proposals WHEN OLD.status='pending_creator' AND NEW.status IN ('pending_review','rejected') BEGIN INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT NEW.owner_id,w.owner_id,CASE NEW.status WHEN 'pending_review' THEN 'sponsor_accepted' ELSE 'sponsor_rejected' END,CAST(NEW.id AS TEXT),strftime('%s','now')*1000 FROM worlds w WHERE w.id=NEW.world_id AND NEW.owner_id<>w.owner_id; END",
+ "CREATE TRIGGER IF NOT EXISTS r31_on_sponsor_approved AFTER UPDATE OF status ON sponsor_proposals WHEN OLD.status='pending_review' AND NEW.status='approved' AND NEW.reviewer_id IS NOT NULL BEGIN INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT NEW.owner_id,NEW.reviewer_id,'sponsor_approved',CAST(NEW.id AS TEXT),NEW.reviewed_at; INSERT INTO notifications(recipient_id,actor_id,kind,reference_id,created_at) SELECT w.owner_id,NEW.reviewer_id,'sponsor_approved',CAST(NEW.id AS TEXT),NEW.reviewed_at FROM worlds w WHERE w.id=NEW.world_id AND w.owner_id<>NEW.reviewer_id; END"
+].join(';\n')+';';
+
 export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.now()}={}){
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
  upgradeLegacySponsorStatuses(db);
+ db.exec(R31_SCHEMA);
  const rateMap=new Map();
  const stmt={
   email:db.prepare('SELECT * FROM users WHERE email=?'),
