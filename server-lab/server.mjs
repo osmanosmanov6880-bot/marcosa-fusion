@@ -267,6 +267,29 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const items=db.prepare("SELECT r.id,r.reason,r.comment_id,c.body,r.created_at FROM comment_reports r JOIN comments c ON c.id=r.comment_id WHERE r.status='open' AND c.status='published' ORDER BY r.id ASC LIMIT 100").all();
     send(res,200,{items});return;
    }
+
+   if(method==='GET'&&route==='/api/me/notifications'){
+    const user=requireUser(req);
+    const limit=Number(query.get('limit')||20);
+    check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный лимит уведомлений');
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный курсор уведомлений');
+    const rows=db.prepare("SELECT n.id,n.kind,n.reference_id,n.created_at,n.read_at,u.username AS actor FROM notifications n JOIN users u ON u.id=n.actor_id WHERE n.recipient_id=? AND n.id<? ORDER BY n.id DESC LIMIT ?").all(user.id,cursor,limit+1);
+    const unread=db.prepare('SELECT count(*) AS n FROM notifications WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
+    send(res,200,{...page(rows,limit),unread});
+    return;
+   }
+   if(method==='GET'&&route==='/api/me/insights'){
+    const user=requireUser(req);
+    // Counts are computed from genuine local records, never ad views or estimated reach.
+    const worlds=db.prepare("SELECT w.slug,w.title, (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS published, (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='draft') AS drafts, (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers, (SELECT count(*) FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.world_id=w.id AND p.status='published' AND c.status='published') AS replies, (SELECT count(DISTINCT c.author_id) FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.world_id=w.id AND p.status='published' AND c.status='published' AND c.author_id<>w.owner_id) AS uniqueResponders FROM worlds w WHERE w.owner_id=? ORDER BY w.created_at DESC").all(user.id);
+    const totals=worlds.reduce((acc,w)=>{
+     for(const key of ['published','drafts','followers','replies'])acc[key]+=w[key];
+     return acc;
+    },{published:0,drafts:0,followers:0,replies:0});
+    send(res,200,{mode:'verified-local-records',worlds,totals,paidViews:null,advertisingRevenue:null});
+    return;
+   }
    if(method==='GET'&&route==='/api/account/export'){
     const user=requireUser(req);
     // All rows are owner-bound; never include password hashes or session tokens.
@@ -329,6 +352,18 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+
+   if(method==='POST'&&route==='/api/me/notifications/read'){
+    const ids=body.ids;
+    check(Array.isArray(ids)&&ids.length>=1&&ids.length<=30,400,'Выберите не более 30 уведомлений');
+    const normalized=ids.map(int);
+    check(normalized.every(Boolean),400,'Неверный идентификатор уведомления');
+    const update=db.prepare('UPDATE notifications SET read_at=? WHERE recipient_id=? AND id=? AND read_at IS NULL');
+    let changed=0;
+    for(const id of new Set(normalized))changed+=update.run(now(),user.id,id).changes;
+    const unread=db.prepare('SELECT count(*) AS n FROM notifications WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
+    send(res,200,{marked:changed,unread});return;
+   }
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
