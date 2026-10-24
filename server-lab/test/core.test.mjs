@@ -107,6 +107,23 @@ test('R28 complete local social vertical slice / genuine HTTP+SQLite authorizati
    a=await request('/api/mod/posts/'+postId+'/hide',{method:'POST',cookie:second,json:{}});
    assert.equal(a.status,403);
   });
+  await t.test('portable export respects owner-only posts and never leaks passwords or session tokens',async()=>{
+   const own=await request('/api/account/export',{cookie:first});
+   assert.equal(own.status,200);
+   assert.equal(own.json.format,'MARCOSA-ACCOUNT-EXPORT-v1');
+   assert.equal(own.json.user.username,'pilot');
+   assert.equal(own.json.worlds.length,1);
+   assert.equal(own.json.posts.length,2);
+   assert.ok(own.json.posts.some(x=>x.id===draftId));
+   assert.equal(JSON.stringify(own.json).includes('password_hash'),false);
+   assert.equal(JSON.stringify(own.json).includes('token_hash'),false);
+   const other=await request('/api/account/export',{cookie:second});
+   assert.equal(other.status,200);
+   assert.equal(other.json.posts.length,0);
+   assert.equal(other.json.user.username,'friend');
+   const guest=await request('/api/account/export');
+   assert.equal(guest.status,401);
+  });
   await t.test('moderator cannot be created through public API; protected review and hide works',async()=>{
    const update=app.db.prepare("UPDATE users SET role='moderator' WHERE username='friend'").run();
    assert.equal(update.changes,1);
