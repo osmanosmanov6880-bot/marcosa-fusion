@@ -15,7 +15,7 @@ function browser(){
 }
 function server(){
  return http.createServer((req,res)=>{
-  let name;try{name=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname).replace(/^\/+/,''));}
+  let name;try{name=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname).replace(/^\/+/, '');}
   catch(e){res.writeHead(400);res.end();return;}
   if(!ALLOW.has(name)){res.writeHead(404);res.end();return;}
   try{
