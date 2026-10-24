@@ -107,10 +107,12 @@
    <h3>Мои публикации и черновики</h3><div id="my-posts" class="compact-list"></div>
   </section>
   <div class="section-heading feed-heading" id="feed"><div><span class="eyebrow">CONVERSATION / VERIFIED SERVER DATA</span><h2>Лента <em>людей.</em></h2></div><button type="button" id="refresh" class="ghost">Обновить</button></div>
+  <div class="feed-tabs" role="group" aria-label="Показать публикации"><button id="feed-all" type="button" class="ghost" aria-pressed="true">Все публикации</button><button id="feed-following" type="button" class="ghost" aria-pressed="false" disabled>Мои подписки</button></div>
   <div id="feed-list" class="feed-list" aria-live="polite"></div>
   <button id="more" class="ghost more" type="button" hidden>Ещё публикации</button>
  </section>
  <aside class="right panel">
+  <section id="activity-panel" class="activity-panel" hidden aria-labelledby="activity-heading"><span class="eyebrow">ACTIVITY / PRIVATE</span><h2 id="activity-heading">Моя <em>активность.</em></h2><p class="muted">Только реальные действия других участников. История видна лишь владельцу аккаунта.</p><div class="activity-actions"><span id="activity-count" aria-live="polite">0 новых</span><button id="activity-read" class="ghost small" type="button">Прочитано</button></div><div id="activity-list" class="compact-list" aria-live="polite"></div><button id="activity-more" class="ghost small" type="button" hidden>Ещё события</button></section>
   <h2>Принципы доверия</h2>
   <div class="feature"><b>01</b><strong>Личная ответственность</strong><p>У каждой записи есть реальный автор и принадлежащий ему мир.</p></div>
   <div class="feature"><b>02</b><strong>Никаких фальшивых счётчиков</strong><p>Публикации берутся из SQLite лаборатории. Черновики видит только автор.</p></div>
