@@ -54,12 +54,13 @@ test('R27 real Social DOM has accessible editor, keyboard import, view and fallb
  const html=read('social.html');
  for(const id of ['so-journal','s27-editor','s27-title-input','s27-body','s27-category',
   's27-list','s27-count','s27-save','s27-reset','s27-search','s27-filter','s27-sort',
-  's27-export','s27-import-trigger','s27-import','s27-undo','s27-empty','s27-feedback'])
+  's27-export','s27-import-trigger','s27-import','s27-undo','s27-empty','s27-feedback','s27-shortcut-count'])
   assert.ok(html.includes('id="'+id+'"'),'missing '+id);
  for(const link of ['href="#so-journal"','href="./marcosa-journal.css"','src="./social-journal.js"'])
   assert.ok(html.includes(link),'missing linked component '+link);
  assert.ok(html.includes('не публикуется другим людям'));
  assert.ok(html.includes('JSON-архив не зашифрован'));
+ assert.ok(read('social-journal.js').includes("quick.textContent=String(records.length)"));
  assert.ok(html.indexOf('marcosa-journal.css')>html.indexOf('marcosa-social-first.css'));
  assert.ok(html.indexOf('social-journal.js')>html.indexOf('social-core.js'));
 });
