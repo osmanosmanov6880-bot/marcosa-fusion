@@ -63,7 +63,7 @@
   const title=$('s27-title-input'),body=$('s27-body'),category=$('s27-category');
   const search=$('s27-search'),filter=$('s27-filter'),sort=$('s27-sort');
   const status=$('s27-feedback'),undo=$('s27-undo');
-  let records=[],editing=null,deleted=null;
+  let records=[],editing=null,deleted=null,locked=false;
   function announce(message,isError){
    status.textContent=message;
    status.dataset.error=String(Boolean(isError));
@@ -75,11 +75,13 @@
     if(raw.length>MAX_BACKUP)return [];
     return validateList(JSON.parse(raw));
    }catch{
+    locked=true;
     announce('Не удалось прочитать журнал. Сохранённые данные не перезаписаны.',true);
     return [];
    }
   }
   function persist(next){
+   if(locked){announce('Данные повреждены: сохранение заблокировано, чтобы не затереть предыдущий журнал.',true);return false;}
    try{
     root.localStorage.setItem(KEY,JSON.stringify(validateList(next)));
     records=next;return true;
@@ -208,6 +210,7 @@
     deleted=null;render();announce('Удалённая запись восстановлена.',false);
    }
   });
+  $('s27-import-trigger').addEventListener('click',()=>$('s27-import').click());
   $('s27-export').addEventListener('click',()=>{
    if(!records.length){announce('Журнал пуст — экспортировать нечего.',true);return;}
    const payload=JSON.stringify({format:FORMAT,version:VERSION,exportedAt:new Date().toISOString(),items:records},null,2);
