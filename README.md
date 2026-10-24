@@ -219,3 +219,9 @@ The user had previously supplied genuine source ZIPs. **13 distinct product arch
 - Real movie-domain ownership, deploy status, streaming views, advertising revenue, legal rights and payment events remain unverified. A source repository is never sufficient to claim a live film website.
 
 See [R15 implementation and source reconciliation](docs/REAL_SOURCE_INTEGRATION_R15_RU.md) and [Source Atlas tests](tests/source_hub.test.cjs). GitHub Pages static build contains only 23 reviewed web files, not the user archives, SQL or SSH credentials.
+
+## R16 — real playable cinema rather than source-only cards
+
+The public GitHub Pages source atlas now links to [MARCOSA CINEMA PILOT](site/cinema-pilot.html), where an actual standalone user-owned THE INTERNET v. HUMANITY prologue is runnable. Source HTML is copied **byte-identically** from [upstream commit 4c492d3](https://github.com/osmanosmanov6880-bot/internet-v-humanity/tree/4c492d30656d16a908f0dbd851a703f815b2d34e) and is verified by its Git blob hash. The player is sandboxed without same-origin access, loads on click, supports restart/fullscreen and has no automatic offsite navigation. The existing 2 verdict endings and evidence branch are browser-tested on desktop and mobile. PROTOCOL ZERO and ADVERSE JUDGE remain source links until original cinema assets and real public routes are verified. This is a playable **preview**, not the full commercial movie, and not an authenticated MARCOSA or Contabo deployment.
+
+[R16 source audit and QA](docs/REAL_PLAYABLE_CINEMA_R16_RU.md) · [provenance manifest](inventory/playable_cinema_r16.json) · [Node tests](tests/cinema_pilot.test.cjs) · [real Chrome acceptance](tools/r16_cinema_cdp.cjs).
