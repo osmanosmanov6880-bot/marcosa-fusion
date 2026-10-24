@@ -24,6 +24,10 @@
   const filters=Array.from(doc.querySelectorAll('[data-so-filter]'));
   const input=$('so-search'),text=$('so-draft-text'),info=$('so-draft-status');
   let filter='all',query='';
+  // An explicit local-only deep link to saved items, not a remote query.
+  try{
+   if(new URLSearchParams(root.location.search).get('view')==='saved')filter='saved';
+  }catch{filter='all';}
   let saved=read(KEY_SAVED,[]);
   if(!Array.isArray(saved))saved=[];
   saved=saved.filter(id=>Object.prototype.hasOwnProperty.call(LABELS,id));
