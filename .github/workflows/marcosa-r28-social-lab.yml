@@ -44,18 +44,19 @@ jobs:
           node --check server-lab/test/r30.migration.test.mjs
           node --check server-lab/test/r31.following_activity.test.mjs
           node --check server-lab/test/r32.moderation_appeals.test.mjs
-          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs
+          node --check server-lab/test/r33.world_insights.test.mjs
+          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs server-lab/test/r33.world_insights.test.mjs
       - name: Real Chromium — desktop and phones, signup, login, publish
         shell: bash
         run: |
           set -euo pipefail
           node --check server-lab/test/browser-cdp.mjs
           node server-lab/test/browser-cdp.mjs
-      - name: Upload six real browser frames of R28
+      - name: Upload fifteen browser frames including R33 creator insights
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: marcosa-r30-real-social-ads-browser-qa
+          name: marcosa-r33-creator-insights-and-moderation-qa
           path: qa-r30/
           retention-days: 7
           if-no-files-found: error
