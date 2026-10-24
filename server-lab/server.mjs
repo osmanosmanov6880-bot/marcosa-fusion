@@ -67,9 +67,54 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)"
 ].join(';\n')+';';
 
+
+function upgradeLegacySponsorStatuses(db){
+ // Earlier R30 local databases allowed approved/rejected but not revoked.
+ // Preserve rows and their IDs in a single atomic transaction; never wipe profiles.
+ const legacy=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sponsor_proposals'").get()?.sql||'';
+ if(legacy.includes("'revoked'"))return false;
+ if(!legacy)throw Error('Missing sponsor_proposals table');
+ const previous=db.prepare('SELECT count(*) AS n FROM sponsor_proposals').get().n;
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  db.exec(`
+   CREATE TABLE sponsor_proposals_upgrade_r30 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+    brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75),
+    headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130),
+    landing_url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending_creator'
+     CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')),
+    created_at INTEGER NOT NULL,
+    reviewed_at INTEGER,
+    reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL
+   );
+   INSERT INTO sponsor_proposals_upgrade_r30
+    (id,owner_id,world_id,brand_name,headline,landing_url,status,created_at,reviewed_at,reviewer_id)
+    SELECT id,owner_id,world_id,brand_name,headline,landing_url,status,created_at,reviewed_at,reviewer_id
+    FROM sponsor_proposals;
+   DROP TABLE sponsor_proposals;
+   ALTER TABLE sponsor_proposals_upgrade_r30 RENAME TO sponsor_proposals;
+   CREATE INDEX idx_sponsor_status ON sponsor_proposals(status,id DESC);
+  `);
+  if(db.prepare('SELECT count(*) AS n FROM sponsor_proposals').get().n!==previous)
+   throw Error('Sponsor migration row count mismatch');
+  if(db.prepare('PRAGMA foreign_key_check').all().length)
+   throw Error('Sponsor migration invalid foreign key references');
+  db.exec('COMMIT');
+  return true;
+ }catch(error){
+  db.exec('ROLLBACK');
+  throw error;
+ }
+}
+
 export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.now()}={}){
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
  const stmt={
   email:db.prepare('SELECT * FROM users WHERE email=?'),
