@@ -99,7 +99,29 @@
   <div class="feature"><b>01</b><strong>Личная ответственность</strong><p>У каждой записи есть реальный автор и принадлежащий ему мир.</p></div>
   <div class="feature"><b>02</b><strong>Никаких фальшивых счётчиков</strong><p>Публикации берутся из SQLite лаборатории. Черновики видит только автор.</p></div>
   <div class="feature"><b>03</b><strong>Модерация</strong><p>Жалобы доступны независимой роли модератора; чужие записи нельзя редактировать.</p></div>
-  <div id="moderator" class="mod-panel" hidden><h3>Жалобы на проверку</h3><div id="report-list"></div><button id="reload-reports" class="ghost" type="button">Обновить жалобы</button></div>
+  <div id="moderator" class="mod-panel" hidden><h3>Жалобы на публикации</h3><div id="report-list"></div><h3>Жалобы на комментарии</h3><div id="comment-report-list"></div><button id="reload-reports" class="ghost" type="button">Обновить жалобы</button></div>
+  <section class="sponsor-lab" aria-labelledby="sponsor-heading">
+   <span class="eyebrow">MARCOSA / PARTNERSHIPS LAB</span>
+   <h3 id="sponsor-heading">Партнёры <em>миров.</em></h3>
+   <p class="muted">Прозрачные заявки на тестовое размещение. Оплаты, купленных показов и действующих рекламных кампаний здесь нет.</p>
+   <div id="sponsor-showcase" class="sponsor-list" aria-live="polite"></div>
+   <details id="sponsor-owner" class="invite-panel" hidden>
+    <summary>Предложить тестовое партнёрство в своём World</summary>
+    <form id="sponsor-form" class="form-block">
+     <label>Мой World<select id="sponsor-world" name="worldId" required></select></label>
+     <label>Название бренда<input name="brandName" maxlength="75" minlength="2" required></label>
+     <label>Прозрачное предложение<input name="headline" maxlength="130" minlength="5" required></label>
+     <label>Публичный HTTPS-сайт<input name="landingUrl" type="url" maxlength="500" pattern="https://.*" placeholder="https://example.com" required></label>
+     <button type="submit" class="gold">Отправить на проверку</button>
+    </form>
+    <p class="muted">Заявку видит только модератор. Это не покупка рекламы и не обещание охвата.</p>
+    <div id="my-sponsors" class="compact-list"></div>
+   </details>
+   <section id="sponsor-moderation" class="mod-panel" hidden>
+    <h3>Проверка заявок</h3>
+    <div id="sponsor-review-list" class="compact-list"></div>
+   </section>
+  </section>
   <p class="safe-note">Лаборатория не имеет подтверждения почты, восстановления аккаунта, долговременной защиты от атак и production-инфраструктуры. Для публичного запуска нужен отдельный аудит.</p>
  </aside>
 </div>
