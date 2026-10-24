@@ -53,7 +53,7 @@ html[data-m-world="social"] .so-honesty{
 html[data-m-world="social"] .so-art{
  min-height:332px!important;opacity:1!important;
  background-position:52% 43%!important;
- background-image:url("./visual-cascade-director.webp")!important;
+ background-image:url("./visual-cascade-director.webp"),url("./visual-cascade.webp")!important;
  filter:contrast(1.05) brightness(.91) saturate(.86)!important}
 html[data-m-world="social"] .so-art:after{
  background:linear-gradient(90deg,#15162682,transparent 54%),
