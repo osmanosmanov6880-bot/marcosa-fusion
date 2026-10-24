@@ -191,7 +191,10 @@ async function main(){
     cdp.requests.length=0;cdp.errors.length=0;
     await cdp.call('Page.navigate',{url:base+file});
     await cdp.wait("document.readyState==='complete'&&!!window.MarcosaBrand&&document.documentElement.dataset.mWorld==="+JSON.stringify(world)+"&&!!document.querySelector('.m-world-bar img')?.naturalWidth",world);
-    await pause(80);
+    // The legitimate navigation/loading overlay fades after resources are ready.
+    // Capture the ACTUAL settled UI, not a translucent mid-transition screenshot.
+    await cdp.wait("document.querySelector('.m-transition')?.hidden===true",world+'-loading-finished');
+    await pause(110);
     const summary=await cdp.evalJS('('+inspectBrand.toString()+')('+JSON.stringify(world)+')');
     if(['gateway','social','cinema','creator','atlas'].includes(world)){
      const capture=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
