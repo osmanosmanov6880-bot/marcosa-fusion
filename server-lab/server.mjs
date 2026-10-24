@@ -63,7 +63,7 @@ const SCHEMA=[
  "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 800), status TEXT NOT NULL DEFAULT 'published' CHECK(status IN ('published','hidden')), created_at INTEGER NOT NULL)",
  "CREATE INDEX IF NOT EXISTS idx_comments_visible ON comments(post_id,status,id DESC)",
  "CREATE TABLE IF NOT EXISTS comment_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')), created_at INTEGER NOT NULL, UNIQUE(comment_id,reporter_id))",
- "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
+ "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
  "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)"
 ].join(';\n')+';';
 
@@ -131,6 +131,23 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     check(cursor>0,400,'Неверный указатель страницы');
     send(res,200,page(stmt.feed.all(cursor,limit+1),limit));return;
    }
+   if(method==='GET'&&route==='/api/discover'){
+    // Parameterized search; returns no drafts, hidden posts or private member data.
+    const raw=str(query.get('q')).normalize('NFC');
+    check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
+      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
+      FROM worlds w JOIN users u ON u.id=w.owner_id
+      WHERE instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw);
+    const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
+      (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
+      FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
+      WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
+      ORDER BY p.id DESC LIMIT 12`).all(raw);
+    send(res,200,{query:raw,worlds,posts,limit:12});return;
+   }
    if(method==='GET'&&route==='/api/worlds'){
     const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
@@ -175,7 +192,7 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    }
    if(method==='GET'&&route==='/api/me/received-sponsors'){
     const recipient=requireUser(req);
-    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE w.owner_id=? AND a.status='pending_creator' ORDER BY a.id ASC LIMIT 50").all(recipient.id);
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE w.owner_id=? AND a.status IN ('pending_creator','pending_review','approved') ORDER BY a.id ASC LIMIT 50").all(recipient.id);
     send(res,200,{items});return;
    }
    if(method==='GET'&&route==='/api/mod/sponsors'){
@@ -300,6 +317,18 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     check(result.changes===1,404,'Комментарий не найден');
     db.prepare("UPDATE comment_reports SET status='reviewed' WHERE comment_id=?").run(id);
     send(res,200,{hidden:true});return;
+   }
+   // Explicit revocation by advertiser or creator; accepted ads disappear immediately.
+   const withdraw=route.match(/^\/api\/sponsors\/([1-9][0-9]{0,14})\/withdraw$/);
+   if(method==='POST'&&withdraw){
+    const id=int(withdraw[1]);
+    const item=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS creator_id,a.status FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=?").get(id);
+    check(item,404,'Предложение не найдено');
+    check(item.applicant_id===user.id||item.creator_id===user.id,403,'Отозвать может только заявитель или владелец мира');
+    check(['pending_creator','pending_review','approved'].includes(item.status),409,'Заявка уже закрыта');
+    const result=db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE id=? AND status IN ('pending_creator','pending_review','approved')").run(now(),id);
+    check(result.changes===1,409,'Состояние заявки изменилось');
+    send(res,200,{id,status:'revoked',paid:false,visible:false});return;
    }
    // R30 paid-advertising gate: a proposal is NOT a paid campaign.
    // There is no billing, impressions ledger, view tracking, or automatic delivery.
