@@ -47,6 +47,8 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertTrue((SITE / "film-internet-v-humanity.html").is_file())
         self.assertTrue((SITE / "film-protocol-zero.html").is_file())
         self.assertTrue((SITE / "film-adverse-judge.html").is_file())
+        for name in ("film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html"):
+            self.assertTrue((SITE / name).is_file(), name)
         network_film = (SITE / "film-network.html").read_text(encoding="utf-8")
         self.assertIn('id="fn-continuity"', network_film)
         self.assertIn('id="fn14-save"', network_film)
@@ -120,7 +122,7 @@ class PublicPreviewTests(unittest.TestCase):
             "index.html", "network.css", "network.js",
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
-            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html",
+            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))

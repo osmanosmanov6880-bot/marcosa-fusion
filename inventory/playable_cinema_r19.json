@@ -1,0 +1,63 @@
+{
+  "schema": "marcosa-playable-source-snapshot/v2",
+  "release": "R19",
+  "release_scope": "public_GitHub_Pages_preview_only",
+  "date": "2026-10-24",
+  "source_policy": "only independently reviewed cinema engines from user-supplied R15 integrated full-source ZIPs; never the product backends, private files or customer data",
+  "privacy": {
+    "autoplay": false,
+    "advertising_tracking": false,
+    "server_user_data_transfers": false,
+    "iframes_have_opaque_origin": true,
+    "voluntary_post_finale_link": "https://marcosa.club/",
+    "commercial_rights_review_required": true
+  },
+  "films": [
+    {
+      "slug": "signal-worlds",
+      "title": "SIGNAL WORLDS — Сигнал из будущего",
+      "source_archive": "MARCOSA_SIGNAL_WORLDS_R15_INTEGRATED_FULL_SOURCE.zip",
+      "source_archive_sha256": "b857204580b403ba09f87a725b673629ba4850a675cbeea875940d08133dc51d",
+      "file": "site/film-signal-worlds.html",
+      "bytes": 1310510,
+      "sha256": "a8f7f6b5b689851da0e6b5fd5bee751ae077ae949da0f6ce24d721571f7856b5",
+      "git_blob": "011846326249c0ede4e38a4c378b4a3ba4c3122e",
+      "source_engine": "SIGNAL_WORLDS_v1.0.0/public/cinema/",
+      "scenes_full": 17,
+      "scenes_prototype": 4,
+      "embedded_webp": 18,
+      "local_test": "19 source graph/continuation tests passed",
+      "packaging_note": "The original source's deterministic offline builder reproduces the film; static self-link normalized to #story."
+    },
+    {
+      "slug": "opspilot",
+      "title": "OpsPilot Spectrum — Сигнал 04:17",
+      "source_archive": "MARCOSA_OPSPILOT_CINEMA_R15_INTEGRATED_FULL_SOURCE.zip",
+      "source_archive_sha256": "a51622f50acfb1c5eb0ca4880e2a713c685a591ef6c4b437eef656e50cc2136f",
+      "file": "site/film-opspilot.html",
+      "bytes": 1800496,
+      "sha256": "40550f7b20391ec89298821145cd74cc40fc928b590ebd7c8953b4504c177281",
+      "git_blob": "cbb0bc9fba9d073b232cba8b82991104dc7409b2",
+      "source_engine": "Cinema_Standalone/",
+      "scenes_full": 16,
+      "embedded_webp": 16,
+      "packaging_note": "Original source cinematic JS and CSS embedded; /api/lab/health probing disabled for static film only; no ERP services copied."
+    },
+    {
+      "slug": "intentgraph",
+      "title": "IntentGraph Cosmic — Сигнал среди миллиардов",
+      "source_archive": "MARCOSA_INTENTGRAPH_COSMIC_R15_INTEGRATED_FULL_SOURCE.zip",
+      "source_archive_sha256": "7c7603306e3fa4dddb7fe71e2de50e231c91679f7cbd3f4d057a7e16b609ed98",
+      "file": "site/film-intentgraph.html",
+      "bytes": 1323150,
+      "sha256": "6f5769de3ce7be047c807f5dc69ecbe692cf94060d4384b5270d05a8b3d34e62",
+      "git_blob": "237289158bad97a08051db2c737b9addc77464cd",
+      "source_engine": "IntentGraph_Cosmic_ONE_v4.5/web/cinema/",
+      "scenes_full": 15,
+      "embedded_webp": 20,
+      "packaging_note": "Story and engine unmodified, CSP-independent offline frames injected through original CINEMA_EMBEDDED_PLATES extension point."
+    }
+  ],
+  "server_production_unchanged": true,
+  "verified_film_domains_43": 0
+}

@@ -1,4 +1,4 @@
-/* MARCOSA R18: opt-in player of three independent, source-backed standalone films.
+/* MARCOSA R19: opt-in player of six independent, source-backed standalone films.
    No tracking, automatic network navigation, cross-film storage or story rewriting. */
 (function(root){
  'use strict';
@@ -12,7 +12,16 @@
    source:'https://github.com/osmanosmanov6880-bot/protocol-zero/tree/0f1841c0e56e47f7413bea9948e66200409e7a7a/cinema'}),
   'adverse-judge':Object.freeze({
    src:'./film-adverse-judge.html',title:'ADVERSE JUDGE — THE TRIAL OF PROMISES',
-   source:'https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema'})
+   source:'https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema'}),
+  'signal-worlds':Object.freeze({
+   src:'./film-signal-worlds.html',title:'SIGNAL WORLDS — Сигнал из будущего',
+   source:'https://github.com/osmanosmanov6880-bot/marcosa-fusion/blob/main/inventory/playable_cinema_r19.json'}),
+  'opspilot':Object.freeze({
+   src:'./film-opspilot.html',title:'OpsPilot Spectrum — Сигнал 04:17',
+   source:'https://github.com/osmanosmanov6880-bot/marcosa-fusion/blob/main/inventory/playable_cinema_r19.json'}),
+  'intentgraph':Object.freeze({
+   src:'./film-intentgraph.html',title:'IntentGraph Cosmic — Сигнал среди миллиардов',
+   source:'https://github.com/osmanosmanov6880-bot/marcosa-fusion/blob/main/inventory/playable_cinema_r19.json'})
  });
  const start=()=>{
   const d=root.document,$=id=>d.getElementById(id);
@@ -26,6 +35,13 @@
   function select(slug,scroll){
    if(!Object.prototype.hasOwnProperty.call(FILMS,slug))return false;
    selected=slug;initiated=false;
+   // Preserve the stricter original sandbox for R16/R18; permit in-film
+   // arithmetic form controls and local downloads for the three reviewed R19 engines.
+   const reviewedArchive=['signal-worlds','opspilot','intentgraph'].includes(slug);
+   frame.setAttribute('sandbox',reviewedArchive
+    ?'allow-scripts allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox'
+    :'allow-scripts allow-popups allow-popups-to-escape-sandbox');
+   frame.title=FILMS[slug].title+' — интерактивная история';
    frame.hidden=true;frame.removeAttribute('src');placeholder.hidden=false;
    play.disabled=false;restart.disabled=true;fullscreen.disabled=true;
    title.textContent=FILMS[selected].title;
@@ -66,7 +82,7 @@
    loads++;
    state(FILMS[selected].title+' запущен. Решения и история просмотра не отправляются в MARCOSA.');
   });
-  const slug=decodeURIComponent(root.location.hash.replace(/^#/,''));
+  let slug='';try{slug=decodeURIComponent(root.location.hash.replace(/^#/,''));}catch{}
   select(Object.prototype.hasOwnProperty.call(FILMS,slug)?slug:'internet-v-humanity',false);
   return Object.freeze({get launched(){return initiated;},get loads(){return loads;},get film(){return selected;}});
  };

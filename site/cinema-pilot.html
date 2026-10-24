@@ -2,23 +2,23 @@
 <html lang="ru"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#071429">
-<meta name="description" content="MARCOSA CINEMA PILOT — рабочий интерактивный пролог THE INTERNET v. HUMANITY с двумя финалами, проверенные исходники остальных кино-движков.">
-<title>MARCOSA CINEMA · Играть в настоящий пролог</title>
+<meta name="description" content="MARCOSA CINEMA R19 — шесть самостоятельных интерактивных фильмов, настоящие сценарии, выборы, оригинальные автономные движки и мобильный интерфейс.">
+<title>MARCOSA CINEMA · 6 настоящих интерактивных фильмов</title>
 <link rel="stylesheet" href="./cinema-pilot.css">
 <script src="./cinema-pilot.js" defer></script>
 </head>
 <body><div class="cp-shell" id="cp-app">
-<header class="cp-head"><a class="cp-brand" href="./index.html"><span class="cp-symbol">M</span><span>MARCOSA <small>CINEMA / REAL SOURCE PILOT</small></span></a>
+<header class="cp-head"><a class="cp-brand" href="./index.html"><span class="cp-symbol">M</span><span>MARCOSA <small>CINEMA / ORIGINAL STORIES</small></span></a>
 <nav aria-label="Навигация"><a href="./index.html">ГЛАВНАЯ</a><a href="./source-hub.html">ИСХОДНИКИ</a><a href="./film-network.html">КИНОСЕТЬ</a></nav></header>
 <main>
-<section class="cp-hero" aria-labelledby="cp-title"><p class="cp-brow">R18 / 3 SOURCE-BACKED CINEMAS</p>
+<section class="cp-hero" aria-labelledby="cp-title"><p class="cp-brow">R19 / 6 SOURCE-BACKED CINEMAS</p>
 <h1 id="cp-title">Истории, в которые <em>можно войти.</em></h1>
-<p>Три независимых исходных кино-движка в одном кинозале. Выбирай фильм, запускай оригинальную историю и открывай собственные финалы. Видео не выдаётся за игру: это настоящие интерактивные сцены и выборы.</p>
-<div class="cp-metrics"><span><strong>03</strong> настоящих интерактивных фильма</span><span><strong>38</strong> встроенных WebP-кадров в двух новых фильмах</span><span><strong>03</strong> независимых репозитория</span></div>
+<p>Шесть независимых интерактивных фильмов. Три новых кино-движка из переданных архивов SIGNAL WORLDS, OpsPilot и IntentGraph добавлены без изменения сюжетных развилок и бизнес-систем. Фильмы запускаются по нажатию, а не автоматически.</p>
+<div class="cp-metrics"><span><strong>06</strong> запускаемых интерактивных фильмов</span><span><strong>54</strong> новых встроенных WebP-кадра</span><span><strong>03</strong> фильма из проверенных ZIP-исходников</span></div>
 </section>
 <section class="cp-screen" aria-labelledby="cp-feature-title">
-<div class="cp-screen-head"><div><p class="cp-brow">01 / REAL INTERACTIVE CINEMA</p><h2 id="cp-feature-title">THE INTERNET v. HUMANITY</h2><p>Выбери один из трёх фильмов. Оригинальные сюжеты сохранены; после финала можно добровольно перейти в MARCOSA.</p></div><span class="cp-stamp">PLAYABLE<br>STANDALONE</span></div>
-<div class="cp-film-tabs" role="group" aria-label="Выбери фильм"><button type="button" data-cp-film="internet-v-humanity" aria-pressed="true"><span>01</span> THE INTERNET v. HUMANITY</button><button type="button" data-cp-film="protocol-zero" aria-pressed="false"><span>02</span> PROTOCOL ZERO</button><button type="button" data-cp-film="adverse-judge" aria-pressed="false"><span>03</span> ADVERSE JUDGE</button></div>
+<div class="cp-screen-head"><div><p class="cp-brow">01 / REAL INTERACTIVE CINEMA</p><h2 id="cp-feature-title">THE INTERNET v. HUMANITY</h2><p>Выбери один из шести фильмов. Оригинальные сюжеты сохранены; после финала можно добровольно перейти в MARCOSA.</p></div><span class="cp-stamp">PLAYABLE<br>STANDALONE</span></div>
+<div class="cp-film-tabs" role="group" aria-label="Выбери фильм"><button type="button" data-cp-film="internet-v-humanity" aria-pressed="true"><span>01</span> THE INTERNET v. HUMANITY</button><button type="button" data-cp-film="protocol-zero" aria-pressed="false"><span>02</span> PROTOCOL ZERO</button><button type="button" data-cp-film="adverse-judge" aria-pressed="false"><span>03</span> ADVERSE JUDGE</button><button type="button" data-cp-film="signal-worlds" aria-pressed="false"><span>04</span> SIGNAL WORLDS</button><button type="button" data-cp-film="opspilot" aria-pressed="false"><span>05</span> OpsPilot Spectrum</button><button type="button" data-cp-film="intentgraph" aria-pressed="false"><span>06</span> IntentGraph Cosmic</button></div>
 <div class="cp-control-bar">
 <button type="button" id="cp-play" class="cp-play"><span aria-hidden="true">▶</span> ЗАПУСТИТЬ ИСТОРИЮ</button>
 <button type="button" id="cp-restart" disabled>НАЧАТЬ ЗАНОВО</button>
@@ -33,6 +33,17 @@
 <section class="cp-library" aria-labelledby="cp-library-title"><p class="cp-brow">02 / VERIFIED OTHER CODE</p><h2 id="cp-library-title">PROTOCOL ZERO и ADVERSE JUDGE</h2><p>Оба фильма собираются из зафиксированных исходных GitHub-коммитов. Все 38 WebP-кадров встроены непосредственно в HTML; сервер приложений для просмотра не нужен.</p>
 <div class="cp-cards"><article><span class="cp-label">OFFLINE SOURCE BUILD · NO ACCOUNT</span><h3>PROTOCOL ZERO</h3><p>15 сцен, два сюжетных финала и собственные диалоги. Можно играть прямо в кинозале или открыть фильм отдельно.</p><button type="button" class="cp-source-play" data-cp-film="protocol-zero">ИГРАТЬ В PROTOCOL ZERO ▶</button> <a href="./film-protocol-zero.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a><a href="https://github.com/osmanosmanov6880-bot/protocol-zero/tree/0f1841c0e56e47f7413bea9948e66200409e7a7a/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article>
 <article><span class="cp-label">OFFLINE SOURCE BUILD · NO ACCOUNT</span><h3>ADVERSE JUDGE</h3><p>15 сцен рекламного суда, реальные выборы, материалы дела и художественный эпилог. Запуск без регистрации и внешних API.</p><button type="button" class="cp-source-play" data-cp-film="adverse-judge">ИГРАТЬ В ADVERSE JUDGE ▶</button> <a href="./film-adverse-judge.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a><a href="https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article></div>
+</section>
+<section class="cp-library" aria-labelledby="cp-r19-title" id="cinema-r19">
+<p class="cp-brow">03 / THREE NEW ORIGINAL ARCHIVE CINEMAS · R19</p>
+<h2 id="cp-r19-title">Три новых мира из настоящих исходников</h2>
+<p>Проверены ранее переданные архивы R15. Только автономный код кино-движков и 54 WebP-кадра опубликованы в публичной сборке: базы данных, серверы и внутренние приложения из ZIP не переносились.</p>
+<div class="cp-cards cp-r19-cards">
+<article><span class="cp-label">SOURCE-VERIFIED · 17 FULL SCENES + PROTOTYPES</span><h3>SIGNAL WORLDS</h3><p>«Сигнал из будущего»: выбор маршрута, интерактивный архив, творческий бриф и 18 адаптивных WebP. В исходном движке предусмотрены русский, английский и китайский языки.</p><button class="cp-source-play" type="button" data-cp-film="signal-worlds">ИГРАТЬ В SIGNAL WORLDS ▶</button> <a href="./film-signal-worlds.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></article>
+<article><span class="cp-label">SOURCE-VERIFIED · 16 SCENES / 2 ENDINGS</span><h3>OpsPilot Spectrum</h3><p>«Сигнал 04:17»: расследование расхождения заказа, игровая арифметическая проверка, карта сцен и 16 WebP. Демо не подключено к настоящей ERP.</p><button class="cp-source-play" type="button" data-cp-film="opspilot">ИГРАТЬ В OpsPilot ▶</button> <a href="./film-opspilot.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></article>
+<article><span class="cp-label">SOURCE-VERIFIED · 15 SCENES / 2 ROLES</span><h3>IntentGraph Cosmic</h3><p>«Сигнал среди миллиардов»: пути рекламодателя и владельца площадки, интерактивный протокол доверия и 20 WebP-кадров. Платежи и публикации рекламы здесь не выполняются.</p><button class="cp-source-play" type="button" data-cp-film="intentgraph">ИГРАТЬ В IntentGraph ▶</button> <a href="./film-intentgraph.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></article>
+</div>
+<p class="cp-caveat">Публичные игровые версии собраны из кино-разделов предоставленных архивов и проверены по контрольным суммам. Программное обеспечение и личные данные независимых бизнес-приложений не публикуются. Искусственно увеличенные концепт-изображения не заявляются как нативный AAA/8K.</p>
 </section>
 <section class="cp-library" aria-labelledby="cp-r17-title" id="cinema-r17">
 <p class="cp-brow">04 / R18 ORIGINAL SOURCE PROVENANCE</p>
@@ -49,4 +60,4 @@
 <p class="cp-caveat">Правило выпуска R17: публикация допускается только после успешной сборки двух автономных HTML, браузерных проверок на компьютере и телефоне и подтверждения отсутствия незапрошенных сетевых обращений. Серверные модули отдельных продуктов не объединяются.</p>
 </section>
 <section class="cp-footer-note"><p class="cp-brow">03 / ACTUAL PRODUCTION BOUNDARY</p><p>Публичный кинозал находится на GitHub Pages и не меняет действующий Contabo-сервер, домены владельца, платежи, договоры и личные данные. Статус 43 доменов остаётся неподтверждённым.</p></section>
-</main><footer>MARCOSA CINEMA R18 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
+</main><footer>MARCOSA CINEMA R19 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
