@@ -245,6 +245,93 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   // R30 real community: follow relationships are per signed-in user.
+   const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
+   if(followWrite&&(method==='POST'||method==='DELETE')){
+    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
+    check(world,404,'Мир не найден');
+    check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
+    if(method==='POST'){
+     throttle('follow:'+user.id,70,3600000);
+     const result=db.prepare('INSERT OR IGNORE INTO world_follows(world_id,user_id,created_at) VALUES(?,?,?)').run(world.id,user.id,now());
+     send(res,result.changes?201:200,{followed:true});return;
+    }
+    db.prepare('DELETE FROM world_follows WHERE world_id=? AND user_id=?').run(world.id,user.id);
+    send(res,200,{followed:false});return;
+   }
+   const commentWrite=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
+   if(method==='POST'&&commentWrite){
+    throttle('comment:'+user.id,25,3600000);
+    const postId=int(commentWrite[1]),text=str(body.body);
+    check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
+    check(db.prepare("SELECT 1 FROM posts WHERE id=? AND status='published'").get(postId),404,'Публикация недоступна');
+    const id=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),postId,body:text});return;
+   }
+   const removeComment=route.match(/^\/api\/comments\/([1-9][0-9]{0,14})$/);
+   if(method==='DELETE'&&removeComment){
+    const result=db.prepare('DELETE FROM comments WHERE id=? AND author_id=?').run(int(removeComment[1]),user.id);
+    check(result.changes===1,404,'Комментарий не найден');
+    send(res,200,{deleted:true});return;
+   }
+   const reportComment=route.match(/^\/api\/comments\/([1-9][0-9]{0,14})\/report$/);
+   if(method==='POST'&&reportComment){
+    throttle('comment-report:'+user.id,30,3600000);
+    check(REASONS.has(body.reason),400,'Причина жалобы не поддерживается');
+    const id=int(reportComment[1]);
+    const comment=db.prepare("SELECT c.author_id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id=? AND c.status='published' AND p.status='published'").get(id);
+    check(comment,404,'Комментарий не найден');
+    check(comment.author_id!==user.id,403,'Нельзя жаловаться на собственный комментарий');
+    try{
+     db.prepare('INSERT INTO comment_reports(comment_id,reporter_id,reason,created_at) VALUES(?,?,?,?)').run(id,user.id,body.reason,now());
+    }catch{throw new HttpError(409,'Жалоба уже зарегистрирована');}
+    send(res,201,{received:true});return;
+   }
+   const hideComment=route.match(/^\/api\/mod\/comments\/([1-9][0-9]{0,14})\/hide$/);
+   if(method==='POST'&&hideComment){
+    check(user.role==='moderator',403,'Нет прав модератора');
+    const id=int(hideComment[1]);
+    const result=db.prepare("UPDATE comments SET status='hidden' WHERE id=? AND status='published'").run(id);
+    check(result.changes===1,404,'Комментарий не найден');
+    db.prepare("UPDATE comment_reports SET status='reviewed' WHERE comment_id=?").run(id);
+    send(res,200,{hidden:true});return;
+   }
+   // R30 paid-advertising gate: a proposal is NOT a paid campaign.
+   // There is no billing, impressions ledger, view tracking, or automatic delivery.
+   if(method==='POST'&&route==='/api/sponsors/proposals'){
+    throttle('sponsor:'+user.id,4,86400000);
+    const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
+    check(db.prepare('SELECT id FROM worlds WHERE id=? AND owner_id=?').get(worldId,user.id),403,'Можно предлагать спонсорство только для своего мира');
+    check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
+    check(headline.length>=5&&headline.length<=130,400,'Заголовок предложения: 5–130 символов');
+    const submittedUrl=str(body.landingUrl);
+    check(submittedUrl.length<=500,400,'Адрес слишком длинный');
+    let normalized;
+    try{
+     const url=new URL(submittedUrl);
+     const host=url.hostname.toLowerCase();
+     check(url.protocol==='https:'&&!url.username&&!url.password&&!url.port,400,'Разрешены только общедоступные HTTPS-сайты');
+     check(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host)&&!host.endsWith('.local')&&!host.endsWith('.internal')&&!/^[0-9.]+$/.test(host),400,'Необходимо публичное доменное имя');
+     url.hash='';normalized=url.href;
+    }catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Неверный адрес сайта');}
+    const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status='pending'").get(user.id).n;
+    check(count<3,409,'Допускается не более трёх нерассмотренных предложений');
+    const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),status:'pending',paid:false,verification:'not-verified'});return;
+   }
+   const reviewSponsor=route.match(/^\/api\/mod\/sponsors\/([1-9][0-9]{0,14})\/review$/);
+   if(method==='POST'&&reviewSponsor){
+    check(user.role==='moderator',403,'Нет прав модератора');
+    check(body.decision==='approved'||body.decision==='rejected',400,'Неверное решение');
+    const id=int(reviewSponsor[1]);
+    const application=db.prepare("SELECT owner_id FROM sponsor_proposals WHERE id=? AND status='pending'").get(id);
+    check(application,404,'Заявка не найдена');
+    check(application.owner_id!==user.id,403,'Нельзя проверять собственную заявку');
+    const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending'")
+     .run(body.decision,user.id,now(),id);
+    check(result.changes===1,409,'Заявка уже рассмотрена');
+    send(res,200,{id,status:body.decision,paid:false});return;
+   }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
