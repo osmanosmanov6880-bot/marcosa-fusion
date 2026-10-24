@@ -175,6 +175,18 @@ async function main(){
    await cdp.evalJS("(()=>{document.getElementById('sponsor-owner').scrollIntoView({behavior:'instant',block:'center'});return true;})()");
    await pause(140);
    await screenshot('community-sponsor');
+   // Real browser must query the database-backed discovery endpoint, not demo cards.
+   await cdp.evalJS("(()=>{const f=document.getElementById('discover-form');f.elements.q.value='r30host';f.requestSubmit();return true;})()");
+   await cdp.wait("document.querySelector('#discover-results .discover-hit')?.textContent.includes('r30host')",'r30-real-discovery');
+   await cdp.evalJS("document.getElementById('discover-clear').click()");
+   const cleared=await cdp.evalJS("document.getElementById('discover-results').hidden");
+   if(!cleared)throw Error('R30_DISCOVERY_RESET_FAILED_'+size.name);
+   // Applicant can cancel their unpaid pending proposal, and this is persisted.
+   await cdp.evalJS("document.querySelector('#my-sponsors button').click()");
+   await cdp.wait("document.getElementById('my-sponsors').textContent.includes('revoked')",'r30-consent-revocation');
+   const revoked=await cdp.evalJS("document.getElementById('my-sponsors').textContent.includes('revoked')");
+   if(!revoked)throw Error('R30_SPONSOR_REVOCATION_NOT_REFLECTED_'+size.name);
+
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length)throw Error('EXTERNAL_NETWORK_ACCESS '+external.slice(0,5).join(' | '));
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
