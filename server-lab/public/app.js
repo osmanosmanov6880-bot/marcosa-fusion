@@ -36,6 +36,13 @@ async function loadInsights(){
  }
 }
 
+function syncWorldSettings(){
+ const form=$('world-settings-form'),slug=form.elements.slug.value;
+ const world=state.worlds.find(x=>x.slug===slug);
+ if(!world)return;
+ form.elements.title.value=world.title;
+ form.elements.description.value=world.description||'';
+}
 async function session(){
  try{
   const result=await api('/auth/me');
@@ -63,13 +70,15 @@ async function session(){
  if(!state.me){clear($('my-sponsors'));clear($('received-sponsors'));clear($('sponsor-review-list'));}
  if(state.me){
   $('profile-line').textContent='@'+state.me.username+' · '+state.me.role+' · закрытое испытание';
-  const container=$('my-worlds'),choose=$('post-world');
-  clear(container);clear(choose);
+  const container=$('my-worlds'),choose=$('post-world'),settings=$('world-settings-select');
+  clear(container);clear(choose);clear(settings);
   for(const world of state.worlds){
    const item=node('p',world.title+' / '+world.slug,'world-own');container.append(item);
    const option=node('option',world.title);option.value=world.id;choose.append(option);
-
+   const editOption=node('option',world.title+' / '+world.slug);
+   editOption.value=world.slug;settings.append(editOption);
   }
+  if(state.worlds.length)syncWorldSettings();
   await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
@@ -469,6 +478,15 @@ $('register-form').addEventListener('submit',event=>{
 $('logout').addEventListener('click',()=>run(async()=>{
  await api('/auth/logout','POST',{});await session();await Promise.all([worlds(),feed(true),sponsors()]);
 },'Вы вышли.'));
+$('world-settings-select').addEventListener('change',syncWorldSettings);
+$('world-settings-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ const {slug,title,description}=values(form);
+ run(async()=>{
+  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description});
+  await session();await worlds();
+ },'Оформление мира сохранено — данные видны посетителям.');
+});
 $('world-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   await api('/worlds','POST',values(form));
