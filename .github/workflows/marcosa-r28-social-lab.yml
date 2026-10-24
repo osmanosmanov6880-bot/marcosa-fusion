@@ -47,7 +47,8 @@ jobs:
           node --check server-lab/tools/lab-snapshot.mjs
           node --check server-lab/test/r34.snapshot.test.mjs
           node --check server-lab/test/r33.world_insights.test.mjs
-          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs server-lab/test/r34.snapshot.test.mjs server-lab/test/r33.world_insights.test.mjs
+          node --check server-lab/test/r36.loopback_security.test.mjs
+          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs server-lab/test/r34.snapshot.test.mjs server-lab/test/r33.world_insights.test.mjs server-lab/test/r36.loopback_security.test.mjs
       - name: Real Chromium — desktop and phones, signup, login, publish
         shell: bash
         run: |
