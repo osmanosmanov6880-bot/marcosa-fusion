@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],cursor:null,reportPost:null};
+const state={me:null,worlds:[],cursor:null,reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -35,26 +35,42 @@ async function session(){
  $('member-access').hidden=!state.me;
  $('composer-panel').hidden=!state.me;
  $('moderator').hidden=!state.me||state.me.role!=='moderator';
+ $('sponsor-owner').hidden=!state.me;
+ $('sponsor-moderation').hidden=!state.me||state.me.role!=='moderator';
+ if(!state.me){clear($('my-sponsors'));clear($('sponsor-review-list'));}
  if(state.me){
   $('profile-line').textContent='@'+state.me.username+' · '+state.me.role+' · закрытое испытание';
-  const container=$('my-worlds'),choose=$('post-world');
-  clear(container);clear(choose);
+  const container=$('my-worlds'),choose=$('post-world'),sponsorChoose=$('sponsor-world');
+  clear(container);clear(choose);clear(sponsorChoose);
   for(const world of state.worlds){
    const item=node('p',world.title+' / '+world.slug,'world-own');container.append(item);
    const option=node('option',world.title);option.value=world.id;choose.append(option);
+   const sponsorOption=node('option',world.title);sponsorOption.value=world.id;sponsorChoose.append(sponsorOption);
   }
-  await myPosts();
-  if(state.me.role==='moderator')await reports();
+  await Promise.all([myPosts(),mySponsors()]);
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
  }
 }
 async function worlds(){
- const result=await api('/worlds');const wrap=$('world-list');clear(wrap);
+ const result=await api('/worlds'),wrap=$('world-list');clear(wrap);
  $('world-count').textContent=result.items.length+' миров';
- for(const world of result.items){
+ const followInfo=state.me?await Promise.all(result.items.map(w=>api('/worlds/'+encodeURIComponent(w.slug)+'/followers'))):[];
+ for(const [i,world] of result.items.entries()){
   const card=node('article','','world-card');
   card.append(node('span','WORLD / '+world.slug,'eyebrow'),node('h3',world.title));
   card.append(node('p',world.description||'Мир автора @'+world.owner));
-  card.append(node('small','Создан @'+world.owner));
+  const stats=node('p',world.posts_count+' публикаций · '+world.followers_count+' подписчиков','world-stats');
+  card.append(stats,node('small','Создан @'+world.owner));
+  if(state.me&&world.owner!==state.me.username){
+   const following=followInfo[i]?.followed===true;
+   const btn=node('button',following?'✓ Подписан':'Подписаться',following?'ghost small following':'ghost small world-follow');
+   btn.type='button';btn.setAttribute('aria-pressed',String(following));
+   btn.addEventListener('click',()=>run(async()=>{
+    await api('/worlds/'+encodeURIComponent(world.slug)+'/follow',following?'DELETE':'POST',{});
+    await worlds();
+   },following?'Подписка отменена':'Подписка сохранена'));
+   card.append(btn);
+  }
   wrap.append(card);
  }
  if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
@@ -118,7 +134,7 @@ $('login-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   const data=values(form);
   await api('/auth/login','POST',data);
-  form.reset();await session();await feed(true);
+  form.reset();await session();await Promise.all([worlds(),feed(true),sponsors()]);
  },'Вход выполнен');
 });
 $('register-form').addEventListener('submit',event=>{
@@ -129,7 +145,7 @@ $('register-form').addEventListener('submit',event=>{
  },'Локальный профиль создан. Теперь войдите.');
 });
 $('logout').addEventListener('click',()=>run(async()=>{
- await api('/auth/logout','POST',{});await session();await feed(true);
+ await api('/auth/logout','POST',{});await session();await Promise.all([worlds(),feed(true),sponsors()]);
 },'Вы вышли.'));
 $('world-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
@@ -171,7 +187,7 @@ $('account-export').addEventListener('click',()=>run(async()=>{
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
 $('reload-reports').addEventListener('click',()=>run(()=>reports()));
-Promise.all([session(),worlds(),feed(true)])
+session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>notice('Локальный сервер готов. Данные настоящие, но изолированы от production.'))
  .catch(e=>notice(e.message));
 })();
