@@ -33,6 +33,8 @@
   saved=saved.filter(id=>Object.prototype.hasOwnProperty.call(LABELS,id));
   saved=Array.from(new Set(saved));
   function bookmarks(){
+   const quickCount=$('so-saved-count');
+   if(quickCount)quickCount.textContent=String(saved.length);
    $('so-bookmark-summary').textContent=saved.length
     ?saved.map(id=>LABELS[id]).join(' · ')
     :'Ещё ничего не сохранено. Выбери ☆ у понравившегося мира.';

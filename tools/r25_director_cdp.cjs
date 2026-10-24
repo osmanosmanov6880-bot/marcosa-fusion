@@ -185,7 +185,7 @@ function inspectBrand(expected){
    const heading=document.getElementById('so-main-title');
    const shell=document.querySelector('.so-shell');
    const art=document.querySelector('.so-art');
-   if(!heading||!shell||!art||parseFloat(getComputedStyle(heading).fontSize)<52)
+   if(!heading||!shell||!art||parseFloat(getComputedStyle(heading).fontSize)<44)
     throw Error('R25_REAL_DARK_SOCIAL_EDITION_MISSING');
    if(getComputedStyle(shell).backgroundColor!=='rgb(9, 13, 24)')
     throw Error('R25_SOCIAL_NOT_DARK_NAVY');
@@ -193,6 +193,30 @@ function inspectBrand(expected){
     throw Error('R25_SOCIAL_NOT_USING_SOURCE_GRADE');
    if(!getComputedStyle(art).backgroundImage.includes('visual-cascade.webp'))
     throw Error('R25_SOCIAL_ORIGINAL_VISUAL_MISSING');
+   // R26: the product feed must be visible soon after a compact hero.
+   const quick=document.querySelector('nav.s26-quick');
+   const quickSaved=document.getElementById('so-saved-count');
+   const cards=document.getElementById('so-cards');
+   const feed=document.getElementById('so-feed');
+   const hero=document.querySelector('.so-hero');
+   if(!quick||!quickSaved||!cards||!feed||!hero)
+    throw Error('R26_SOCIAL_QUICK_WORKSPACE_MISSING');
+   if(quick.querySelectorAll('a[href]').length!==3)
+    throw Error('R26_QUICK_NAV_ACTIONS_MISSING');
+   if(!quick.querySelector('a[href="./social.html?view=saved#so-feed"]'))
+    throw Error('R26_SAVED_DEEP_LINK_MISSING');
+   const heroRect=hero.getBoundingClientRect();
+   if(window.innerWidth>=1121&&heroRect.height>420)
+    throw Error('R26_DESKTOP_SOCIAL_HERO_TOO_TALL_'+heroRect.height);
+   if(window.innerWidth<=720&&heroRect.height>580)
+    throw Error('R26_MOBILE_SOCIAL_HERO_TOO_TALL_'+heroRect.height);
+   const cols=getComputedStyle(cards).gridTemplateColumns.split(/\s+/).filter(Boolean).length;
+   if(window.innerWidth>=1301&&cols!==2)
+    throw Error('R26_DESKTOP_FEED_NOT_TWO_COLUMN');
+   if(window.innerWidth<=720&&cols!==1)
+    throw Error('R26_MOBILE_FEED_NOT_SINGLE_COLUMN');
+   if(!getComputedStyle(document.querySelector('.so-card--cinema .so-cover')).backgroundImage.includes('visual-hero-director.webp'))
+    throw Error('R26_REAL_FILM_COVER_MISSING');
    if(window.innerWidth<=720){
     const opacity=Number(getComputedStyle(art).opacity);
     if(opacity<.50)throw Error('R25_MOBILE_SOCIAL_VISUAL_TOO_DIM');
@@ -229,7 +253,7 @@ function socialActions(){
   throw Error('SOCIAL_SEARCH_FAILED');
  const save=document.querySelector('[data-so-save="signal"]');
  save.click();
- if(save.getAttribute('aria-pressed')!=='true'||!$('so-bookmark-summary').textContent.includes('SIGNAL WORLDS'))
+ if(save.getAttribute('aria-pressed')!=='true'||!$('so-bookmark-summary').textContent.includes('SIGNAL WORLDS')||$('so-saved-count').textContent!=='1')
   throw Error('SOCIAL_BOOKMARK_FAILED');
  document.querySelector('[data-so-filter="saved"]').click();
  if(Array.from(document.querySelectorAll('#so-cards article')).filter(x=>!x.hidden).length!==1)
@@ -253,6 +277,7 @@ function socialClean(){
  if(!$('so-personal-note').hidden)throw Error('R25_DELETED_PRIVATE_NOTE_STILL_VISIBLE');
  const bookmark=document.querySelector('[data-so-save="signal"]');
  if(bookmark.getAttribute('aria-pressed')==='true')bookmark.click();
+ if($('so-saved-count').textContent!=='0')throw Error('R26_LOCAL_BOOKMARK_COUNT_NOT_CLEARED');
  return {draftCleared:true,bookmarksCleared:true};
 }
 async function main(){

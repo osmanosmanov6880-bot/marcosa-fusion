@@ -149,7 +149,7 @@ function inspectBrand(expected){
    const heading=document.getElementById('so-main-title');
    const shell=document.querySelector('.so-shell');
    const art=document.querySelector('.so-art');
-   if(!heading||!shell||!art||parseFloat(getComputedStyle(heading).fontSize)<52)
+   if(!heading||!shell||!art||parseFloat(getComputedStyle(heading).fontSize)<44)
     throw Error('R24_REAL_DARK_SOCIAL_EDITION_MISSING');
    if(getComputedStyle(shell).backgroundColor!=='rgb(9, 13, 24)')
     throw Error('R24_SOCIAL_NOT_DARK_NAVY');
