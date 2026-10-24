@@ -17,7 +17,7 @@ from r22_extract_cinematic_assets import place as place_cinematic_assets
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -163,6 +163,26 @@ def build() -> dict:
                  'source-hub.html','stories.html','film-network.html'):
         if 'href="./marcosa-quiet.css"' not in (SOURCE / page).read_text(encoding='utf-8'):
             raise RuntimeError('R23 theme not applied to '+page)
+    # R24: approved NOCTURNE is the visible dark app, not the rejected white R23 theme.
+    if not all(t in html for t in ('class="m24-community"',
+        'href="./social.html?view=saved#so-feed"', 'id="m22-experience"',
+        'href="./marcosa-nocturne.css"')):
+        raise RuntimeError('R24 real social-first dark Gateway missing')
+    nocturne = (SOURCE / 'marcosa-nocturne.css').read_text(encoding='utf-8')
+    for selector in ('html[data-m-world="gateway"] .m22-experience',
+        'html[data-m-world="gateway"] .q23-home',
+        'html[data-m-world="social"] .so-hero',
+        'html[data-m-world="cinema"] .cp-hero',
+        'html[data-m-world="creator"] .mc-hero',
+        'html[data-m-world="atlas"] .sh-hero'):
+        if selector not in nocturne:
+            raise RuntimeError('R24 missing actual world theme: '+selector)
+    for page in ('index.html','social.html','cinema-pilot.html','creator.html',
+                 'source-hub.html','stories.html','film-network.html'):
+        if 'href="./marcosa-nocturne.css"' not in (SOURCE / page).read_text(encoding='utf-8'):
+            raise RuntimeError('R24 dark theme not connected in '+page)
+    if 'view' not in (SOURCE / 'social-core.js').read_text(encoding='utf-8'):
+        raise RuntimeError('R24 saved-only deep link not supported')
     # R22: the cinematic home is an actual navigable interface, not a flat poster.
     required_r22 = (
         'id="m22-experience"', 'class="m22-gateway-sidebar"',

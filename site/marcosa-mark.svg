@@ -1,24 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
- <title id="title">MARCOSA — Orbital M</title>
- <desc id="desc">Сдержанная монограмма MARCOSA цвета матового шампанского на глубоком графите.</desc>
- <defs>
-  <linearGradient id="champagne" x1="0" y1="0" x2="1" y2="1">
-   <stop offset="0" stop-color="#e5d3b5"/>
-   <stop offset=".56" stop-color="#bda587"/>
-   <stop offset="1" stop-color="#e0c8a7"/>
-  </linearGradient>
-  <filter id="gold-glow" x="-.2" y="-.2" width="1.4" height="1.4">
-   <feGaussianBlur stdDeviation="0.5"/>
-  </filter>
-  <filter id="subtle-shadow" x="-.25" y="-.25" width="1.5" height="1.5">
-   <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#141714" flood-opacity=".18"/>
-  </filter>
- </defs>
- <rect width="512" height="512" rx="90" fill="#272d27"/>
- <rect x="12" y="12" width="488" height="488" rx="80" fill="none" stroke="#c5b195" stroke-opacity=".38" stroke-width="2"/>
- <ellipse cx="256" cy="257" rx="204" ry="204" fill="none" stroke="#e3d3b7" stroke-opacity=".10" stroke-width="1.8"/>
- <path d="M118 370 V136 L257 278 L394 136 V370 H353 V226 L257 323 L159 226 V370 Z" fill="url(#champagne)" filter="url(#subtle-shadow)"/>
- <path d="M139 176 L256 294 L374 175" fill="none" stroke="#fff5e3" stroke-opacity=".42" stroke-width="3" stroke-linejoin="round"/>
- <path d="M117 403 H395" stroke="#b7a182" stroke-opacity=".37" stroke-width="2"/>
- <path d="M256 101 V120" stroke="#e4d3b5" stroke-opacity=".7" stroke-width="2"/>
+<title id="title">MARCOSA — Orbital M</title>
+<desc id="desc">Объёмная монограмма М из матового шампанского золота на тёмном сапфире, с одной тонкой фирменной орбитой.</desc>
+<defs>
+<radialGradient id="sapphire" cx=".26" cy=".12" r=".9"><stop stop-color="#233346"/><stop offset=".5" stop-color="#101a29"/><stop offset="1" stop-color="#080e19"/></radialGradient>
+<linearGradient id="brass" x1="0" y1="0" x2=".94" y2="1"><stop stop-color="#fff0d5"/><stop offset=".17" stop-color="#e1be8d"/><stop offset=".38" stop-color="#ab784c"/><stop offset=".61" stop-color="#f1d5ad"/><stop offset=".85" stop-color="#b78c5b"/><stop offset="1" stop-color="#e7c998"/></linearGradient>
+<linearGradient id="bevel" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0d0"/><stop offset=".54" stop-color="#c59a69"/><stop offset="1" stop-color="#765335"/></linearGradient>
+<linearGradient id="orbit" x1="0" y1=".5" x2="1" y2=".5"><stop stop-color="#8e775a" stop-opacity="0"/><stop offset=".18" stop-color="#e4c49a" stop-opacity=".72"/><stop offset=".4" stop-color="#f2d4a5"/><stop offset=".7" stop-color="#b28f63" stop-opacity=".85"/><stop offset="1" stop-color="#b49872" stop-opacity="0"/></linearGradient>
+<filter id="gold-glow" x="-.25" y="-.25" width="1.5" height="1.5"><feGaussianBlur stdDeviation=".7"/></filter>
+<filter id="subtle-shadow" x="-.3" y="-.3" width="1.6" height="1.6"><feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#000" flood-opacity=".58"/></filter>
+</defs>
+<rect x="4" y="4" width="504" height="504" rx="92" fill="url(#sapphire)" stroke="#b99d76" stroke-width="3" stroke-opacity=".58"/>
+<rect x="20" y="20" width="472" height="472" rx="79" fill="none" stroke="#f0d8af" stroke-width="1" stroke-opacity=".16"/>
+<ellipse cx="256" cy="267" rx="223" ry="92" transform="rotate(-17 256 267)" fill="none" stroke="#ae8c5e" stroke-opacity=".17" stroke-width="8"/>
+<ellipse cx="256" cy="267" rx="223" ry="92" transform="rotate(-17 256 267)" fill="none" stroke="url(#orbit)" stroke-width="3"/>
+<g filter="url(#subtle-shadow)">
+<path d="M117 372 V132 L256 268 L395 132 V372 H353 V232 L256 325 L159 232 V372 Z" fill="url(#brass)" stroke="#59422e" stroke-width="3" stroke-linejoin="round"/>
+<path d="M117 132 L159 172 V372 H117 Z M353 172 L395 132 V372 H353 Z" fill="#5e432b" opacity=".46"/>
+<path d="M130 152 L256 276 L382 152" fill="none" stroke="url(#bevel)" stroke-width="8" stroke-linejoin="round" opacity=".9"/>
+<path d="M160 231 L256 326 L353 231" fill="none" stroke="#fff1da" stroke-width="2.6" opacity=".5"/>
+</g>
+<path d="M56 335 Q232 432 435 257" fill="none" stroke="url(#orbit)" stroke-width="3.6" stroke-linecap="round"/>
+<circle cx="413" cy="170" r="2.4" fill="#e5ccaa"/>
 </svg>
