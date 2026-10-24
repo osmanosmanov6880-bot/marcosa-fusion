@@ -1,0 +1,324 @@
+{
+  "schema_version": 1,
+  "project": "MARCOSA GLOBAL",
+  "version": "R29",
+  "as_of": "2026-10-24",
+  "basis_main_sha": "dcc8d2feb2cc418ee3b66f5ec8ad6ba2548e658f",
+  "authoring_note": "Roadmap only, no production rollout claims. Planned thresholds are hypotheses.",
+  "approval_mode": "scope/engineering planning, not automatic release authorization",
+  "delivery_type": "World-first creator network, transparent contextual sponsorship, gradual self-serve advertising",
+  "statuses": [
+    "blocked",
+    "prototype_only",
+    "partial",
+    "planned",
+    "done"
+  ],
+  "north_star": "Weekly Meaningful World Connections (unique verified two-sided human interactions in a World per week)",
+  "current_verified": {
+    "public_site": "GitHub Pages static preview R27",
+    "server": "R28 local-only Node/SQLite lab",
+    "backend": "No accessible Supabase projects in connected account",
+    "staging": "SSH host key mismatch; no bypass",
+    "ads": "Not live",
+    "payments": "Not live"
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "day": 30,
+      "condition": "Inventory completed, legal and SSH risk understood; 10 real creators find World useful",
+      "exit_if_failed": "extend discovery; no public deployment"
+    },
+    {
+      "id": "G1",
+      "day": 60,
+      "condition": "100 creators invited, >=40% of new creators publish within 7 days, no high-severity privacy bugs",
+      "exit_if_failed": "fix onboarding and privacy before growth"
+    },
+    {
+      "id": "G2",
+      "day": 90,
+      "condition": ">=20% cohort D30 creator retention when measurable, pilot brand demand validated",
+      "exit_if_failed": "pivot positioning; do not scale paid acquisition"
+    },
+    {
+      "id": "G3",
+      "day": 180,
+      "condition": ">=10 real paid pilots and >=30% repeat over defined period, verified views and no severe ad incidents",
+      "exit_if_failed": "pause self-serve and monetization scale"
+    },
+    {
+      "id": "G4",
+      "day": 365,
+      "condition": "sustainable repeat-purchase contribution margin and World retention; country-safe operations",
+      "exit_if_failed": "stay in profitable focused vertical, no false worldwide expansion"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "R29-001",
+      "priority": "P0",
+      "target_day": 30,
+      "track": "platform",
+      "status": "blocked",
+      "goal": "Проверить владельца текущего Supabase/Auth и production-данные; получить RLS inventory",
+      "acceptance": "Подтверждён проект, схема, Data API, политики и владелец данных; ноль секретов в git",
+      "depends_on": [],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-002",
+      "priority": "P0",
+      "target_day": 30,
+      "track": "infra-security",
+      "status": "blocked",
+      "goal": "Восстановить безопасный отдельный STAGING по независимо проверенному SSH host key",
+      "acceptance": "Host pin подтверждён через провайдера; read-only preflight PASS; изолированный deploy PASS",
+      "depends_on": [],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-003",
+      "priority": "P0",
+      "target_day": 40,
+      "track": "identity",
+      "status": "prototype_only",
+      "goal": "Production Auth, verified email, sessions и ownership/RLS для Worlds и Objects",
+      "acceptance": "Два реальных JWT, owner-only CRUD, отказ post чужих данных, logout, export/delete, security advisors",
+      "depends_on": [
+        "R29-001"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-004",
+      "priority": "P0",
+      "target_day": 50,
+      "track": "core-worlds",
+      "status": "prototype_only",
+      "goal": "World Builder и безопасная публикация мультимедиа с реальным backend",
+      "acceptance": "Первый World за 3 минуты, подписанный media URL, mobile QA, world visitors без login",
+      "depends_on": [
+        "R29-002",
+        "R29-003"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-005",
+      "priority": "P0",
+      "target_day": 60,
+      "track": "social",
+      "status": "planned",
+      "goal": "Комментарии, подписки, уведомления, жалобы и решения с апелляцией",
+      "acceptance": "Реальные межпользовательские взаимодействия, privacy, роль модератора и отчёт об апелляциях",
+      "depends_on": [
+        "R29-003",
+        "R29-004"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-006",
+      "priority": "P0",
+      "target_day": 60,
+      "track": "reliability",
+      "status": "planned",
+      "goal": "Бэкапы и восстановление, мониторинг, аварийная остановка, управление доступом",
+      "acceptance": "Проверенный restore, alerts, rate-limit, audit trail и независимая security-проверка",
+      "depends_on": [
+        "R29-002",
+        "R29-003"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-007",
+      "priority": "P0",
+      "target_day": 60,
+      "track": "research",
+      "status": "planned",
+      "goal": "20-30 интервью авторов, 10 интервью брендов и Founding 100 outreach",
+      "acceptance": "Доказаны ключевые pains и органическое создание 10 полезных Worlds",
+      "depends_on": [],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-008",
+      "priority": "P0",
+      "target_day": 60,
+      "track": "quality",
+      "status": "partial",
+      "goal": "Accessibility WCAG 2.2 AA, реальная мобильная производительность и языки RU/EN",
+      "acceptance": "Успешный ручной accessibility review + реальные p75 LCP/INP и QA разных телефонов",
+      "depends_on": [
+        "R29-004"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-009",
+      "priority": "P1",
+      "target_day": 90,
+      "track": "discovery",
+      "status": "planned",
+      "goal": "World-first Discover/Lens и объяснимые рекомендации",
+      "acceptance": "Реальная метрика WMWC растёт относительно хронологического контрольного варианта",
+      "depends_on": [
+        "R29-005",
+        "R29-007"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-010",
+      "priority": "P1",
+      "target_day": 90,
+      "track": "film-network",
+      "status": "prototype_only",
+      "goal": "Добровольные, правомерные переходы из подтверждённых киноисторий в Worlds",
+      "acceptance": "У существующих фильмов подтверждены права/CTA, переход и первая активность измерены",
+      "depends_on": [
+        "R29-004"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-011",
+      "priority": "P1",
+      "target_day": 120,
+      "track": "ads-inventory",
+      "status": "planned",
+      "goal": "Sponsored World и Contextual Card с рекламной маркировкой",
+      "acceptance": "Реальный eligible inventory, формальное согласие автора World, viewability методика",
+      "depends_on": [
+        "R29-009",
+        "R29-010"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-012",
+      "priority": "P1",
+      "target_day": 120,
+      "track": "ads-review",
+      "status": "planned",
+      "goal": "Advertiser verification, creative review, reject, appeals и audit trail",
+      "acceptance": "Проверенные бренды, запрещённые категории блокируются, маркировка sponsor visible",
+      "depends_on": [
+        "R29-011"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-013",
+      "priority": "P1",
+      "target_day": 150,
+      "track": "ads-measure",
+      "status": "planned",
+      "goal": "Независимые события рекламы, invalid-traffic фильтры и отчёты",
+      "acceptance": "Идемпотентность логов, раздельные delivered/viewable/invalid, публичная методика",
+      "depends_on": [
+        "R29-011"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-014",
+      "priority": "P1",
+      "target_day": 150,
+      "track": "billing",
+      "status": "planned",
+      "goal": "Платежи и инвойсы/возвраты/ledger с юрпроверкой страны",
+      "acceptance": "Расходы и возвраты согласуются, нет двойного списания, verified processor, подписаны договоры",
+      "depends_on": [
+        "R29-012",
+        "R29-013"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-015",
+      "priority": "P1",
+      "target_day": 180,
+      "track": "commercial",
+      "status": "planned",
+      "goal": "Достичь повторных реальных оплаченных пилотов и анализировать contribution margin",
+      "acceptance": "Не меньше 10 оплативших и целевой ориентир 30% repeat на определённом окне, показатели проверены",
+      "depends_on": [
+        "R29-014",
+        "R29-007"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-016",
+      "priority": "P2",
+      "target_day": 240,
+      "track": "ads-selfserve",
+      "status": "planned",
+      "goal": "Self-serve Campaign Builder с review, caps, pause и бюджетными ограничениями",
+      "acceptance": "Нет списаний без approved campaign, stop caps, anti-fraud, dispute process",
+      "depends_on": [
+        "R29-014",
+        "R29-015"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-017",
+      "priority": "P2",
+      "target_day": 270,
+      "track": "creators-economy",
+      "status": "planned",
+      "goal": "Creator partnerships, маркировка и контракты, creator share и возвраты",
+      "acceptance": "Договорные выплаты, creator consent и dispute/appeal проходят независимый аудит",
+      "depends_on": [
+        "R29-015"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-018",
+      "priority": "P2",
+      "target_day": 300,
+      "track": "scaling",
+      "status": "planned",
+      "goal": "Поиск, очереди, продакшен наблюдаемость и безопасные региональные настройки",
+      "acceptance": "Инженерные SLO, доказанные нагрузочные тесты и region-aware privacy",
+      "depends_on": [
+        "R29-006",
+        "R29-015"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-019",
+      "priority": "P2",
+      "target_day": 330,
+      "track": "international",
+      "status": "planned",
+      "goal": "Запуск второго и следующих рынков с локальной юридической экспертизой",
+      "acceptance": "Подтверждённый PSP, GDPR/DSA/налоги, support и модерация в целевых странах",
+      "depends_on": [
+        "R29-018",
+        "R29-016"
+      ],
+      "verified_complete": false
+    },
+    {
+      "id": "R29-020",
+      "priority": "P2",
+      "target_day": 365,
+      "track": "ecosystem",
+      "status": "planned",
+      "goal": "Документированный партнёрский API/SDK с permissioning и отзывом доступа",
+      "acceptance": "OAuth scopes, third-party review, rate limits, security assessment и audit logs",
+      "depends_on": [
+        "R29-018"
+      ],
+      "verified_complete": false
+    }
+  ]
+}
