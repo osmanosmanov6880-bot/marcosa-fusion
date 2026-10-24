@@ -2,57 +2,63 @@
 <html lang="ru" data-m-world="social">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#100916">
+<meta name="theme-color" content="#f3f0e9">
 <meta name="description" content="MARCOSA Social Core — отдельный интерфейс сообщества: тематическая лента реальных проектов и локальные личные черновики. Публичное превью, не серверная соцсеть.">
-<title>MARCOSA · SOCIAL CORE — Миры создают люди</title>
+<title>MARCOSA — Сообщество, идеи и культура</title>
 <link rel="stylesheet" href="./social-core.css">
-<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css">
-<script src="./social-core.js" defer></script><script src="./marcosa-brand.js" defer></script>
+<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css">
+<script src="./social-core.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
 </head>
 <body>
 <div class="so-shell" id="so-app">
 <header class="so-head">
  <a class="so-brand m-orbit-identity" href="./index.html" aria-label="MARCOSA — Network OS">
-  <img src="./marcosa-mark.svg" width="46" height="46" alt=""><span>MARCOSA<small>SOCIAL CORE / THE HUMAN WORLD</small></span>
+  <img src="./marcosa-mark.svg" width="46" height="46" alt=""><span>MARCOSA<small>THE SOCIAL EDITION / COMMUNITY</small></span>
  </a>
  <nav class="so-main-nav" aria-label="Основные разделы"><a href="./index.html">МИРЫ</a><a href="./cinema-pilot.html">КИНОТЕАТР</a><a href="./creator.html">СТУДИЯ</a></nav>
- <span class="so-live"><i aria-hidden="true"></i> PUBLIC PREVIEW / LOCAL</span>
+ <span class="so-live"><i aria-hidden="true"></i> PRIVATE NOTES / PUBLIC PREVIEW</span>
 </header>
 <main>
 <section class="so-hero" aria-labelledby="so-main-title">
  <div class="so-hero-copy">
-  <p class="so-overline">01 / SOCIAL CORE · COMMUNITY EXPERIENCE</p>
-  <h1 id="so-main-title">Настоящие идеи.<br><em>Новые миры.</em></h1>
-  <p>Пространство для историй, проектов и творческих идей MARCOSA. Каждый мир имеет своё лицо, но здесь они встречаются.</p>
-  <div class="so-hero-actions"><a class="so-primary" href="#so-feed">ИССЛЕДОВАТЬ ЛЕНТУ ↗</a><a class="so-outline" href="#so-draft">СОЗДАТЬ ЧЕРНОВИК</a></div>
+  <p class="so-overline">MARCOSA / PEOPLE & IDEAS</p>
+  <h1 id="so-main-title">Каждая идея<br>достойна <em>внимания.</em></h1>
+  <p>Открывай истории, сохраняй то, что вдохновляет, и начинай собственные проекты. Спокойное пространство для интересных людей и содержательных идей.</p>
+  <div class="so-hero-actions"><a class="so-primary" href="#so-feed">СМОТРЕТЬ ЛЕНТУ ↗</a><a class="so-outline" href="#so-draft">НАПИСАТЬ ЗАМЕТКУ</a></div>
   <p class="so-honesty">Этот раздел — работающий публичный интерфейс. Аккаунты, публикация постов для других людей и сообщения пока не подключены; личные черновики хранятся только на вашем устройстве.</p>
  </div>
  <div class="so-art" aria-hidden="true">
   <span class="so-art-sun"></span><span class="so-art-ring"></span>
   <div class="so-art-skyline"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="so-art-caption"><span>MARCOSA / HUMAN CONNECTION</span><strong>CREATE. CONNECT. BELONG.</strong></div>
+  <div class="so-art-caption"><span>MARCOSA / THE COMMUNITY EDITION</span><strong>A SPACE FOR IDEAS.</strong></div>
  </div>
 </section>
-<div class="so-breadcrumb"><span>THE COMMUNITY / ИДЕИ И ИСТОРИИ</span><span>LOCAL-FIRST · NO FAKE METRICS</span></div>
+<div class="so-breadcrumb"><span>COMMUNITY / ИДЕИ И ИСТОРИИ</span><span>LOCAL-FIRST · NO FAKE METRICS</span></div>
 <div class="so-layout">
  <aside class="so-side" aria-label="Разделы социальной платформы">
-  <h2>МИРЫ И ЛЮДИ</h2>
-  <a class="active" href="#so-feed"><span>✧</span> ЛЕНТА ИДЕЙ</a>
+  <h2>ВАШЕ ПРОСТРАНСТВО</h2>
+  <a class="active" href="#so-feed"><span>✧</span> ЛЕНТА</a>
   <a href="./cinema-pilot.html"><span>▶</span> КИНОМИРЫ</a>
   <a href="./creator.html"><span>✦</span> СОЗДАНИЕ ИСТОРИЙ</a>
   <a href="./source-hub.html"><span>◎</span> ПРОЕКТЫ И КОД</a>
-  <a href="#so-draft"><span>✎</span> МОИ ЧЕРНОВИКИ</a>
+  <a href="#so-draft"><span>✎</span> ЛИЧНЫЕ ЗАМЕТКИ</a>
   <div class="so-side-note">01 / ОБЩИЙ БРЕНД<br>Разные миры. Один MARCOSA.</div>
  </aside>
  <section class="so-stream" id="so-feed" aria-labelledby="so-feed-title">
-  <div class="so-stream-head"><div><p class="so-overline">CURATED DISCOVERY / SOURCE-BACKED</p><h2 id="so-feed-title">Миры, которыми хочется делиться</h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">4 проекта</span></div>
+  <div class="so-stream-head"><div><p class="so-overline">MARCOSA EDITORIAL / REAL PROJECTS</p><h2 id="so-feed-title">Истории и идеи <em>в центре внимания.</em></h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">4 проекта</span></div>
   <div class="so-search-wrap"><label for="so-search" class="so-search-label">ПОИСК ПО МИРАМ</label><input id="so-search" type="search" placeholder="Кино, студия, Signal, проекты…" autocomplete="off" maxlength="80"></div>
   <div class="so-filters" role="group" aria-label="Фильтры ленты">
    <button type="button" class="active" data-so-filter="all" aria-pressed="true">ВСЕ МИРЫ</button>
    <button type="button" data-so-filter="cinema" aria-pressed="false">КИНО</button>
    <button type="button" data-so-filter="create" aria-pressed="false">ТВОРЧЕСТВО</button>
    <button type="button" data-so-filter="source" aria-pressed="false">ПРОЕКТЫ</button>
+   <button type="button" data-so-filter="saved" aria-pressed="false">СОХРАНЁННОЕ</button>
   </div>
+  <article class="so-personal-note" id="so-personal-note" aria-labelledby="so-personal-note-title" hidden>
+   <div class="so-personal-note-head"><span>ЛИЧНОЕ / ВИДНО ТОЛЬКО ВАМ</span><span>PRIVATE DRAFT</span></div>
+   <h3 id="so-personal-note-title">Ваша идея</h3><p id="so-personal-note-body"></p>
+   <a href="#so-draft">Редактировать заметку ↗</a>
+  </article>
   <div class="so-cards" id="so-cards">
    <article class="so-card so-card--cinema" data-so-type="cinema" data-so-id="cinema" data-so-search="cinema movies films кино истории шесть фильмов">
     <div class="so-cover"><span>01 / INTERACTIVE CINEMA</span><strong>Stories<br>come to life.</strong><i class="so-cover-orbit"></i></div>
@@ -87,16 +93,16 @@
   <p class="so-empty" id="so-empty" hidden>По этому запросу нет опубликованных карточек. Измени фильтр или строку поиска.</p>
  </section>
  <aside class="so-create" id="so-draft" aria-labelledby="so-draft-title">
-  <div class="so-draft-heading"><span>✦</span><div><p class="so-overline">YOUR PRIVATE SPACE</p><h2 id="so-draft-title">Начни с идеи.</h2></div></div>
-  <p>Запиши сюжет или мысль, которую хочешь развить. Пока это личный черновик, не публикация в социальной сети.</p>
+  <div class="so-draft-heading"><span>✦</span><div><p class="so-overline">YOUR PRIVATE SPACE</p><h2 id="so-draft-title">Запиши важное.</h2></div></div>
+  <p>Идеи лучше сохранять вовремя. Заметка остаётся только в этом браузере — другим участникам она не отправляется.</p>
   <label for="so-draft-text">МОЙ ТЕКСТ</label>
   <textarea id="so-draft-text" maxlength="700" rows="7" placeholder="О чём твой новый мир?"></textarea>
   <div class="so-draft-meta"><span id="so-length">0 / 700</span><span>ЛОКАЛЬНО</span></div>
-  <button id="so-save-draft" class="so-primary" type="button">СОХРАНИТЬ ЧЕРНОВИК</button>
-  <button id="so-clear-draft" class="so-clear" type="button">УДАЛИТЬ ЧЕРНОВИК</button>
+  <button id="so-save-draft" class="so-primary" type="button">СОХРАНИТЬ ЗАМЕТКУ</button>
+  <button id="so-clear-draft" class="so-clear" type="button">УДАЛИТЬ ЗАМЕТКУ</button>
   <p id="so-draft-status" class="so-feedback" role="status" aria-live="polite"></p>
   <div class="so-divider"></div>
-  <h3>Мои закладки</h3><p id="so-bookmark-summary" class="so-bookmark-summary" aria-live="polite">Здесь появятся выбранные тобой миры.</p>
+  <h3>Сохранённые материалы</h3><p id="so-bookmark-summary" class="so-bookmark-summary" aria-live="polite">Здесь появятся выбранные тобой миры.</p>
   <a class="so-studio-link" href="./creator.html">ПЕРЕЙТИ К ПОЛНОМУ РЕДАКТОРУ ↗</a>
   <p class="so-safety">Данные остаются в браузере, пока не удалишь их или не очистишь хранилище. Никаких автоматических сообщений, платежей или синхронизации с аккаунтом.</p>
  </aside>
