@@ -117,6 +117,7 @@
   }
   function render(){
    $('s27-count').textContent=countLabel(records.length);
+   const quick=$('s27-shortcut-count');if(quick)quick.textContent=String(records.length);
    const q=search.value.trim().toLocaleLowerCase('ru');
    let subset=records.filter(item=>(filter.value==='all'||item.category===filter.value)&&
     (!q||(item.title+' '+item.body+' '+CATEGORIES[item.category]).toLocaleLowerCase('ru').includes(q)));
