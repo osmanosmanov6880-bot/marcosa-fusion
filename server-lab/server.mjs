@@ -63,7 +63,7 @@ const SCHEMA=[
  "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 800), status TEXT NOT NULL DEFAULT 'published' CHECK(status IN ('published','hidden')), created_at INTEGER NOT NULL)",
  "CREATE INDEX IF NOT EXISTS idx_comments_visible ON comments(post_id,status,id DESC)",
  "CREATE TABLE IF NOT EXISTS comment_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')), created_at INTEGER NOT NULL, UNIQUE(comment_id,reporter_id))",
- "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
+ "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
  "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)"
 ].join(';\n')+';';
 
@@ -173,9 +173,14 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.status,w.slug AS world,a.created_at FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id DESC LIMIT 30").all(user.id);
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/me/received-sponsors'){
+    const recipient=requireUser(req);
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE w.owner_id=? AND a.status='pending_creator' ORDER BY a.id ASC LIMIT 50").all(recipient.id);
+    send(res,200,{items});return;
+   }
    if(method==='GET'&&route==='/api/mod/sponsors'){
     const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
-    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE a.status='pending' ORDER BY a.id ASC LIMIT 50").all();
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE a.status='pending_review' ORDER BY a.id ASC LIMIT 50").all();
     send(res,200,{items});return;
    }
    if(method==='GET'&&route==='/api/mod/comment-reports'){
@@ -301,7 +306,9 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    if(method==='POST'&&route==='/api/sponsors/proposals'){
     throttle('sponsor:'+user.id,4,86400000);
     const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
-    check(db.prepare('SELECT id FROM worlds WHERE id=? AND owner_id=?').get(worldId,user.id),403,'Можно предлагать спонсорство только для своего мира');
+    const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
+    check(targetWorld,404,'Выбранный World не найден');
+    check(targetWorld.owner_id!==user.id,403,'Нельзя предложить рекламу собственному World');
     check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
     check(headline.length>=5&&headline.length<=130,400,'Заголовок предложения: 5–130 символов');
     const submittedUrl=str(body.landingUrl);
@@ -314,20 +321,34 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
      check(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host)&&!host.endsWith('.local')&&!host.endsWith('.internal')&&!/^[0-9.]+$/.test(host),400,'Необходимо публичное доменное имя');
      url.hash='';normalized=url.href;
     }catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Неверный адрес сайта');}
-    const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status='pending'").get(user.id).n;
+    const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status IN ('pending_creator','pending_review')").get(user.id).n;
     check(count<3,409,'Допускается не более трёх нерассмотренных предложений');
-    const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
-    send(res,201,{id:Number(id),status:'pending',paid:false,verification:'not-verified'});return;
+    const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending_creator',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),status:'pending_creator',paid:false,verification:'not-verified',ownerConsent:false});return;
+   }
+   // Two approvals are independent: first World owner, then independent moderator.
+   const creatorDecision=route.match(/^\/api\/sponsors\/([1-9][0-9]{0,14})\/creator-decision$/);
+   if(method==='POST'&&creatorDecision){
+    check(body.decision==='accept'||body.decision==='reject',400,'Неверное решение владельца');
+    const id=int(creatorDecision[1]);
+    const proposal=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS world_owner FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_creator'").get(id);
+    check(proposal,404,'Заявка не найдена');
+    check(proposal.world_owner===user.id,403,'Решение может принять только владелец World');
+    check(proposal.applicant_id!==user.id,403,'Нельзя согласовывать собственную рекламную заявку');
+    const status=body.decision==='accept'?'pending_review':'rejected';
+    const result=db.prepare("UPDATE sponsor_proposals SET status=? WHERE id=? AND status='pending_creator'").run(status,id);
+    check(result.changes===1,409,'Решение уже принято');
+    send(res,200,{id,status,paid:false});return;
    }
    const reviewSponsor=route.match(/^\/api\/mod\/sponsors\/([1-9][0-9]{0,14})\/review$/);
    if(method==='POST'&&reviewSponsor){
     check(user.role==='moderator',403,'Нет прав модератора');
     check(body.decision==='approved'||body.decision==='rejected',400,'Неверное решение');
     const id=int(reviewSponsor[1]);
-    const application=db.prepare("SELECT owner_id FROM sponsor_proposals WHERE id=? AND status='pending'").get(id);
+    const application=db.prepare("SELECT owner_id FROM sponsor_proposals WHERE id=? AND status='pending_review'").get(id);
     check(application,404,'Заявка не найдена');
     check(application.owner_id!==user.id,403,'Нельзя проверять собственную заявку');
-    const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending'")
+    const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending_review'")
      .run(body.decision,user.id,now(),id);
     check(result.changes===1,409,'Заявка уже рассмотрена');
     send(res,200,{id,status:body.decision,paid:false});return;
