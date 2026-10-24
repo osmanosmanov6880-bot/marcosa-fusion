@@ -6,8 +6,8 @@
 <meta name="description" content="MARCOSA Social Core — отдельный интерфейс сообщества: тематическая лента реальных проектов и локальные личные черновики. Публичное превью, не серверная соцсеть.">
 <title>MARCOSA — Сообщество, идеи и культура</title>
 <link rel="stylesheet" href="./social-core.css">
-<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css"><link rel="stylesheet" href="./marcosa-social-first.css">
-<script src="./social-core.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
+<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css"><link rel="stylesheet" href="./marcosa-social-first.css"><link rel="stylesheet" href="./marcosa-journal.css">
+<script src="./social-core.js" defer></script><script src="./social-journal.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
 </head>
 <body>
 <div class="so-shell" id="so-app">
@@ -36,7 +36,7 @@
 <nav class="s26-quick" aria-label="Быстрый доступ к сообществу">
  <a href="#so-feed" class="s26-quick-link s26-quick-feed"><span aria-hidden="true">✧</span><strong>Лента</strong><small>Истории и идеи</small><b aria-hidden="true">↗</b></a>
  <a href="./social.html?view=saved#so-feed" class="s26-quick-link s26-quick-saved"><span aria-hidden="true">♡</span><strong>Сохранённое</strong><small><span id="so-saved-count" aria-live="polite">0</span> избранных миров</small><b aria-hidden="true">↗</b></a>
- <a href="#so-draft" class="s26-quick-link s26-quick-draft"><span aria-hidden="true">✎</span><strong>Моя заметка</strong><small>Только на устройстве</small><b aria-hidden="true">↗</b></a>
+ <a href="#so-journal" class="s26-quick-link s26-quick-draft"><span aria-hidden="true">✎</span><strong>Мой журнал</strong><small><span id="s27-shortcut-count">0</span> личных записей</small><b aria-hidden="true">↗</b></a>
 </nav>
 <div class="so-breadcrumb"><span>COMMUNITY / ИДЕИ И ИСТОРИИ</span><span>LOCAL-FIRST · NO FAKE METRICS</span></div>
 <div class="so-layout">
@@ -108,10 +108,68 @@
   <p id="so-draft-status" class="so-feedback" role="status" aria-live="polite"></p>
   <div class="so-divider"></div>
   <h3>Сохранённые материалы</h3><p id="so-bookmark-summary" class="so-bookmark-summary" aria-live="polite">Здесь появятся выбранные тобой миры.</p>
+  <a class="s27-journal-entry-link" href="#so-journal">МОЙ ЖУРНАЛ — ВСЕ ЗАПИСИ ↗</a>
   <a class="so-studio-link" href="./creator.html">ПЕРЕЙТИ К ПОЛНОМУ РЕДАКТОРУ ↗</a>
   <p class="so-safety">Данные остаются в браузере, пока не удалишь их или не очистишь хранилище. Никаких автоматических сообщений, платежей или синхронизации с аккаунтом.</p>
  </aside>
 </div>
+<section class="s27-journal" id="so-journal" aria-labelledby="s27-title">
+ <header class="s27-intro">
+  <div><p class="so-overline">MARCOSA / PRIVATE WORKSPACE</p>
+   <h2 id="s27-title">Мой журнал <em>идей.</em></h2>
+   <p>Создавай несколько записей, собирай проекты и возвращайся к важным мыслям. Всё остаётся в браузере и не публикуется другим людям.</p>
+  </div>
+  <div class="s27-identity"><span aria-hidden="true">✦</span>
+   <strong>ЛИЧНОЕ ПРОСТРАНСТВО</strong><small id="s27-count" aria-live="polite">0 записей</small>
+  </div>
+ </header>
+ <div class="s27-workspace">
+  <form class="s27-editor" id="s27-editor" novalidate aria-labelledby="s27-form-title">
+   <div class="s27-editor-head"><p class="so-overline" id="s27-editor-mode">НОВАЯ ЗАПИСЬ</p><h3 id="s27-form-title">Зафиксируй мысль.</h3></div>
+   <label for="s27-title-input">НАЗВАНИЕ</label>
+   <input type="text" id="s27-title-input" maxlength="90" required placeholder="Например: идея для следующего проекта…" autocomplete="off">
+   <label for="s27-category">НАПРАВЛЕНИЕ</label>
+   <select id="s27-category" required>
+    <option value="idea">Идея</option><option value="story">История</option>
+    <option value="project">Проект</option><option value="research">Исследование</option>
+   </select>
+   <label for="s27-body">СОДЕРЖАНИЕ</label>
+   <textarea id="s27-body" rows="7" maxlength="2000" required placeholder="Опиши идею: что важно, с чего начнёшь, как проверить результат…"></textarea>
+   <p class="s27-char-count" id="s27-length">0 / 2000</p>
+   <div class="s27-form-actions">
+    <button type="submit" class="s27-primary" id="s27-save">СОХРАНИТЬ В ЖУРНАЛ</button>
+    <button type="button" class="s27-secondary" id="s27-reset">НОВАЯ ЗАПИСЬ</button>
+   </div>
+   <p class="s27-feedback" id="s27-feedback" role="status" aria-live="polite"></p>
+   <p class="s27-privacy">Хранение локальное. Удаление данных браузера стирает записи. JSON-архив не зашифрован — не включай в него пароли или секреты.</p>
+  </form>
+  <div class="s27-library" aria-labelledby="s27-library-title">
+   <div class="s27-library-head">
+    <div><p class="so-overline">PRIVATE COLLECTION / LOCAL ONLY</p><h3 id="s27-library-title">Мои записи.</h3></div>
+    <span id="s27-filter-count" aria-live="polite">Показано: 0</span>
+   </div>
+   <div class="s27-toolbar">
+    <label class="s27-search-label" for="s27-search">ПОИСК
+     <input id="s27-search" type="search" maxlength="90" placeholder="По названию и тексту" autocomplete="off">
+    </label>
+    <label for="s27-filter">ТЕМА
+     <select id="s27-filter"><option value="all">Все темы</option><option value="idea">Идеи</option><option value="story">Истории</option><option value="project">Проекты</option><option value="research">Исследования</option></select>
+    </label>
+    <label for="s27-sort">ПОРЯДОК
+     <select id="s27-sort"><option value="new">Новые</option><option value="old">Старые</option><option value="az">А—Я</option></select>
+    </label>
+   </div>
+   <div class="s27-backup-actions">
+    <button type="button" id="s27-export" disabled>ЭКСПОРТ JSON ↓</button>
+    <button type="button" id="s27-import-trigger">ИМПОРТ JSON ↑</button>
+    <input id="s27-import" type="file" accept=".json,application/json" aria-label="Импортировать JSON-архив журнала">
+    <button type="button" id="s27-undo" hidden>ОТМЕНИТЬ УДАЛЕНИЕ ↶</button>
+   </div>
+   <ol class="s27-list" id="s27-list" aria-label="Сохранённые личные записи"></ol>
+   <p class="s27-empty" id="s27-empty">Записей пока нет. Начни с первой идеи — она останется только у тебя.</p>
+  </div>
+ </div>
+</section>
 </main>
 <footer class="so-footer">© MARCOSA / SOCIAL CORE · PUBLIC VISUAL EXPERIENCE <span>NO ACCOUNTS · NO THIRD-PARTY TRACKERS · NO FAKE FOLLOWERS</span></footer>
 </div>

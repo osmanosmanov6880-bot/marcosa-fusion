@@ -46,6 +46,31 @@ jobs:
       - name: Install pinned image-grade dependency
         run: |
           python -m pip install --disable-pip-version-check --only-binary=:all: Pillow==12.0.0
+      # Same independently reviewed source commits and deterministic compiler as PUBLIC Pages.
+      # Without these, staging tests search for films which have not been generated.
+      - name: Checkout original PROTOCOL ZERO cinema at pinned source SHA
+        uses: actions/checkout@v4
+        with:
+          repository: osmanosmanov6880-bot/protocol-zero
+          ref: 0f1841c0e56e47f7413bea9948e66200409e7a7a
+          path: .r18-sources/protocol-zero
+          persist-credentials: false
+      - name: Checkout original ADVERSE JUDGE cinema at pinned source SHA
+        uses: actions/checkout@v4
+        with:
+          repository: osmanosmanov6880-bot/adverse-judge
+          ref: f48a00510984a3da2d5527cd01ef8a51f102881e
+          path: .r18-sources/adverse-judge
+          persist-credentials: false
+      - name: Generate required source-pinned cinema snapshots for staging tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/build_cinema_r18.py --protocol-repo .r18-sources/protocol-zero --adverse-repo .r18-sources/adverse-judge
+          test -s site/film-protocol-zero.html
+          test -s site/film-adverse-judge.html
+          node --test .r18-sources/protocol-zero/cinema/tests/engine.test.mjs
+          node --test .r18-sources/adverse-judge/cinema/tests/engine.test.js
       - name: Verify Python and JS source
         shell: bash
         run: |
@@ -64,7 +89,9 @@ jobs:
           node --check site/cinema-pilot.js
           node --check site/creator-playtest.js
           node --check site/marcosa-director.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/playtest.test.cjs
+          node --check site/social-core.js
+          node --check site/social-journal.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/brand_r21.test.cjs tests/r26_social_first.test.cjs tests/r27_journal.test.cjs tests/playtest.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |

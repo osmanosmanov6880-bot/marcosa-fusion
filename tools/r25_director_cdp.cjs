@@ -269,6 +269,44 @@ function socialActions(){
   throw Error('R25_MY_PRIVATE_NOTE_NOT_SHOWN');
  return {filter:'cinema',search:'Signal',saved:true,draftSaved:true,sourceCards:window.MarcosaSocial.sourceCardCount};
 }
+function journalActions(){
+ const $=id=>document.getElementById(id);
+ const api=window.MarcosaJournal,form=$('s27-editor'),list=$('s27-list');
+ if(!api?.localOnly||!form||!list||api.count!==0)throw Error('R27_JOURNAL_API_MISSING');
+ const title=$('s27-title-input'),body=$('s27-body');
+ function submit(t,b,cat){
+  title.value=t;body.value=b;$('s27-category').value=cat;
+  form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ }
+ submit('Проверка MARCOSA','Настоящая локальная запись.','project');
+ if(api.count!==1||list.children.length!==1)throw Error('R27_CREATE_FAILED');
+ list.querySelector('[data-action="pin"]').click();
+ if(!list.textContent.includes('ЗАКРЕПЛЕНО'))throw Error('R27_PIN_FAILED');
+ list.querySelector('[data-action="edit"]').click();
+ if(title.value!=='Проверка MARCOSA')throw Error('R27_EDIT_MODE_FAILED');
+ body.value='Обновлённый текст заметки.';
+ form.dispatchEvent(new Event('submit',{bubbles:true,cancelable:true}));
+ if(!list.textContent.includes('Обновлённый текст заметки.'))throw Error('R27_UPDATE_FAILED');
+ submit('<svg onload=alert(1)>','<img src=x onerror=alert(1)>','idea');
+ if(api.count!==2||list.querySelector('svg,img')||!list.textContent.includes('<svg onload=alert(1)>'))
+  throw Error('R27_UNSAFE_HTML_OR_CREATE');
+ const q=$('s27-search');q.value='svg';q.dispatchEvent(new Event('input',{bubbles:true}));
+ if(list.children.length!==1)throw Error('R27_SEARCH_FAILED');
+ q.value='';q.dispatchEvent(new Event('input',{bubbles:true}));
+ const c=$('s27-filter');c.value='project';c.dispatchEvent(new Event('change',{bubbles:true}));
+ if(list.children.length!==1)throw Error('R27_CATEGORY_FILTER_FAILED');
+ c.value='all';c.dispatchEvent(new Event('change',{bubbles:true}));
+ list.querySelector('[data-action="delete"]').click();
+ if(api.count!==1||$('s27-undo').hidden)throw Error('R27_DELETE_FAILED');
+ $('s27-undo').click();
+ if(api.count!==2)throw Error('R27_UNDO_FAILED');
+ if(JSON.parse(localStorage.getItem('marcosa-r27-private-journal-v1')).length!==2)
+  throw Error('R27_STORAGE_NOT_PERSISTED');
+ while(list.querySelector('[data-action="delete"]'))
+  list.querySelector('[data-action="delete"]').click();
+ if(api.count!==0||list.children.length!==0)throw Error('R27_CLEANUP_FAILED');
+ return {saved:2,edit:true,pin:true,filter:true,search:true,undo:true,xssSafe:true,localOnly:true};
+}
 function socialClean(){
  const $=id=>document.getElementById(id);
  if(!$('so-draft-text').value.includes('тестовый черновик'))throw Error('SOCIAL_DRAFT_NOT_RESTORED');
@@ -328,6 +366,16 @@ async function main(){
      fs.writeFileSync(path.join(SHOTS,'r25-'+d.name+'-'+world+'.png'),data);
     }
     if(world==='social'){
+     const journal=await cdp.evalJS('('+journalActions.toString()+')()');
+     if(!journal.localOnly||!journal.xssSafe)throw Error('R27_JOURNAL_END_TO_END_REGRESSION');
+     const journalDir=path.resolve('qa-r27');fs.mkdirSync(journalDir,{recursive:true});
+     await cdp.evalJS("document.getElementById('so-journal').scrollIntoView({block:'start',behavior:'instant'});true");
+     await pause(150);
+     const journalFrame=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+     const journalData=Buffer.from(journalFrame.data,'base64');
+     if(journalData.length<10000)throw Error('R27_JOURNAL_SCREENSHOT_EMPTY');
+     fs.writeFileSync(path.join(journalDir,'r27-'+d.name+'-journal.png'),journalData);
+     console.log('R27 '+d.name+' JOURNAL CRUD PASS '+JSON.stringify(journal));
      const test=await cdp.evalJS('('+socialActions.toString()+')()');
      if(!test.saved||!test.draftSaved)throw Error('SOCIAL_INTERACTIVE_CONTROLS_FAILED');
      // Directly open the advertised Saved route, keeping actual local bookmarks.
