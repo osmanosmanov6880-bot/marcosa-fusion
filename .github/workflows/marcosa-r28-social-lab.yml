@@ -38,6 +38,20 @@ jobs:
         run: |
           set -euo pipefail
           node --test server-lab/test/core.test.mjs
+      - name: Real Chromium — desktop and phones, signup, login, publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/browser-cdp.mjs
+          node server-lab/test/browser-cdp.mjs
+      - name: Upload six real browser frames of R28
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r28-real-social-browser-qa
+          path: qa-r28/
+          retention-days: 7
+          if-no-files-found: error
       - name: Confirm public preview remains isolated
         shell: bash
         run: |
