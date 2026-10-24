@@ -1,0 +1,66 @@
+name: "MARCOSA | disposable PostgreSQL RLS contract"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
+      - "tests/postgres/**"
+      - ".github/workflows/marcosa-postgres-rls-reference.yml"
+  push:
+    branches: [main]
+    paths:
+      - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
+      - "tests/postgres/**"
+      - ".github/workflows/marcosa-postgres-rls-reference.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  rls-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: local-ci-only-rls
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: local-ci-only-rls
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prove isolated PostgreSQL service is available
+        run: |
+          set -euo pipefail
+          command -v psql
+          psql -v ON_ERROR_STOP=1 -c "SELECT current_setting('server_version');"
+      - name: Create simulated Auth roles in disposable CI database only
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+      - name: Execute reviewed R30 reference SQL against PostgreSQL 17
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+      - name: Test anon, three separate identities, ownership and forbidden writes
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/10_rls_isolation.sql
+      - name: Assert the test database never targeted external infrastructure
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = postgres
+          test "${{ github.event_name }}" != "deployment"
