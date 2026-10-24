@@ -123,6 +123,8 @@ class PublicPreviewTests(unittest.TestCase):
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
             "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html",
+            "social.html", "social-core.css", "social-core.js",
+            "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
