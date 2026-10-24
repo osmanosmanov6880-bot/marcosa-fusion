@@ -50,11 +50,12 @@ jobs:
           node --check site/creator-standalone.js
           node --check site/film-network.js
           node --check site/film-continuity.js
+          node --check site/source-hub.js
           node --check tools/r14_film_cdp.cjs
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -77,6 +78,9 @@ jobs:
           test -s dist/film-network.css
           test -s dist/film-network.js
           test -s dist/film-continuity.js
+          test -s dist/source-hub.html
+          test -s dist/source-hub.css
+          test -s dist/source-hub.js
           test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py

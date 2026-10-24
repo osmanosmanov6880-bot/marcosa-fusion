@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are twenty independently reviewed public files in site/.
+Its inputs are twenty-three independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -57,6 +57,14 @@ def build() -> dict:
         'id="fn14-list"', 'src="./film-continuity.js"'
     )):
         raise RuntimeError("R14 offline review continuity controls are missing")
+    atlas = (SOURCE / "source-hub.html").read_text(encoding="utf-8")
+    if any(anchor not in atlas for anchor in (
+        'id="sh-app"', 'id="sh-grid"', 'id="sh-search"',
+        'src="./source-hub.js"', 'href="./source-hub.css"'
+    )):
+        raise RuntimeError("R15 evidence-grounded source atlas is missing")
+    if 'href="./source-hub.html"' not in html:
+        raise RuntimeError("R15 source atlas has no entry link from MARCOSA home")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:

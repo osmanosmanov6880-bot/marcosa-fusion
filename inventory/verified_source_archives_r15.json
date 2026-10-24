@@ -1,0 +1,185 @@
+{
+  "schema": "marcosa-source-evidence/v1",
+  "source_date": "2026-10-24",
+  "origin": "Previously supplied user Library source ZIPs examined as raw files",
+  "unique_archive_count": 13,
+  "note": "ZIP hash verifies these exact source snapshots, not that domain ownership or production deployment exists. Duplicate copies previously reported are not counted as distinct products.",
+  "packages": [
+    {
+      "product": "AdOS Network",
+      "archive": "AdOS_Network_v17.0.0_FULL_SOURCE(1).zip",
+      "files": 263,
+      "zip_sha256": "1712c7e40aee4a53eb96b40b489b1317912269a90921f8959ea33fb0743c4164",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "IMPOSSIBLE-AI-v0.1.0-FULL-SOURCE(1).zip",
+      "archive": "IMPOSSIBLE-AI-v0.1.0-FULL-SOURCE(1).zip",
+      "files": 33,
+      "zip_sha256": "4bbdc832285ba497fc429b7861f8703fb3aa3d3c66caf7174215e4a2dce967e0",
+      "package_name": "impossible-ai-studio",
+      "package_version": "0.1.0",
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "IntentGraph Cosmic ONE",
+      "archive": "IntentGraph_Cosmic_ONE_v4.5_FULL_SOURCE(1).zip",
+      "files": 263,
+      "zip_sha256": "4551555663b4eb8caa6c6155e0e0bd1029e9cd5d359fbf6b838e77a92f812c8c",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [
+        "IntentGraph_Cosmic_ONE_v4.5/web/cinema/index.html"
+      ],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "IntentMesh",
+      "archive": "IntentMesh_v2.9_GROWTH_INTELLIGENCE_FULL_SOURCE (6).zip",
+      "files": 219,
+      "zip_sha256": "6d242fd1d24b3e05aec4aaa874701fe3a8ddc3d0588aed81f4fb40c110724e3b",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "KRAKEN OMEGA",
+      "archive": "KRAKEN_OMEGA_v0.50_FULL_SOURCE_QA(1).zip",
+      "files": 1062,
+      "zip_sha256": "0520f95dbdf2da7a99116a66533b49dbe530da46368d06841e8f970d19178c2d",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "KVALORA V0 17 0 PREMIUM FULL SOURCE(1).zip",
+      "archive": "KVALORA_V0_17_0_PREMIUM_FULL_SOURCE(1).zip",
+      "files": 100,
+      "zip_sha256": "07071b62dda2e946d0366eabc07e7922154390e0de2ec7cde8d73d0203717ce8",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "OpsPilot Spectrum / Cinema",
+      "archive": "OpsPilot_Spectrum_v2.2_Cinema_v1.1_UNIFIED(1).zip",
+      "files": 190,
+      "zip_sha256": "563e4e950f20d708924a54002b07d79027469868ed20dd2dd8524efbe25f80c6",
+      "package_name": "opspilot-spectrum-local-lab",
+      "package_version": "2.2.0",
+      "cinema_source_paths": [
+        "spectrum-patch/public/cinema/index.html"
+      ],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "OutcomeMesh",
+      "archive": "OutcomeMesh_v0.15_SOURCE_RU(1).zip",
+      "files": 175,
+      "zip_sha256": "cb00ba1294e82a283f198c3cdbcfef0f057d6632cdd79e092754841a727821bf",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "ProofOS Supreme",
+      "archive": "ProofOS_Supreme_v0.12.0_FIVE_WAVES_ENTERPRISE_FULL_SOURCE(1).zip",
+      "files": 383,
+      "zip_sha256": "095c1b5bce07834437469ff058e71c1feda0107db2848fb7f6db524f7e1bce16",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "SIGNAL WORLDS",
+      "archive": "SIGNAL_WORLDS_v1.0.0_SOURCE(1).zip",
+      "files": 132,
+      "zip_sha256": "b50f043e9dcf1585c679fa7a9865dc1c6681289059a26cfe60ba8741cfab0d1d",
+      "package_name": "osgard-signal-worlds",
+      "package_version": "1.0.0",
+      "cinema_source_paths": [
+        "SIGNAL_WORLDS_v1.0.0/public/cinema/index.html",
+        "SIGNAL_WORLDS_v1.0.0/public/cinema/js/app.mjs"
+      ],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "TIMELESS Ω",
+      "archive": "TIMELESS_OMEGA_v0.21.0_PG_RELIABILITY_SOURCE(1).zip",
+      "files": 223,
+      "zip_sha256": "00de6fbe30562b889ed160b988f9a1533ed0e676471684aef57041ff07b94efe",
+      "package_name": "timeless-flow-mvp",
+      "package_version": "0.21.0",
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "UNIVERSA WORK",
+      "archive": "UNIVERSA_WORK_v0.30.0_SOURCE (1).zip",
+      "files": 198,
+      "zip_sha256": "4c458cb6ae659590b3118b4a8a921e00960eafe067658389a7c4121c661822a4",
+      "package_name": "universa-work-frontend",
+      "package_version": "0.30.0",
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    },
+    {
+      "product": "WAITOS GLOBAL",
+      "archive": "WAITOS_GLOBAL_v1.9.0_FULL_SOURCE(1).zip",
+      "files": 229,
+      "zip_sha256": "e0786bfb67b80e2d7309aafe957b51d8fc847dff2959d3b7e13cec8fa9803211",
+      "package_name": null,
+      "package_version": null,
+      "cinema_source_paths": [],
+      "source_state": "user-provided ZIP, raw contents inspected",
+      "production_verified": false,
+      "legal_rights_verified": false,
+      "domain": null
+    }
+  ]
+}

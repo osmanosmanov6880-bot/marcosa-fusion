@@ -1,0 +1,174 @@
+{
+  "schema": "marcosa-source-repositories/v1",
+  "source": "authenticated connected GitHub repos",
+  "snapshot_date": "2026-10-24",
+  "count": 20,
+  "interpretation": "A repository is source, not proof of a deployed domain, revenue or 43 film sites.",
+  "repos": [
+    {
+      "repository": "-",
+      "github_url": "https://github.com/osmanosmanov6880-bot/-",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "adverse-judge",
+      "github_url": "https://github.com/osmanosmanov6880-bot/adverse-judge",
+      "default_branch": "main",
+      "integration_group": "interactive_cinema_code",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false,
+      "source_note": "Full app and cinema code; pending CI for source restoration + story bridge."
+    },
+    {
+      "repository": "breakthrough-engineering-adventure",
+      "github_url": "https://github.com/osmanosmanov6880-bot/breakthrough-engineering-adventure",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "BRUMO.CLUB",
+      "github_url": "https://github.com/osmanosmanov6880-bot/BRUMO.CLUB",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "impossible-ventures",
+      "github_url": "https://github.com/osmanosmanov6880-bot/impossible-ventures",
+      "default_branch": "main",
+      "integration_group": "creative_apps",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "impossible-ventures-cinematic-engine",
+      "github_url": "https://github.com/osmanosmanov6880-bot/impossible-ventures-cinematic-engine",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false,
+      "source_note": "README-only, not a runnable cinema engine."
+    },
+    {
+      "repository": "internet-v-humanity",
+      "github_url": "https://github.com/osmanosmanov6880-bot/internet-v-humanity",
+      "default_branch": "main",
+      "integration_group": "interactive_cinema_code",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false,
+      "source_note": "Playable preview only; full cinema/API release not present.",
+      "verified_main_sha": "4c492d30656d16a908f0dbd851a703f815b2d34e"
+    },
+    {
+      "repository": "marcosa-fusion",
+      "github_url": "https://github.com/osmanosmanov6880-bot/marcosa-fusion",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "osa-global-intelligence",
+      "github_url": "https://github.com/osmanosmanov6880-bot/osa-global-intelligence",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "osa-global-intelligence-2",
+      "github_url": "https://github.com/osmanosmanov6880-bot/osa-global-intelligence-2",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "osgard-empire",
+      "github_url": "https://github.com/osmanosmanov6880-bot/osgard-empire",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "osgard-universe",
+      "github_url": "https://github.com/osmanosmanov6880-bot/osgard-universe",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "osgard-world",
+      "github_url": "https://github.com/osmanosmanov6880-bot/osgard-world",
+      "default_branch": "master",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "proofos-global-intelligence",
+      "github_url": "https://github.com/osmanosmanov6880-bot/proofos-global-intelligence",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "protocol-zero",
+      "github_url": "https://github.com/osmanosmanov6880-bot/protocol-zero",
+      "default_branch": "main",
+      "integration_group": "interactive_cinema_code",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false,
+      "verified_main_sha": "0f1841c0e56e47f7413bea9948e66200409e7a7a"
+    },
+    {
+      "repository": "remix-arena",
+      "github_url": "https://github.com/osmanosmanov6880-bot/remix-arena",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "SkillCred",
+      "github_url": "https://github.com/osmanosmanov6880-bot/SkillCred",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "universa-work",
+      "github_url": "https://github.com/osmanosmanov6880-bot/universa-work",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "ZION-9-INFINITE",
+      "github_url": "https://github.com/osmanosmanov6880-bot/ZION-9-INFINITE",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    },
+    {
+      "repository": "zion-9-worlds",
+      "github_url": "https://github.com/osmanosmanov6880-bot/zion-9-worlds",
+      "default_branch": "main",
+      "integration_group": "other_project",
+      "production_domain_verified": false,
+      "release_from_this_repository_verified": false
+    }
+  ]
+}
