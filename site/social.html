@@ -6,7 +6,7 @@
 <meta name="description" content="MARCOSA Social Core — отдельный интерфейс сообщества: тематическая лента реальных проектов и локальные личные черновики. Публичное превью, не серверная соцсеть.">
 <title>MARCOSA — Сообщество, идеи и культура</title>
 <link rel="stylesheet" href="./social-core.css">
-<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css">
+<link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css"><link rel="stylesheet" href="./marcosa-social-first.css">
 <script src="./social-core.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
 </head>
 <body>
@@ -21,7 +21,7 @@
 <main>
 <section class="so-hero" aria-labelledby="so-main-title">
  <div class="so-hero-copy">
-  <p class="so-overline">MARCOSA / PEOPLE & IDEAS</p>
+  <p class="so-overline">MARCOSA / PEOPLE & IDEAS <span class="s26-edition">SOCIAL EDITION</span></p>
   <h1 id="so-main-title">Каждая идея<br>достойна <em>внимания.</em></h1>
   <p>Открывай истории, сохраняй то, что вдохновляет, и начинай собственные проекты. Спокойное пространство для интересных людей и содержательных идей.</p>
   <div class="so-hero-actions"><a class="so-primary" href="#so-feed">СМОТРЕТЬ ЛЕНТУ ↗</a><a class="so-outline" href="#so-draft">НАПИСАТЬ ЗАМЕТКУ</a></div>
@@ -33,6 +33,11 @@
   <div class="so-art-caption"><span>MARCOSA / THE COMMUNITY EDITION</span><strong>A SPACE FOR IDEAS.</strong></div>
  </div>
 </section>
+<nav class="s26-quick" aria-label="Быстрый доступ к сообществу">
+ <a href="#so-feed" class="s26-quick-link s26-quick-feed"><span aria-hidden="true">✧</span><strong>Лента</strong><small>Истории и идеи</small><b aria-hidden="true">↗</b></a>
+ <a href="./social.html?view=saved#so-feed" class="s26-quick-link s26-quick-saved"><span aria-hidden="true">♡</span><strong>Сохранённое</strong><small><span id="so-saved-count" aria-live="polite">0</span> избранных миров</small><b aria-hidden="true">↗</b></a>
+ <a href="#so-draft" class="s26-quick-link s26-quick-draft"><span aria-hidden="true">✎</span><strong>Моя заметка</strong><small>Только на устройстве</small><b aria-hidden="true">↗</b></a>
+</nav>
 <div class="so-breadcrumb"><span>COMMUNITY / ИДЕИ И ИСТОРИИ</span><span>LOCAL-FIRST · NO FAKE METRICS</span></div>
 <div class="so-layout">
  <aside class="so-side" aria-label="Разделы социальной платформы">
@@ -45,7 +50,7 @@
   <div class="so-side-note">01 / ОБЩИЙ БРЕНД<br>Разные миры. Один MARCOSA.</div>
  </aside>
  <section class="so-stream" id="so-feed" aria-labelledby="so-feed-title">
-  <div class="so-stream-head"><div><p class="so-overline">MARCOSA EDITORIAL / REAL PROJECTS</p><h2 id="so-feed-title">Истории и идеи <em>в центре внимания.</em></h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">4 проекта</span></div>
+  <div class="so-stream-head"><div><p class="so-overline">MARCOSA / ЛЕНТА ИЗ РЕАЛЬНЫХ ИСТОЧНИКОВ</p><h2 id="so-feed-title">Истории и идеи <em>в центре внимания.</em></h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">4 проекта</span></div>
   <div class="so-search-wrap"><label for="so-search" class="so-search-label">ПОИСК ПО МИРАМ</label><input id="so-search" type="search" placeholder="Кино, студия, Signal, проекты…" autocomplete="off" maxlength="80"></div>
   <div class="so-filters" role="group" aria-label="Фильтры ленты">
    <button type="button" class="active" data-so-filter="all" aria-pressed="true">ВСЕ МИРЫ</button>
