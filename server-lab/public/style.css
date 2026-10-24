@@ -216,3 +216,12 @@ dialog form{display:grid;gap:17px}
 .insight-entry small{display:block;color:#acbac7;font:11px/1.6 var(--sans);margin-top:6px}
 .insights-refresh{width:100%;margin:12px 0}
 @media(max-width:720px){.insight-entry{padding:15px}.insights-refresh{font-size:12px}}
+
+/* R38 quiet-luxury World owner editor. No faux metrics, remote fonts or editors. */
+.world-settings{margin:19px 0;padding-top:18px}
+.world-settings summary{font-size:13px;letter-spacing:.015em}
+.world-settings>.muted{margin-top:12px}
+.world-settings .form-block{padding:3px 0 9px}
+.world-settings textarea{min-height:100px;line-height:1.6}
+.world-settings button{width:100%;min-height:44px}
+@media(max-width:720px){.world-settings{padding-top:20px}.world-settings summary{font-size:14px}}
