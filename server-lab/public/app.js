@@ -390,6 +390,7 @@ $('discover-form').addEventListener('submit',event=>{
 $('discover-clear').addEventListener('click',()=>{
  $('discover-form').reset();clear($('discover-results'));$('discover-results').hidden=true;
 });
+$('insights-refresh').addEventListener('click',()=>run(()=>loadInsights(),'Статистика обновлена'));
 $('notification-refresh').addEventListener('click',()=>run(()=>loadNotifications(),'События обновлены'));
 $('notification-read').addEventListener('click',()=>run(async()=>{
  if(!state.inboxUnreadIds.length)return;
