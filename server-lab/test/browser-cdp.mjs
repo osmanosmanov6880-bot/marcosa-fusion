@@ -77,6 +77,17 @@ async function main(){
    lab.server.listen(0,'127.0.0.1',resolve);
   });
   const base='http://127.0.0.1:'+lab.server.address().port;
+  // Founder's real World provides a separate owner's sponsorship target.
+  const seed=await fetch(base+'/api/auth/register',{
+   method:'POST',
+   headers:{'Content-Type':'application/json',Origin:base},
+   body:JSON.stringify({
+    username:'r30host',email:'r30host@example.net',password:'long-safe-password-2026',
+    inviteCode:'r28-browser-invite-that-is-long'
+   })
+  });
+  if(seed.status!==201)throw Error('R30_SEED_OWNER_FAILED '+seed.status);
+
   chrome=spawn(browser(),[
    '--headless=new','--no-sandbox','--disable-dev-shm-usage',
    '--disable-background-networking','--no-first-run','--no-default-browser-check',
@@ -133,11 +144,12 @@ async function main(){
    await cdp.wait("document.querySelector('#feed-list .comment-form textarea')!==null",'r30-comment-form');
    await cdp.evalJS("(()=>{const f=document.querySelector('#feed-list .comment-form');f.elements.body.value='R30 real browser discussion "+size.name+"';f.requestSubmit();return true;})()");
    await cdp.wait("document.querySelector('#feed-list .comment-copy')?.textContent.includes('R30 real browser discussion "+size.name+"')",'r30-comment-saved');
-   if(size.mobile){
+   {
     await cdp.wait("document.querySelector('.world-follow')!==null",'r30-follow-button');
     await cdp.evalJS("document.querySelector('.world-follow').click()");
     await cdp.wait("document.querySelector('.following')!==null",'r30-follow-applied');
    }
+   await cdp.wait("document.getElementById('sponsor-world')?.options.length>0",'r30-real-ad-target');
    const sponsorSubmitted=await cdp.evalJS("(()=>{const pane=document.getElementById('sponsor-owner');pane.open=true;const f=document.getElementById('sponsor-form');f.elements.brandName.value='R30 Testing Studio';f.elements.headline.value='Test creator story sponsorship without payments';f.elements.landingUrl.value='https://studio.example.org/creator';f.requestSubmit();return true;})()");
    if(!sponsorSubmitted)throw Error('R30_SPONSOR_FORM_MISSING_'+size.name);
    await cdp.wait("document.getElementById('my-sponsors')?.textContent.includes('pending')",'r30-unpaid-sponsor-submission');
