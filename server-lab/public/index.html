@@ -106,17 +106,21 @@
    <p class="muted">Прозрачные заявки на тестовое размещение. Оплаты, купленных показов и действующих рекламных кампаний здесь нет.</p>
    <div id="sponsor-showcase" class="sponsor-list" aria-live="polite"></div>
    <details id="sponsor-owner" class="invite-panel" hidden>
-    <summary>Предложить тестовое партнёрство в своём World</summary>
+    <summary>Предложить рекламу в другом World</summary>
     <form id="sponsor-form" class="form-block">
-     <label>Мой World<select id="sponsor-world" name="worldId" required></select></label>
+     <label>World, где хочется разместиться<select id="sponsor-world" name="worldId" required></select></label>
      <label>Название бренда<input name="brandName" maxlength="75" minlength="2" required></label>
      <label>Прозрачное предложение<input name="headline" maxlength="130" minlength="5" required></label>
      <label>Публичный HTTPS-сайт<input name="landingUrl" type="url" maxlength="500" pattern="https://.*" placeholder="https://example.com" required></label>
      <button type="submit" class="gold">Отправить на проверку</button>
     </form>
-    <p class="muted">Заявку видит только модератор. Это не покупка рекламы и не обещание охвата.</p>
+    <p class="muted">Заявку должен сначала одобрить владелец World, затем независимый модератор. Денег и показов в лаборатории нет.</p>
     <div id="my-sponsors" class="compact-list"></div>
    </details>
+   <section id="sponsor-inbox" class="mod-panel" hidden>
+    <h3>Предложения моим мирам</h3>
+    <div id="received-sponsors" class="compact-list"></div>
+   </section>
    <section id="sponsor-moderation" class="mod-panel" hidden>
     <h3>Проверка заявок</h3>
     <div id="sponsor-review-list" class="compact-list"></div>
