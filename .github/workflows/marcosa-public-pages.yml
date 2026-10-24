@@ -21,7 +21,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: marcosa-public-preview-pages
+  group: marcosa-public-preview-pages-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
