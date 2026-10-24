@@ -13,11 +13,12 @@ import shutil
 import tempfile
 from pathlib import Path
 from r22_extract_cinematic_assets import place as place_cinematic_assets
+from r25_grade_cinematic_assets import place as place_director_grade
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -183,6 +184,23 @@ def build() -> dict:
             raise RuntimeError('R24 dark theme not connected in '+page)
     if 'view' not in (SOURCE / 'social-core.js').read_text(encoding='utf-8'):
         raise RuntimeError('R24 saved-only deep link not supported')
+    # R25: director-grade visual layer plus native interactive film-selector.
+    if not all(t in html for t in (
+        'href="./marcosa-director.css"', 'src="./marcosa-director.js"',
+        'id="m25-scene-chooser"', 'data-m25-scene="city"',
+        'data-m25-scene="cinema"', 'data-m25-scene="studio"'
+    )):
+        raise RuntimeError("R25 interactive scene controls absent")
+    director_css = (SOURCE / "marcosa-director.css").read_text(encoding="utf-8")
+    if not all(t in director_css for t in (
+        "visual-city-director.webp", "visual-cascade-director.webp",
+        "visual-hero-director.webp", "prefers-reduced-motion:reduce"
+    )):
+        raise RuntimeError("R25 sourced high-quality design theme not connected")
+    for page in ("index.html", "social.html", "cinema-pilot.html", "creator.html",
+                 "source-hub.html", "stories.html", "film-network.html"):
+        if 'href="./marcosa-director.css"' not in (SOURCE / page).read_text(encoding="utf-8"):
+            raise RuntimeError("R25 visual identity is missing from " + page)
     # R22: the cinematic home is an actual navigable interface, not a flat poster.
     required_r22 = (
         'id="m22-experience"', 'class="m22-gateway-sidebar"',
@@ -206,6 +224,8 @@ def build() -> dict:
             manifest["files"][name] = hashlib.sha256(raw).hexdigest()
         # R22 sourced cinematic WebP artwork; no new image generation or external dependency.
         place_cinematic_assets(SOURCE, tmp, manifest)
+        # R25 master-grade of source-owned images; original frame bytes kept intact.
+        place_director_grade(tmp, manifest)
         (tmp / "build-manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
