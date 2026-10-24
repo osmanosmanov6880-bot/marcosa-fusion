@@ -172,6 +172,11 @@ async function main(){
    await cdp.call('Emulation.setDeviceMetricsOverride',
     {width:device.width,height:device.height,deviceScaleFactor:1,mobile:device.mobile});
    for(const slug of ['signal-worlds','opspilot','intentgraph']){
+    // The test genuinely exercises story decisions on desktop. Reset only the
+    // ephemeral QA browser's own storage before mobile/next-film runs so that
+    // a restored completed session cannot hide the intro/choice controls.
+    await cdp.call('Storage.clearDataForOrigin',
+     {origin:'http://127.0.0.1:'+webport,storageTypes:'local_storage'});
     cdp.requests.length=0;cdp.exceptions.length=0;
     await cdp.call('Page.navigate',{url:'http://127.0.0.1:'+webport+'/film-'+slug+'.html'});
     const expression=slug==='signal-worlds'
