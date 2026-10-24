@@ -435,3 +435,76 @@ textarea.mc-input{resize:vertical;min-height:80px;white-space:pre-wrap}
   .mc-crypto-fields{grid-template-columns:1fr}
   .mc-crypto-security{font-size:9px}
 }
+
+
+/* R12 — export a fully independent branching micro-game, no server required */
+.mc-standalone-card{
+  grid-column:1/-1;
+  border-color:#d6b78d9c;
+  background:radial-gradient(ellipse at 84% 8%,#3c385346 0,transparent 56%),
+    linear-gradient(135deg,#14243a,#0e1829 65%,#1b192a);
+  padding:clamp(22px,2.5vw,38px)!important;
+  box-shadow:0 35px 94px #0008,inset 0 1px #f9d9a52a;
+}
+.mc-standalone-card:before{
+  background:linear-gradient(90deg,#be486a,#e9bf88 38%,#80d6cf 70%,#c75a75);
+}
+.mc-standalone-layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.03fr);gap:26px;align-items:stretch}
+.mc-standalone-controls,.mc-standalone-screen{min-width:0}
+.mc-standalone-card .mc-vault-card-head h3{font-size:clamp(25px,2.2vw,34px)}
+.mc-standalone-pill{
+  flex:none;padding:9px 12px;border:1px solid #e4bc8a86;
+  background:#352a32;border-radius:8px;
+  color:#f6d8ab;font:800 9px/1.4 ui-monospace,Consolas,monospace;
+  letter-spacing:.09em
+}
+.mc-standalone-theme-label{margin:20px 0 19px}
+.mc-standalone-theme-label select{
+  min-height:47px;appearance:auto;color:#fff0d8;
+  background:#172b3f;border:1px solid #8db5bb96;border-radius:9px;
+  padding:10px 13px;width:100%;font:600 14px system-ui,-apple-system,sans-serif
+}
+.mc-standalone-conditions{display:grid;gap:12px;background:#0c1b2c9c;padding:17px;border:1px solid #8da5bb58;border-radius:10px}
+.mc-standalone-buttons{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:20px 0 6px}
+.mc-standalone-buttons .mc-btn{min-height:55px;line-height:1.4;padding:12px;font-size:11px}
+.mc-standalone-card .mc-vault-status{margin:16px 0 10px;min-height:36px}
+.mc-standalone-card .mc-vault-caution{margin-top:18px}
+.mc-standalone-screen{
+  background:linear-gradient(147deg,#0e1a31,#101527);
+  border:1px solid #e5c69b71;border-radius:15px;
+  overflow:hidden;position:relative;min-height:610px;
+  box-shadow:0 24px 55px #0006,inset 0 1px #fff2;
+  display:flex;flex-direction:column
+}
+.mc-standalone-screen-head{
+  min-height:43px;padding:12px 17px;
+  display:flex;justify-content:space-between;align-items:center;
+  color:#accfd5;font:800 10px/1.5 ui-monospace,monospace;
+  letter-spacing:.13em;border-bottom:1px solid #e5c69b5a;
+  background:#0c182e
+}
+.mc-standalone-screen-head span:last-child{color:#d89fa4;letter-spacing:.5em}
+.mc-standalone-placeholder{
+  flex:1;display:grid;place-items:center;text-align:center;
+  color:#afc7d2;padding:35px;font:italic 18px/1.7 Georgia,serif;
+  background:radial-gradient(ellipse at 50% 43%,#3a536533,transparent 70%)
+}
+#mc-standalone-player{
+  width:100%;flex:1;min-height:565px;background:#0b1426;border:0;
+  color-scheme:dark
+}
+@media(max-width:1100px){
+  .mc-standalone-layout{grid-template-columns:1fr}
+  .mc-standalone-screen{min-height:520px}
+  #mc-standalone-player{min-height:520px}
+}
+@media(max-width:700px){
+  .mc-standalone-card{padding:21px 15px!important}
+  .mc-standalone-card .mc-vault-card-head{flex-wrap:wrap}
+  .mc-standalone-buttons{grid-template-columns:1fr}
+  .mc-standalone-screen{border-radius:11px;min-height:520px}
+  #mc-standalone-player{min-height:515px}
+}
+@media(prefers-reduced-motion:reduce){
+  .mc-standalone-card *,#mc-standalone-player{transition:none!important}
+}
