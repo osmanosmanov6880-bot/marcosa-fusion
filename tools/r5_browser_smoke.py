@@ -167,7 +167,17 @@ window.addEventListener('load',function(){
       document.querySelector('[data-sh-filter="archives"]').click();
       search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));
       if(document.querySelectorAll('#sh-grid .sh-card').length!==13)throw Error('ZIP_FILTER');
-      if(document.querySelector('#sh-grid a.sh-link'))throw Error('PRIVATE_ARCHIVE_GOT_DOWNLOAD_LINK');
+      // R19: precisely three reviewed archive CINEMA copies are now playable.
+      // Only links to the six-film theater are permitted: never the private ZIP itself.
+      const links=Array.from(document.querySelectorAll('#sh-grid a.sh-link'));
+      const expected=['./cinema-pilot.html#signal-worlds',
+                      './cinema-pilot.html#opspilot',
+                      './cinema-pilot.html#intentgraph'];
+      const destinations=links.map(a=>a.getAttribute('href')).sort();
+      if(JSON.stringify(destinations)!==JSON.stringify(expected.sort()))
+        throw Error('PRIVATE_ARCHIVE_GOT_DOWNLOAD_LINK');
+      if(links.some(a=>a.hasAttribute('download')||a.href.endsWith('.zip')))
+        throw Error('PRIVATE_ARCHIVE_DOWNLOAD_FORBIDDEN');
       if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)throw Error('HORIZONTAL_SCROLL');
       const meta=document.createElement('meta');meta.name='r5-browser-smoke';meta.content='PASS-R15-SOURCE-ATLAS';
       document.head.append(meta);
