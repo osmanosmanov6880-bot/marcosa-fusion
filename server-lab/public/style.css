@@ -189,3 +189,20 @@ dialog form{display:grid;gap:17px}
 .activity-item strong{font-size:12px;font-weight:650;color:var(--ink)}
 .activity-item span,.activity-item small{font-size:11px;color:var(--muted)}
 #activity-more{margin-top:13px;width:100%}
+
+/* R32 due-process and independent moderation, no public appeal text leaks. */
+.appeals-panel{margin:24px 0 7px;padding-top:19px;border-top:1px solid var(--line)}
+.appeals-panel h3{font-size:25px;margin:0 0 10px}
+.appeal-item,.appeal-record{display:grid;gap:9px;border:1px solid #d8bfa33b;background:#152339;border-radius:9px;padding:14px;margin:10px 0}
+.appeal-item strong,.appeal-record strong{font-size:13px;color:#f1d7ae}
+.appeal-copy{white-space:pre-wrap;overflow-wrap:anywhere;max-height:140px;overflow-y:auto;font-size:13px;color:#e9e0d7}
+.appeal-form{display:grid;gap:11px}
+.appeal-form label{display:grid;gap:8px;font-size:12px}
+.appeal-form button{justify-self:start}
+.appeal-record p{font-size:12px;overflow-wrap:anywhere;margin:0}
+.appeal-record small{font-size:11px;color:var(--muted)}
+.appeals-history,.audit-details{margin:16px 0;padding:12px 0;border-top:1px solid var(--line)}
+.appeals-history summary,.audit-details summary{cursor:pointer;color:var(--gold);font-size:12px;font-weight:650}
+.audit-row{font-size:12px;padding:8px 0;border-bottom:1px solid #d8bfa32b}
+#moderator #appeal-review-list{margin-bottom:22px}
+#moderator #appeal-review-list .appeal-item button{margin:3px 5px 3px 0;white-space:normal}

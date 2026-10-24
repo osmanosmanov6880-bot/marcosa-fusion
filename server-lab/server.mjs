@@ -67,7 +67,14 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)",
  "CREATE TABLE IF NOT EXISTS activity_events (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')), world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, read_at INTEGER, CHECK(recipient_id<>actor_id))",
  "CREATE INDEX IF NOT EXISTS idx_activity_owner ON activity_events(recipient_id,id DESC)",
- "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL"
+ "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL",
+ "CREATE TABLE IF NOT EXISTS moderation_appeals (id INTEGER PRIMARY KEY AUTOINCREMENT, appellant_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(length(reason) BETWEEN 12 AND 1000), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','restored')), decided_by TEXT REFERENCES users(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, decided_at INTEGER, CHECK((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL)))",
+ "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_post ON moderation_appeals(post_id) WHERE post_id IS NOT NULL AND status='open'",
+ "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_comment ON moderation_appeals(comment_id) WHERE comment_id IS NOT NULL AND status='open'",
+ "CREATE INDEX IF NOT EXISTS idx_appeals_appellant ON moderation_appeals(appellant_id,id DESC)",
+ "CREATE TABLE IF NOT EXISTS moderation_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE, appeal_id INTEGER REFERENCES moderation_appeals(id) ON DELETE SET NULL, action TEXT NOT NULL CHECK(action IN ('hide','upheld','restored')), created_at INTEGER NOT NULL, CHECK((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL)))",
+ "CREATE INDEX IF NOT EXISTS idx_audit_post ON moderation_audit(post_id,id DESC)",
+ "CREATE INDEX IF NOT EXISTS idx_audit_comment ON moderation_audit(comment_id,id DESC)"
 ].join(';\n')+';';
 
 
@@ -277,6 +284,23 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const items=db.prepare("SELECT r.id,r.reason,r.comment_id,c.body,r.created_at FROM comment_reports r JOIN comments c ON c.id=r.comment_id WHERE r.status='open' AND c.status='published' ORDER BY r.id ASC LIMIT 100").all();
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/me/moderation'){
+    const user=requireUser(req);
+    const hiddenPosts=db.prepare("SELECT p.id,p.body,p.created_at,'post' AS kind FROM posts p WHERE p.author_id=? AND p.status='hidden' ORDER BY p.id DESC LIMIT 50").all(user.id);
+    const hiddenComments=db.prepare("SELECT c.id,c.body,c.created_at,'comment' AS kind FROM comments c WHERE c.author_id=? AND c.status='hidden' ORDER BY c.id DESC LIMIT 50").all(user.id);
+    const appeals=db.prepare("SELECT id,post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id DESC LIMIT 50").all(user.id);
+    send(res,200,{hidden:[...hiddenPosts,...hiddenComments],appeals});return;
+   }
+   if(method==='GET'&&route==='/api/mod/appeals'){
+    const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT a.id,a.post_id,a.comment_id,a.reason,a.created_at,u.username AS appellant,COALESCE(p.body,c.body) AS subject_body FROM moderation_appeals a JOIN users u ON u.id=a.appellant_id LEFT JOIN posts p ON p.id=a.post_id LEFT JOIN comments c ON c.id=a.comment_id WHERE a.status='open' ORDER BY a.id ASC LIMIT 50").all();
+    send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/mod/moderation-audit'){
+    const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT m.id,m.action,m.post_id,m.comment_id,m.appeal_id,m.created_at,u.username AS moderator FROM moderation_audit m JOIN users u ON u.id=m.actor_id ORDER BY m.id DESC LIMIT 50").all();
+    send(res,200,{items});return;
+   }
    if(method==='GET'&&route==='/api/me/activity'){
     const user=requireUser(req);
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
@@ -297,8 +321,9 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
+    const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals,activity});
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals,activity,moderationAppeals});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -353,6 +378,48 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    if(method==='POST'&&route==='/api/me/activity/read'){
     const result=db.prepare('UPDATE activity_events SET read_at=? WHERE recipient_id=? AND read_at IS NULL').run(now(),user.id);
     send(res,200,{read:result.changes,unreadCount:0});return;
+   }
+   if(method==='POST'&&route==='/api/appeals'){
+    throttle('appeal:'+user.id,8,86400000);
+    const kind=body.kind,subjectId=int(body.subjectId),reason=str(body.reason);
+    check(['post','comment'].includes(kind)&&subjectId>0,400,'Некорректный объект обращения');
+    check(reason.length>=12&&reason.length<=1000,400,'Объяснение: 12–1000 символов');
+    const table=kind==='post'?'posts':'comments';
+    const subject=db.prepare('SELECT author_id,status FROM '+table+' WHERE id=?').get(subjectId);
+    check(subject&&subject.author_id===user.id,404,'Объект не найден');
+    check(subject.status==='hidden',409,'Обращение доступно для скрытого материала');
+    const column=kind==='post'?'post_id':'comment_id';
+    const existing=db.prepare("SELECT id FROM moderation_appeals WHERE "+column+"=? AND status='open'").get(subjectId);
+    check(!existing,409,'Обращение уже рассматривается');
+    const result=atomic(()=>db.prepare("INSERT INTO moderation_appeals(appellant_id,"+column+",reason,created_at) VALUES(?,?,?,?)").run(user.id,subjectId,reason,now()));
+    send(res,201,{id:Number(result.lastInsertRowid),status:'open',kind});return;
+   }
+   const appealDecision=route.match(/^\/api\/mod\/appeals\/([1-9][0-9]{0,14})\/resolve$/);
+   if(method==='POST'&&appealDecision){
+    check(user.role==='moderator',403,'Доступ запрещён');
+    check(body.decision==='upheld'||body.decision==='restored',400,'Неверный результат рассмотрения');
+    const id=int(appealDecision[1]);
+    const claim=db.prepare("SELECT appellant_id,post_id,comment_id FROM moderation_appeals WHERE id=? AND status='open'").get(id);
+    check(claim,404,'Обращение не найдено');
+    check(claim.appellant_id!==user.id,403,'Нельзя рассматривать собственное обращение');
+    const col=claim.post_id!==null?'post_id':'comment_id';
+    const target=claim.post_id!==null?claim.post_id:claim.comment_id;
+    const lastHide=db.prepare("SELECT actor_id FROM moderation_audit WHERE "+col+"=? AND action='hide' ORDER BY id DESC LIMIT 1").get(target);
+    check(lastHide&&lastHide.actor_id!==user.id,403,'Нельзя пересматривать собственное решение');
+    atomic(()=>{
+     const upd=db.prepare("UPDATE moderation_appeals SET status=?,decided_by=?,decided_at=? WHERE id=? AND status='open'").run(body.decision,user.id,now(),id);
+     check(upd.changes===1,409,'Обращение уже рассмотрено');
+     if(body.decision==='restored'){
+      const table=col==='post_id'?'posts':'comments';
+      const update=table==='posts'?"UPDATE posts SET status='published',updated_at=? WHERE id=? AND status='hidden'":"UPDATE comments SET status='published' WHERE id=? AND status='hidden'";
+      const args=table==='posts'?[now(),target]:[target];
+      const restored=db.prepare(update).run(...args);
+      check(restored.changes===1,409,'Материал больше не скрыт');
+     }
+     db.prepare("INSERT INTO moderation_audit(actor_id,post_id,comment_id,appeal_id,action,created_at) VALUES(?,?,?,?,?,?)")
+      .run(user.id,claim.post_id,claim.comment_id,id,body.decision,now());
+    });
+    send(res,200,{id,status:body.decision,restored:body.decision==='restored'});return;
    }
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
@@ -409,9 +476,15 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    if(method==='POST'&&hideComment){
     check(user.role==='moderator',403,'Нет прав модератора');
     const id=int(hideComment[1]);
-    const result=db.prepare("UPDATE comments SET status='hidden' WHERE id=? AND status='published'").run(id);
-    check(result.changes===1,404,'Комментарий не найден');
-    db.prepare("UPDATE comment_reports SET status='reviewed' WHERE comment_id=?").run(id);
+    const source=db.prepare("SELECT author_id FROM comments WHERE id=? AND status='published'").get(id);
+    check(source,404,'Комментарий не найден');
+    check(source.author_id!==user.id,403,'Модератор не скрывает собственный материал');
+    atomic(()=>{
+     const result=db.prepare("UPDATE comments SET status='hidden' WHERE id=? AND status='published'").run(id);
+     check(result.changes===1,404,'Комментарий не найден');
+     db.prepare("UPDATE comment_reports SET status='reviewed' WHERE comment_id=?").run(id);
+     db.prepare("INSERT INTO moderation_audit(actor_id,comment_id,action,created_at) VALUES(?,?,'hide',?)").run(user.id,id,now());
+    });
     send(res,200,{hidden:true});return;
    }
    // Explicit revocation by advertiser or creator; accepted ads disappear immediately.
@@ -544,9 +617,15 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    if(method==='POST'&&hide){
     check(user.role==='moderator',403,'Доступ запрещён');
     const id=int(hide[1]);
-    const result=db.prepare("UPDATE posts SET status='hidden',updated_at=? WHERE id=? AND status='published'").run(now(),id);
-    check(result.changes===1,404,'Запись не найдена');
-    db.prepare("UPDATE reports SET status='reviewed' WHERE post_id=?").run(id);
+    const source=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(id);
+    check(source,404,'Запись не найдена');
+    check(source.author_id!==user.id,403,'Модератор не скрывает собственный материал');
+    atomic(()=>{
+     const result=db.prepare("UPDATE posts SET status='hidden',updated_at=? WHERE id=? AND status='published'").run(now(),id);
+     check(result.changes===1,404,'Запись не найдена');
+     db.prepare("UPDATE reports SET status='reviewed' WHERE post_id=?").run(id);
+     db.prepare("INSERT INTO moderation_audit(actor_id,post_id,action,created_at) VALUES(?,?,'hide',?)").run(user.id,id,now());
+    });
     send(res,200,{hidden:true});return;
    }
    if(method==='DELETE'&&route==='/api/account'){

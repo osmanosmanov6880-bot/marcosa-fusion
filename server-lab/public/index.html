@@ -66,6 +66,12 @@
      <button class="ghost" type="submit">Создать мир</button>
     </form>
    </details>
+   <section id="appeals-panel" class="appeals-panel" aria-labelledby="appeals-heading">
+    <h3 id="appeals-heading">Мои обращения</h3>
+    <p class="muted">Если материал скрыт по ошибке, можно запросить независимую проверку. Апелляцию не рассматривает тот, кто скрыл публикацию.</p>
+    <div id="appeal-list" class="compact-list"></div>
+    <details class="appeals-history"><summary>История обращений</summary><div id="appeal-history" class="compact-list"></div></details>
+   </section>
    <button id="account-export" type="button" class="ghost export-button">Выгрузить мои данные (JSON)</button>
    <details class="danger-panel">
     <summary>Удалить локальный аккаунт и все данные</summary>
@@ -117,7 +123,13 @@
   <div class="feature"><b>01</b><strong>Личная ответственность</strong><p>У каждой записи есть реальный автор и принадлежащий ему мир.</p></div>
   <div class="feature"><b>02</b><strong>Никаких фальшивых счётчиков</strong><p>Публикации берутся из SQLite лаборатории. Черновики видит только автор.</p></div>
   <div class="feature"><b>03</b><strong>Модерация</strong><p>Жалобы доступны независимой роли модератора; чужие записи нельзя редактировать.</p></div>
-  <div id="moderator" class="mod-panel" hidden><h3>Жалобы на публикации</h3><div id="report-list"></div><h3>Жалобы на комментарии</h3><div id="comment-report-list"></div><button id="reload-reports" class="ghost" type="button">Обновить жалобы</button></div>
+  <div id="moderator" class="mod-panel" hidden>
+   <h3>Жалобы на публикации</h3><div id="report-list"></div>
+   <h3>Жалобы на комментарии</h3><div id="comment-report-list"></div>
+   <h3>Независимые апелляции</h3><div id="appeal-review-list" class="compact-list"></div>
+   <details class="audit-details"><summary>Журнал решений модераторов</summary><div id="moderation-audit" class="compact-list"></div></details>
+   <button id="reload-reports" class="ghost" type="button">Обновить модерацию</button>
+  </div>
   <section class="sponsor-lab" aria-labelledby="sponsor-heading">
    <span class="eyebrow">MARCOSA / PARTNERSHIPS LAB</span>
    <h3 id="sponsor-heading">Партнёры <em>миров.</em></h3>
