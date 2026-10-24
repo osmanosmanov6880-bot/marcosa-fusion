@@ -127,8 +127,8 @@ async function main(){
    const statement='Мой мир — фактическая публикация R28 '+size.name;
    await cdp.evalJS("(()=>{const f=document.getElementById('post-form');f.elements.body.value='"+statement+"';f.requestSubmit(f.querySelector('button[value=published]'));return true;})()");
    await cdp.wait("document.getElementById('feed-list').textContent.includes('"+statement+"')",'published');
-   const audit=await cdp.evalJS("(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,personal:!document.getElementById('member-access').hidden,worlds:document.querySelectorAll('#world-list .world-card').length,posts:document.querySelectorAll('#feed-list .post').length,remoteImages:document.querySelectorAll('#feed-list img').length}))()");
-   if(audit.width>audit.viewport+2||!audit.personal||audit.worlds<1||audit.posts<1||audit.remoteImages!==0)
+   const audit=await cdp.evalJS("(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,personal:!document.getElementById('member-access').hidden,worlds:document.querySelectorAll('#world-list .world-card').length,posts:document.querySelectorAll('#feed-list .post').length,centerTop:document.querySelector('.center').getBoundingClientRect().top,accessTop:document.getElementById('access').getBoundingClientRect().top,remoteImages:document.querySelectorAll('#feed-list img').length}))()");
+   if((size.mobile&&audit.centerTop>=audit.accessTop)||audit.width>audit.viewport+2||!audit.personal||audit.worlds<1||audit.posts<1||audit.remoteImages!==0)
     throw Error('AUTHENTICATED_LAYOUT_BROKEN '+size.name+' '+JSON.stringify(audit));
    await screenshot('authenticated');
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
