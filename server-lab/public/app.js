@@ -257,7 +257,15 @@ async function receivedSponsors(){
   card.append(node('strong',x.brand_name+' → '+x.world));
   card.append(node('p',x.headline));
   card.append(node('small','Заявитель @'+x.applicant+' · '+x.landing_url));
-  for(const [decision,label] of [['accept','Разрешить тестовый показ'],['reject','Отклонить предложение']]){
+  if(['pending_creator','pending_review','approved'].includes(x.status)){
+   const withdraw=node('button','Отозвать согласие','ghost small');withdraw.type='button';
+   withdraw.addEventListener('click',()=>run(async()=>{
+    await api('/sponsors/'+x.id+'/withdraw','POST',{});
+    await Promise.all([receivedSponsors(),sponsors()]);
+   },'Согласие отозвано'));
+   card.append(withdraw);
+  }
+  if(x.status==='pending_creator')for(const [decision,label] of [['accept','Разрешить тестовый показ'],['reject','Отклонить предложение']]){
    const button=node('button',label,'ghost small');button.type='button';
    button.addEventListener('click',()=>run(async()=>{
     await api('/sponsors/'+x.id+'/creator-decision','POST',{decision});
@@ -275,6 +283,14 @@ async function mySponsors(){
  for(const x of data.items){
   const row=node('div','','sponsor-status');
   row.append(node('strong',x.brand_name+' · '+x.world),node('span','Статус: '+x.status));
+  if(['pending_creator','pending_review','approved'].includes(x.status)){
+   const withdraw=node('button','Отозвать заявку','ghost small');withdraw.type='button';
+   withdraw.addEventListener('click',()=>run(async()=>{
+    await api('/sponsors/'+x.id+'/withdraw','POST',{});
+    await Promise.all([mySponsors(),sponsors()]);
+   },'Заявка отозвана'));
+   row.append(withdraw);
+  }
   list.append(row);
  }
  if(!data.items.length)list.append(node('p','Заявок пока нет.','muted'));
