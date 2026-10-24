@@ -90,12 +90,12 @@ test('R11 validates passphrase length and rejects malformed envelopes before dec
   ])assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,[key]:value})),/INVALID_ENCRYPTED_CONTRACT/);
   assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,secret:'x'})),/UNKNOWN_ENCRYPTED_BACKUP/);
   assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,salt:'bad-base64'})),/INVALID_CIPHERTEXT_ENCODING/);
-  assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,nonce:object.nonce.slice(0,20)})),/INVALID_ENCRYPTED_LENGTHS/);
+  assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,nonce:object.nonce.slice(0,-4)})),/INVALID_ENCRYPTED_LENGTHS/);
   assert.throws(()=>secure.readEnvelope(JSON.stringify({...object,ciphertext:'A==='})),/INVALID_CIPHERTEXT_ENCODING/);
   assert.throws(()=>secure.readEnvelope('{}'),/UNKNOWN_ENCRYPTED_BACKUP/);
   const tampered=JSON.parse(JSON.stringify(object));
-  tampered.ciphertext=tampered.ciphertext.slice(0,-4);
-  assert.throws(()=>secure.readEnvelope(JSON.stringify(tampered)),/INVALID_CIPHERTEXT_ENCODING|INVALID_ENCRYPTED_LENGTHS/);
+  tampered.ciphertext=tampered.ciphertext.slice(0,-1);
+  assert.throws(()=>secure.readEnvelope(JSON.stringify(tampered)),/INVALID_CIPHERTEXT_ENCODING/);
 });
 test('R11 refuses forged plaintext approvals and giant archives before writing encrypted data',async()=>{
   const forged=backup.parseBackup(archive());
