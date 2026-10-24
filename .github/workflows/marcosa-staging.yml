@@ -55,7 +55,8 @@ jobs:
           node --check site/creator-backup.js
           node --check site/creator-crypto.js
           node --check site/creator-standalone.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs
+          node --check site/creator-playtest.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/playtest.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |
@@ -156,7 +157,7 @@ jobs:
           SHA="$1"
           ROOT="$HOME/marcosa-staging"
           test "$(readlink "$ROOT/current")" = "releases/$SHA"
-          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css creator.html creator.js creator.css creator-vault.js creator-backup.js creator-crypto.js creator-standalone.js build-manifest.json; do
+          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css creator.html creator.js creator.css creator-vault.js creator-backup.js creator-crypto.js creator-standalone.js creator-playtest.js build-manifest.json; do
             test -s "$ROOT/current/$name" || {
               printf 'Missing staging asset: %s\n' "$name" >&2
               exit 10
