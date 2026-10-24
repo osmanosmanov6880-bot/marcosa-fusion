@@ -186,7 +186,11 @@ async function main(){
    if(chrome.exitCode===null)chrome.kill('SIGKILL');
   }
   await new Promise(resolve=>web.close(resolve));
-  fs.rmSync(temp,{recursive:true,force:true,maxRetries:4});
+  // Chrome child processes sometimes release Profile files after the parent exits.
+  // The hosted runner is disposable: cleanup races must not invalidate a PASS.
+  await sleep(350);
+  try{fs.rmSync(temp,{recursive:true,force:true,maxRetries:25,retryDelay:250});}
+  catch(e){console.warn('R18 ephemeral Chrome QA profile cleanup warning:',e.code||e.message);}
  }
 }
 main().catch(e=>{console.error('R18 CINEMA BROWSER QA FAIL',e.stack||e);process.exitCode=1;});
