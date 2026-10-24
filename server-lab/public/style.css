@@ -206,3 +206,13 @@ dialog form{display:grid;gap:17px}
 .audit-row{font-size:12px;padding:8px 0;border-bottom:1px solid #d8bfa32b}
 #moderator #appeal-review-list{margin-bottom:22px}
 #moderator #appeal-review-list .appeal-item button{margin:3px 5px 3px 0;white-space:normal}
+
+/* R32: creator analytics belong to the owner. Actual database counts only. */
+.creator-insights{margin:17px 0;padding-top:17px}
+.creator-insights summary{font-size:13px;line-height:1.55}
+.insights-total{font-size:12px;line-height:1.65;color:#ead4b1;padding:12px;border:1px solid #ccb08c55;background:#1b2a40;border-radius:8px}
+.insight-entry{border:1px solid #ccb08c35;background:#13243a;border-radius:8px;padding:12px;margin:9px 0}
+.insight-entry strong{display:block;color:#f0dcba;font:650 12px/1.5 var(--sans)}
+.insight-entry small{display:block;color:#acbac7;font:11px/1.6 var(--sans);margin-top:6px}
+.insights-refresh{width:100%;margin:12px 0}
+@media(max-width:720px){.insight-entry{padding:15px}.insights-refresh{font-size:12px}}

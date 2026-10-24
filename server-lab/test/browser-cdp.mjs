@@ -171,7 +171,13 @@ async function main(){
    const audit=await cdp.evalJS("(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,personal:!document.getElementById('member-access').hidden,worlds:document.querySelectorAll('#world-list .world-card').length,posts:document.querySelectorAll('#feed-list .post').length,centerTop:document.querySelector('.center').getBoundingClientRect().top,accessTop:document.getElementById('access').getBoundingClientRect().top,remoteImages:document.querySelectorAll('#feed-list img').length}))()");
    if((size.mobile&&audit.centerTop>=audit.accessTop)||audit.width>audit.viewport+2||!audit.personal||audit.worlds<1||audit.posts<1||audit.remoteImages!==0)
     throw Error('AUTHENTICATED_LAYOUT_BROKEN '+size.name+' '+JSON.stringify(audit));
+   // R33: actual author metrics must refresh after a published post and reply.
+   await cdp.evalJS("(()=>{document.getElementById('creator-insights').open=true;document.getElementById('insights-refresh').click();return true;})()");
+   await cdp.wait("document.querySelector('#creator-insights-list .insights-total')?.textContent.includes('1 опубликовано')&&document.querySelector('#creator-insights-list .insights-total')?.textContent.includes('1 ответов')",'r33-real-world-insights');
    await screenshot('authenticated');
+   await cdp.evalJS("document.getElementById('creator-insights').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(140);
+   await screenshot('creator-insights');
    await cdp.evalJS("(()=>{document.getElementById('sponsor-owner').scrollIntoView({behavior:'instant',block:'center'});return true;})()");
    await pause(140);
    await screenshot('community-sponsor');
@@ -192,7 +198,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R30 BROWSER QA COMPLETE: 12 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
+  console.log('R33 BROWSER QA COMPLETE: 15 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
  }finally{
   cdp?.close();
   if(chrome){
