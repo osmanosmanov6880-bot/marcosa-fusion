@@ -1,6 +1,6 @@
 /* MARCOSA R27 / Local Journal.
    Real CRUD, pinning, search, manual portable backup, not a public post service.
-   All user-authored text is rendered with textContent; never innerHTML.
+   All user-authored text is rendered as safe text nodes, never parsed markup.
    There is NO network, account or database connection. */
 (function(root){
  'use strict';
