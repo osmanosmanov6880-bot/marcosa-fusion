@@ -207,3 +207,15 @@ The public film-network page now supports **explicit offline snapshots** of the 
 - Browser tests using desktop/mobile real Chrome exercise import, audit, IndexedDB save, reload, restoration, malformed-file refusal, 12-version limit and cleanup.
 
 [Russian R14 overview](docs/FILM_NETWORK_CONTINUITY_R14_RU.md) · [R14 regression tests](tests/film_continuity.test.cjs) · [R14 live browser acceptance](tools/r14_film_cdp.cjs).
+
+## R15 — Source Atlas and direct cinema integrations
+
+The user had previously supplied genuine source ZIPs. **13 distinct product archives** and **20 connected GitHub repositories** are now cataloged separately, not conflated with the unverified 43 film-site domain slots.
+
+- **[Source Atlas](site/source-hub.html)**: searchable, responsive source records: real GitHub links, ZIP provenance and filenames, and clear production/rights boundaries. Static offline data only; no tracking, active scans or server calls.
+- **[ZIP provenance](inventory/verified_source_archives_r15.json)**: original source archives, SHA-256 checksums and file counts. **[Connected repository map](inventory/verified_github_repositories_r15.json)**: 20 actual GitHub repos, source type and distinct movie-source classification.
+- Direct cinema source changes merged in [Internet v. Humanity](https://github.com/osmanosmanov6880-bot/internet-v-humanity/pull/1), [Protocol Zero](https://github.com/osmanosmanov6880-bot/protocol-zero/pull/1), and [Adverse Judge](https://github.com/osmanosmanov6880-bot/adverse-judge/pull/1). Their existing actual ending scenes offer voluntary access to MARCOSA without transferring story data.
+- User-provided source ZIP integrations independently built for SIGNAL WORLDS (108/108 tests passing) and OpsPilot Cinema (279/279); full modified ZIPs available as conversation artifacts, **not** hosted on the public MARCOSA site.
+- Real movie-domain ownership, deploy status, streaming views, advertising revenue, legal rights and payment events remain unverified. A source repository is never sufficient to claim a live film website.
+
+See [R15 implementation and source reconciliation](docs/REAL_SOURCE_INTEGRATION_R15_RU.md) and [Source Atlas tests](tests/source_hub.test.cjs). GitHub Pages static build contains only 23 reviewed web files, not the user archives, SQL or SSH credentials.
