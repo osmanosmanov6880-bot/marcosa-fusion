@@ -1,0 +1,15 @@
+{
+  "name": "marcosa-r28-social-server-lab",
+  "version": "0.28.0",
+  "private": true,
+  "type": "module",
+  "description": "Loopback-only MARCOSA social proof: real worlds, authenticated posts and moderation, not production",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check server.mjs && node --check public/app.js && node --check test/core.test.mjs"
+  }
+}
