@@ -304,7 +304,6 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    // R30 paid-advertising gate: a proposal is NOT a paid campaign.
    // There is no billing, impressions ledger, view tracking, or automatic delivery.
    if(method==='POST'&&route==='/api/sponsors/proposals'){
-    throttle('sponsor:'+user.id,4,86400000);
     const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
     const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
     check(targetWorld,404,'Выбранный World не найден');
@@ -323,6 +322,7 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     }catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Неверный адрес сайта');}
     const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status IN ('pending_creator','pending_review')").get(user.id).n;
     check(count<3,409,'Допускается не более трёх нерассмотренных предложений');
+    throttle('sponsor:'+user.id,4,86400000);
     const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending_creator',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
     send(res,201,{id:Number(id),status:'pending_creator',paid:false,verification:'not-verified',ownerConsent:false});return;
    }
