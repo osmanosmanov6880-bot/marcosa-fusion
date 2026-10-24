@@ -7,6 +7,8 @@ on:
       - "site/**"
       - "tests/**"
       - "tools/build_webroot.py"
+      - "tools/build_cinema_r18.py"
+      - "tools/r18_multicinema_cdp.cjs"
       - ".github/workflows/marcosa-public-pages.yml"
   pull_request:
     branches: [main]
@@ -36,6 +38,28 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Checkout original PROTOCOL ZERO cinema at reviewed Git SHA
+        uses: actions/checkout@v4
+        with:
+          repository: osmanosmanov6880-bot/protocol-zero
+          ref: 0f1841c0e56e47f7413bea9948e66200409e7a7a
+          path: .r18-sources/protocol-zero
+          persist-credentials: false
+      - name: Checkout original ADVERSE JUDGE cinema at reviewed Git SHA
+        uses: actions/checkout@v4
+        with:
+          repository: osmanosmanov6880-bot/adverse-judge
+          ref: f48a00510984a3da2d5527cd01ef8a51f102881e
+          path: .r18-sources/adverse-judge
+          persist-credentials: false
+      - name: Generate standalone source-pinned cinema with all 38 original WebP frames
+        run: |
+          set -euo pipefail
+          python tools/build_cinema_r18.py --protocol-repo .r18-sources/protocol-zero --adverse-repo .r18-sources/adverse-judge
+          test -s site/film-protocol-zero.html
+          test -s site/film-adverse-judge.html
+          node --test .r18-sources/protocol-zero/cinema/tests/engine.test.mjs
+          node --test .r18-sources/adverse-judge/cinema/tests/engine.test.js
       - name: Verify public preview code and build
         shell: bash
         run: |
@@ -55,11 +79,12 @@ jobs:
           node --check tools/cinema_release_gate_r17.cjs
           node tools/cinema_release_gate_r17.cjs
           node --check tools/r16_cinema_cdp.cjs
+          node --check tools/r18_multicinema_cdp.cjs
           node --check tools/r14_film_cdp.cjs
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -89,6 +114,8 @@ jobs:
           test -s dist/cinema-pilot.css
           test -s dist/cinema-pilot.js
           test -s dist/film-internet-v-humanity.html
+          test -s dist/film-protocol-zero.html
+          test -s dist/film-adverse-judge.html
           test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
@@ -96,6 +123,7 @@ jobs:
           node tools/r12_offline_cdp.cjs
           node tools/r14_film_cdp.cjs
           node tools/r16_cinema_cdp.cjs
+          node tools/r18_multicinema_cdp.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -138,6 +166,14 @@ jobs:
         with:
           name: r16-real-cinema-qa
           path: qa-r16/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R18 three-film desktop/mobile browser QA
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r18-three-interactive-films-qa
+          path: qa-r18/
           retention-days: 7
           if-no-files-found: error
       - name: Upload static Pages artifact
