@@ -240,3 +240,33 @@ html[data-m-world="film-network"] .fn-hero{border:1px solid #68aeef69;border-rad
 @media(prefers-reduced-motion:reduce){
  .m22-art-depth,.m22-world-card,.m22-feature,.m22-cta a{animation:none!important;transition:none!important}
 }
+
+/* R22 / transition tunnel inspired by the approved nine-panel reference. */
+html[data-m-world] .m-transition{
+ background:linear-gradient(90deg,#020611ef,#081329e0,#020611ef),url("./visual-earthrise.webp") 50% 50%/cover!important;
+ isolation:isolate
+}
+html[data-m-world] .m-transition:before{
+ content:"";position:absolute;top:50%;left:50%;inset:auto;width:min(78vw,640px);height:min(78vw,640px);aspect-ratio:1;
+ border:3px solid #eac791a8;border-left-color:#fae8c94d;border-bottom-color:#f8bf7969;border-radius:50%;
+ transform:translate(-50%,-50%) rotate(-22deg);background:none!important;
+ box-shadow:0 0 18px #eed39b7b,inset 0 0 17px #f8be7541,0 0 110px #5fa5e244;
+ animation:m22-tunnel-roll 2.6s ease-in-out infinite!important
+}
+html[data-m-world] .m-transition:after{
+ position:absolute;top:52%;left:-30%;width:160%;height:3px;border:0;border-radius:70%;transform:rotate(-18deg);
+ background:linear-gradient(90deg,transparent,#d8ab6a,#fff5c2,#ffc58a,transparent);
+ box-shadow:0 0 45px 15px #e6af7544,0 0 95px 32px #59a9f31e;
+ animation:m22-light-flight .78s ease-out both!important
+}
+html[data-m-world] .m-transition-core{background:radial-gradient(circle,#030a19c9,transparent 70%);padding:32px 48px;border-radius:50%;z-index:4}
+html[data-m-world] .m-transition-mark{width:170px;height:170px;filter:drop-shadow(0 0 36px #f9d090ad);animation:m-pulse 2s ease-in-out infinite!important}
+html[data-m-world] .m-transition-core strong{font:650 28px/1.2 Georgia,serif;letter-spacing:.47em;color:#f7e6c2;text-shadow:0 0 23px #ecbe6b84}
+html[data-m-world] .m-transition-core small{font-size:10px;color:#d2d8e4;max-width:320px;letter-spacing:.19em}
+html[data-m-world] .m-transition-progress{height:3px;width:min(310px,65vw);background:#ead9b13d;box-shadow:0 0 11px #dbad5a2c}
+html[data-m-world] .m-transition-progress i{background:linear-gradient(90deg,transparent,#fff7d9,#e6b677);box-shadow:0 0 17px #f7c88f}
+@keyframes m22-tunnel-roll{50%{transform:translate(-50%,-50%) rotate(-13deg) scale(1.04);opacity:.67}100%{transform:translate(-50%,-50%) rotate(-22deg)}}
+@keyframes m22-light-flight{from{opacity:0;transform:translate(-46%,40%) rotate(-18deg)}to{opacity:1;transform:translate(36%,-26%) rotate(-18deg)}}
+@media(prefers-reduced-motion:reduce){
+ html[data-m-world] .m-transition:before,html[data-m-world] .m-transition:after,html[data-m-world] .m-transition-mark{animation:none!important}
+}
