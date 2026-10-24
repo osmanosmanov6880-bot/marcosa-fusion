@@ -60,6 +60,13 @@
      const link=element('a','sh-link','ПОСМОТРЕТЬ ИСХОДНИКИ ↗');
      link.href=safeExternal(item.source_url);link.target='_blank';link.rel='noopener noreferrer';
      card.append(link);
+     if(item.name==='internet-v-humanity'){
+      // The standalone source-identical prologue is bundled in this static release.
+      const play=element('a','sh-link sh-play','ИГРАТЬ В НАСТОЯЩИЙ ПРОЛОГ ↗');
+      play.href='./cinema-pilot.html';
+      play.setAttribute('aria-label','Запустить проверенный кинематографический пролог THE INTERNET v. HUMANITY');
+      card.append(play);
+     }
     }else{
      card.append(element('p','','Проверен ZIP исходников: '+item.files+' файлов. Имя архива: '+item.archive));
      if(item.cinema_paths.length)card.append(element('p','','Движок: '+item.cinema_paths.slice(0,2).join(', ')));
