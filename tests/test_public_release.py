@@ -39,6 +39,12 @@ class PublicPreviewTests(unittest.TestCase):
         self.assertIn('src="./source-hub.js"', source_atlas)
         self.assertTrue((SITE / "source-hub.css").is_file())
         self.assertTrue((SITE / "source-hub.js").is_file())
+        cinema = (SITE / "cinema-pilot.html").read_text(encoding="utf-8")
+        self.assertIn('id="cp-film-frame"', cinema)
+        self.assertIn('sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"', cinema)
+        self.assertIn('src="./cinema-pilot.js"', cinema)
+        self.assertIn('href="./cinema-pilot.html"', html)
+        self.assertTrue((SITE / "film-internet-v-humanity.html").is_file())
         network_film = (SITE / "film-network.html").read_text(encoding="utf-8")
         self.assertIn('id="fn-continuity"', network_film)
         self.assertIn('id="fn14-save"', network_film)
@@ -112,7 +118,7 @@ class PublicPreviewTests(unittest.TestCase):
             "index.html", "network.css", "network.js",
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
-            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js",
+            "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
