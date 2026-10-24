@@ -84,7 +84,7 @@ function atlasCheck(){
  if(!card)throw Error('MISSING_REAL_SOURCE_CARD');
  const link=card.querySelector('a.sh-play');
  if(!link||!link.href.endsWith('/cinema-pilot.html'))throw Error('BROKEN_PLAYABLE_SOURCE_ROUTE');
- if(document.querySelectorAll('#sh-grid a.sh-play').length!==1)throw Error('UNVERIFIED_CODE_MARKED_PLAYABLE');
+ if(document.querySelectorAll('#sh-grid a.sh-play').length!==3)throw Error('EXPECTED_THREE_REAL_PLAYABLE_FILMS');
  return {status:'PASS_R16_ATLAS_TO_REAL_CINEMA',links:1};
 }
 function theaterCheck(){
@@ -101,11 +101,11 @@ function theaterCheck(){
    throw Error('DANGEROUS_IFRAME_SANDBOX');
   $('cp-play').click();
   await wait(()=>!iframe.hidden&&iframe.getAttribute('src')==='./film-internet-v-humanity.html'
-   &&$('cp-status').textContent.includes('Игра запущена'),'FILM_LAUNCH');
+   &&$('cp-status').textContent.includes('запущен.'),'FILM_LAUNCH');
   if($('cp-restart').disabled||$('cp-fullscreen').disabled||!$('cp-placeholder').hidden)
    throw Error('PLAYER_NOT_ENABLED');
   $('cp-restart').click();
-  await wait(()=>$('cp-status').textContent.includes('Игра запущена'),'FILM_RESTART');
+  await wait(()=>$('cp-status').textContent.includes('запущен.'),'FILM_RESTART');
   if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)
    throw Error('THEATER_OVERFLOW');
   $('cp-stage').scrollIntoView({block:'start',behavior:'auto'});

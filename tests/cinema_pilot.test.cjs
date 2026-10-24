@@ -58,8 +58,10 @@ test('R16 honors production/source boundaries for two other engines',()=>{
  const src=html('source-hub.html'),index=html('index.html');
  assert.match(page,/PROTOCOL ZERO/);
  assert.match(page,/ADVERSE JUDGE/);
- assert.match(page,/CODE VERIFIED · PUBLIC ROUTE UNCHECKED/);
- assert.match(page,/Это ограниченный автономный пролог/);
+ assert.match(page,/OFFLINE SOURCE BUILD · NO ACCOUNT/);
+ assert.match(page,/data-cp-film="protocol-zero"/);
+ assert.match(page,/data-cp-film="adverse-judge"/);
+ assert.match(page,/Это независимые браузерные художественные фильмы/);
  assert.match(page,/43 доменов остаётся неподтверждённым/);
  assert.ok(index.includes('href="./cinema-pilot.html"'));
  assert.ok(src.includes('href="./cinema-pilot.html"'));

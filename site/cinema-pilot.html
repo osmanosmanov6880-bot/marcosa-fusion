@@ -11,27 +11,42 @@
 <header class="cp-head"><a class="cp-brand" href="./index.html"><span class="cp-symbol">M</span><span>MARCOSA <small>CINEMA / REAL SOURCE PILOT</small></span></a>
 <nav aria-label="Навигация"><a href="./index.html">ГЛАВНАЯ</a><a href="./source-hub.html">ИСХОДНИКИ</a><a href="./film-network.html">КИНОСЕТЬ</a></nav></header>
 <main>
-<section class="cp-hero" aria-labelledby="cp-title"><p class="cp-brow">R16 / LIVE PLAYABLE CODE</p>
+<section class="cp-hero" aria-labelledby="cp-title"><p class="cp-brow">R18 / 3 SOURCE-BACKED CINEMAS</p>
 <h1 id="cp-title">Истории, в которые <em>можно войти.</em></h1>
-<p>Не макет и не обещание будущего релиза: ниже запускается настоящий автономный интерактивный пролог из репозитория THE INTERNET v. HUMANITY. Остальные игры показаны только там, где подтверждён исходный код.</p>
-<div class="cp-metrics"><span><strong>01</strong> работающий исходный пролог</span><span><strong>02</strong> сюжетных финала</span><span><strong>03</strong> кино-репозитория с подтверждённым кодом</span></div>
+<p>Три независимых исходных кино-движка в одном кинозале. Выбирай фильм, запускай оригинальную историю и открывай собственные финалы. Видео не выдаётся за игру: это настоящие интерактивные сцены и выборы.</p>
+<div class="cp-metrics"><span><strong>03</strong> настоящих интерактивных фильма</span><span><strong>38</strong> встроенных WebP-кадров в двух новых фильмах</span><span><strong>03</strong> независимых репозитория</span></div>
 </section>
 <section class="cp-screen" aria-labelledby="cp-feature-title">
-<div class="cp-screen-head"><div><p class="cp-brow">01 / PREMIERE SOURCE SNAPSHOT</p><h2 id="cp-feature-title">THE INTERNET v. HUMANITY</h2><p>Цифровой суд. Два направления решения. Пройди историю до финала — и только затем появится добровольное продолжение.</p></div><span class="cp-stamp">PLAYABLE<br>STANDALONE</span></div>
+<div class="cp-screen-head"><div><p class="cp-brow">01 / REAL INTERACTIVE CINEMA</p><h2 id="cp-feature-title">THE INTERNET v. HUMANITY</h2><p>Выбери один из трёх фильмов. Оригинальные сюжеты сохранены; после финала можно добровольно перейти в MARCOSA.</p></div><span class="cp-stamp">PLAYABLE<br>STANDALONE</span></div>
+<div class="cp-film-tabs" role="group" aria-label="Выбери фильм"><button type="button" data-cp-film="internet-v-humanity" aria-pressed="true"><span>01</span> THE INTERNET v. HUMANITY</button><button type="button" data-cp-film="protocol-zero" aria-pressed="false"><span>02</span> PROTOCOL ZERO</button><button type="button" data-cp-film="adverse-judge" aria-pressed="false"><span>03</span> ADVERSE JUDGE</button></div>
 <div class="cp-control-bar">
 <button type="button" id="cp-play" class="cp-play"><span aria-hidden="true">▶</span> ЗАПУСТИТЬ ИСТОРИЮ</button>
 <button type="button" id="cp-restart" disabled>НАЧАТЬ ЗАНОВО</button>
 <button type="button" id="cp-fullscreen" disabled>НА ВЕСЬ ЭКРАН</button>
-<a href="./film-internet-v-humanity.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></div>
+<a id="cp-standalone-link" href="./film-internet-v-humanity.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></div>
 <p class="cp-status" role="status" aria-live="polite" id="cp-status">Игра ещё не запущена. Нажми «Запустить историю».</p>
 <div class="cp-stage" id="cp-stage"><div class="cp-stage-placeholder" id="cp-placeholder" aria-hidden="true"><span>INTERACTIVE COURTROOM</span><strong>THE INTERNET<br>v. HUMANITY</strong><small>Войди в историю. Решение останется за тобой.</small></div>
 <iframe id="cp-film-frame" title="Интерактивный пролог THE INTERNET v. HUMANITY" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="fullscreen" allowfullscreen loading="lazy" referrerpolicy="no-referrer" hidden></iframe></div>
-<p class="cp-caveat">Это ограниченный автономный пролог, а не полноценный коммерческий фильм с аккаунтами. Встроенный проигрыватель изолирован от данных MARCOSA; он не отправляет выбор и историю просмотра. Оригинальный автономный файл открывается отдельно.</p>
-<a class="cp-source" href="https://github.com/osmanosmanov6880-bot/internet-v-humanity/tree/4c492d30656d16a908f0dbd851a703f815b2d34e" target="_blank" rel="noopener noreferrer">ПОСМОТРЕТЬ ОРИГИНАЛЬНЫЙ ИСХОДНИК И КОММИТ ↗</a>
+<p class="cp-caveat">Это независимые браузерные художественные фильмы, не полномасштабные коммерческие AAA-игры. Плеер изолирован от данных MARCOSA; история и решения никуда автоматически не передаются. Для собственного локального сохранения прогресса и скачивания брифа используйте «Открыть отдельно».</p>
+<a class="cp-source" id="cp-source-origin" href="https://github.com/osmanosmanov6880-bot/internet-v-humanity/tree/4c492d30656d16a908f0dbd851a703f815b2d34e" target="_blank" rel="noopener noreferrer">ПОСМОТРЕТЬ ОРИГИНАЛЬНЫЙ ИСХОДНИК И КОММИТ ↗</a>
 </section>
-<section class="cp-library" aria-labelledby="cp-library-title"><p class="cp-brow">02 / VERIFIED OTHER CODE</p><h2 id="cp-library-title">Другие кино-движки из GitHub</h2><p>Эти репозитории содержат игровые исходники и тесты. До проверки отдельных публичных маршрутов здесь нет кнопки «Играть» — только переход к настоящему коду.</p>
-<div class="cp-cards"><article><span class="cp-label">CODE VERIFIED · PUBLIC ROUTE UNCHECKED</span><h3>PROTOCOL ZERO</h3><p>Разветвлённая история с отдельными финальными состояниями. Добровольный переход в MARCOSA внедрён после финала.</p><a href="https://github.com/osmanosmanov6880-bot/protocol-zero/tree/0f1841c0e56e47f7413bea9948e66200409e7a7a/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article>
-<article><span class="cp-label">CODE VERIFIED · PUBLIC ROUTE UNCHECKED</span><h3>ADVERSE JUDGE</h3><p>Кино-движок со сценой эпилога и собственным механизмом материалов дела. Исходная доменная библиотека восстановлена и тесты проходят.</p><a href="https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article></div>
+<section class="cp-library" aria-labelledby="cp-library-title"><p class="cp-brow">02 / VERIFIED OTHER CODE</p><h2 id="cp-library-title">PROTOCOL ZERO и ADVERSE JUDGE</h2><p>Оба фильма собираются из зафиксированных исходных GitHub-коммитов. Все 38 WebP-кадров встроены непосредственно в HTML; сервер приложений для просмотра не нужен.</p>
+<div class="cp-cards"><article><span class="cp-label">OFFLINE SOURCE BUILD · NO ACCOUNT</span><h3>PROTOCOL ZERO</h3><p>15 сцен, два сюжетных финала и собственные диалоги. Можно играть прямо в кинозале или открыть фильм отдельно.</p><button type="button" class="cp-source-play" data-cp-film="protocol-zero">ИГРАТЬ В PROTOCOL ZERO ▶</button> <a href="./film-protocol-zero.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a><a href="https://github.com/osmanosmanov6880-bot/protocol-zero/tree/0f1841c0e56e47f7413bea9948e66200409e7a7a/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article>
+<article><span class="cp-label">OFFLINE SOURCE BUILD · NO ACCOUNT</span><h3>ADVERSE JUDGE</h3><p>15 сцен рекламного суда, реальные выборы, материалы дела и художественный эпилог. Запуск без регистрации и внешних API.</p><button type="button" class="cp-source-play" data-cp-film="adverse-judge">ИГРАТЬ В ADVERSE JUDGE ▶</button> <a href="./film-adverse-judge.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a><a href="https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema" target="_blank" rel="noopener noreferrer">ПРОВЕРИТЬ ИСХОДНИКИ ↗</a></article></div>
+</section>
+<section class="cp-library" aria-labelledby="cp-r17-title" id="cinema-r17">
+<p class="cp-brow">04 / R18 ORIGINAL SOURCE PROVENANCE</p>
+<h2 id="cp-r17-title">Путь к трём настоящим фильмам</h2>
+<p>Оригинальные сцены, изображения и управляющий код берутся из зафиксированных публичных исходников. Автономные файлы создаёт проверяемый сборщик, но права на коммерческое распространение нужно подтвердить отдельно.</p>
+<div class="cp-cards">
+<article><span class="cp-label">PROTOCOL ZERO / SOURCE INVENTORY</span><h3>15 сцен · 18 WebP</h3>
+<p>54 файла внутри cinema/; примерно 1,30 МБ исходных данных. Есть автономный сборщик cinema/tools/build_offline.py, сцены, выборы, 2 финала, граф и локальные тесты. Нужна проверка браузера и отсутствие непреднамеренных API-запросов на каждом релизе.</p>
+<a href="https://github.com/osmanosmanov6880-bot/protocol-zero/tree/0f1841c0e56e47f7413bea9948e66200409e7a7a/cinema" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ЗАФИКСИРОВАННЫЙ ИСХОДНИК ↗</a></article>
+<article><span class="cp-label">ADVERSE JUDGE / SOURCE INVENTORY</span><h3>15 сцен · 20 WebP</h3>
+<p>52 файла внутри cinema/; примерно 1,28 МБ исходных данных. Есть автономный сборщик cinema/tools/build_standalone.py, независимый сценарий, изображения для телефона и тесты движка. Пакет снабжён самостоятельным HTML; проверка сюжета и сети входит в процесс выпуска.</p>
+<a href="https://github.com/osmanosmanov6880-bot/adverse-judge/tree/f48a00510984a3da2d5527cd01ef8a51f102881e/cinema" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ЗАФИКСИРОВАННЫЙ ИСХОДНИК ↗</a></article>
+</div>
+<p class="cp-caveat">Правило выпуска R17: публикация допускается только после успешной сборки двух автономных HTML, браузерных проверок на компьютере и телефоне и подтверждения отсутствия незапрошенных сетевых обращений. Серверные модули отдельных продуктов не объединяются.</p>
 </section>
 <section class="cp-footer-note"><p class="cp-brow">03 / ACTUAL PRODUCTION BOUNDARY</p><p>Публичный кинозал находится на GitHub Pages и не меняет действующий Contabo-сервер, домены владельца, платежи, договоры и личные данные. Статус 43 доменов остаётся неподтверждённым.</p></section>
-</main><footer>MARCOSA CINEMA R16 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
+</main><footer>MARCOSA CINEMA R18 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
