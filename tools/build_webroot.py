@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are fifteen independently reviewed public files in site/.
+Its inputs are eighteen independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "film-network.html", "film-network.css", "film-network.js")
 MARKER = ".marcosa-preview-generated"
 
 
