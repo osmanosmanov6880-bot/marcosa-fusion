@@ -23,6 +23,19 @@ async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
 }
+async function loadInsights(){
+ if(!state.me)return;
+ const data=await api('/me/insights'),wrap=$('creator-insights-list');clear(wrap);
+ const t=data.totals;
+ wrap.append(node('p',t.published+' опубликовано · '+t.drafts+' черновиков · '+t.followers+' подписок · '+t.replies+' ответов','insights-total'));
+ for(const item of data.worlds){
+  const div=node('div','','insight-entry');
+  div.append(node('strong',item.title));
+  div.append(node('small',item.published+' публикаций · '+item.followers+' подписчиков · '+item.replies+' ответов · '+item.uniqueResponders+' участников обсуждения'));
+  wrap.append(div);
+ }
+}
+
 async function session(){
  try{
   const result=await api('/auth/me');
@@ -33,6 +46,7 @@ async function session(){
  $('logout').hidden=!state.me;
  $('feed-following').disabled=!state.me;
  if(!state.me){
+  clear($('creator-insights-list'));
   state.feedScope='all';state.activityCursor=null;
   $('feed-all').setAttribute('aria-pressed','true');
   $('feed-following').setAttribute('aria-pressed','false');
@@ -56,7 +70,7 @@ async function session(){
    const option=node('option',world.title);option.value=world.id;choose.append(option);
 
   }
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true)]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),loadInsights()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
  }
 }
@@ -457,6 +471,7 @@ for(const [id,scope] of [['feed-all','all'],['feed-following','following']]){
   await feed(true);
  }));
 }
+$('insights-refresh').addEventListener('click',()=>run(()=>loadInsights(),'Статистика обновлена'));
 $('activity-read').addEventListener('click',()=>run(async()=>{await api('/me/activity/read','POST',{});await activity(true);},'События отмечены прочитанными'));
 $('activity-more').addEventListener('click',()=>run(()=>activity(false)));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
