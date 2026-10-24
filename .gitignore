@@ -30,3 +30,8 @@ private/
 secrets/
 .ssh/
 .marcosa_operator_key
+
+# R28 local social API contains real test identities and session data
+.local/
+*.sqlite-wal
+*.sqlite-shm

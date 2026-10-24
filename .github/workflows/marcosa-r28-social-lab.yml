@@ -1,0 +1,61 @@
+name: "MARCOSA | R28 real social server lab"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r28-social-lab.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r28-social-lab.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-real-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax and zero-dependency check
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/server.mjs
+          node --check server-lab/public/app.js
+          node --check server-lab/test/core.test.mjs
+          test -s server-lab/public/index.html
+          test -s server-lab/public/style.css
+          test -s server-lab/package.json
+          test ! -d server-lab/node_modules
+      - name: Real two-user HTTP, SQLite, moderation and isolation tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test server-lab/test/core.test.mjs
+      - name: Real Chromium — desktop and phones, signup, login, publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/browser-cdp.mjs
+          node server-lab/test/browser-cdp.mjs
+      - name: Upload six real browser frames of R28
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r28-real-social-browser-qa
+          path: qa-r28/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Confirm public preview remains isolated
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -q 'server-lab/' tools/build_webroot.py
+          ! grep -q 'server-lab/' .github/workflows/marcosa-public-pages.yml
+          ! grep -q 'StrictHostKeyChecking=no' .github/workflows/marcosa-staging.yml

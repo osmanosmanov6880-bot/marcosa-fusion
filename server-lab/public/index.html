@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#090e18">
+<title>MARCOSA — Лаборатория социальных миров R28</title>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<div class="page">
+<header class="topbar">
+ <a class="brand" href="/" aria-label="MARCOSA"><img class="brand-mark" src="/marcosa-mark.svg" width="58" height="58" alt="" aria-hidden="true"><span>MARCOSA<small>THE WORLDS EDITION / R28 LAB</small></span></a>
+ <span class="top-status"><i aria-hidden="true"></i> LOCAL LAB / NO PUBLIC ACCOUNTS</span>
+ <div class="head-actions"><span id="identity">Гость</span><button id="logout" type="button" class="ghost" hidden>Выйти</button></div>
+</header>
+<main>
+<section class="hero">
+ <div class="hero-copy">
+  <span class="eyebrow">PRIVATE BETA ENGINE / OWN YOUR WORLD</span>
+  <h1>Мир начинается <em>с тебя.</em></h1>
+  <p>Настоящие пользовательские аккаунты, персональные миры, публикации и модерация — в закрытом локальном испытании. Не коммерческий сервис и не публичная соцсеть.</p>
+  <a class="hero-link" href="#worlds">Исследовать миры <span aria-hidden="true">↗</span></a>
+ </div>
+ <div class="hero-art" aria-hidden="true">
+  <span class="art-label">MARCOSA / EDITION XXVIII</span>
+  <span class="art-core">M</span>
+  <span class="art-caption">PEOPLE · WORLDS · IDEAS</span>
+ </div>
+</section>
+<div class="stateline" role="status" id="notice" aria-live="polite">Проверка соединения…</div>
+<div class="workspace">
+ <aside class="left panel" id="access">
+  <h2>Твой доступ</h2>
+  <p class="muted">Только локальный сервер. Вход и регистрации не связаны с опубликованной MARCOSA.</p>
+  <section id="guest-access">
+   <form id="login-form" class="form-block">
+    <h3>Войти</h3>
+    <label>Почта<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+    <label>Пароль<input name="password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required></label>
+    <button type="submit" class="gold">Войти в свой мир</button>
+   </form>
+   <details class="invite-panel">
+    <summary>Создать аккаунт по приглашению</summary>
+    <form id="register-form" class="form-block">
+     <label>Код приглашения<input name="inviteCode" type="password" autocomplete="off" required></label>
+     <label>Имя мира (латиница)<input name="username" type="text" minlength="3" maxlength="24" pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" required></label>
+     <label>Почта<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+     <label>Пароль (не менее 12 символов)<input name="password" type="password" autocomplete="new-password" minlength="12" maxlength="128" required></label>
+     <button class="ghost" type="submit">Создать локальный профиль</button>
+    </form>
+   </details>
+  </section>
+  <section id="member-access" hidden>
+   <p id="profile-line" class="profile-line"></p>
+   <h3>Мои миры</h3>
+   <div id="my-worlds" class="compact-list"></div>
+   <details class="invite-panel">
+    <summary>Создать дополнительный мир</summary>
+    <form id="world-form" class="form-block">
+     <label>Название<input name="title" maxlength="70" minlength="3" required></label>
+     <label>Адрес / slug<input name="slug" maxlength="40" minlength="3" pattern="[a-zA-Z][a-zA-Z0-9-]{2,39}" required></label>
+     <label>Описание<textarea name="description" maxlength="400" rows="3"></textarea></label>
+     <button class="ghost" type="submit">Создать мир</button>
+    </form>
+   </details>
+   <button id="account-export" type="button" class="ghost export-button">Выгрузить мои данные (JSON)</button>
+   <details class="danger-panel">
+    <summary>Удалить локальный аккаунт и все данные</summary>
+    <form id="delete-form" class="form-block">
+     <p class="muted">Необратимо удаляет миры, записи, сессии и жалобы этого пользователя на данном сервере.</p>
+     <label>Введите DELETE<input name="confirm" required pattern="DELETE"></label>
+     <label>Текущий пароль<input name="password" type="password" autocomplete="current-password" required></label>
+     <button class="danger" type="submit">Удалить навсегда</button>
+    </form>
+   </details>
+  </section>
+ </aside>
+ <section class="center">
+  <div class="section-heading" id="worlds"><div><span class="eyebrow">DISCOVER / REAL WORLD OWNERSHIP</span><h2>Настоящие <em>миры.</em></h2></div><span id="world-count" class="count"></span></div>
+  <div id="world-list" class="world-grid"></div>
+  <section id="composer-panel" class="panel composer" hidden>
+   <div class="section-heading"><div><span class="eyebrow">CREATE / UNDER YOUR IDENTITY</span><h2>Твоя <em>публикация.</em></h2></div></div>
+   <form id="post-form">
+    <label>Мир для публикации<select name="worldId" id="post-world" required></select></label>
+    <label>Текст<textarea name="body" rows="5" maxlength="2000" placeholder="Что полезного ты хочешь сказать?" required></textarea></label>
+    <div class="compose-actions"><button class="ghost" type="submit" name="status" value="draft">В мои черновики</button><button class="gold" type="submit" name="status" value="published">Опубликовать в ленту</button></div>
+   </form>
+   <h3>Мои публикации и черновики</h3><div id="my-posts" class="compact-list"></div>
+  </section>
+  <div class="section-heading feed-heading" id="feed"><div><span class="eyebrow">CONVERSATION / VERIFIED SERVER DATA</span><h2>Лента <em>людей.</em></h2></div><button type="button" id="refresh" class="ghost">Обновить</button></div>
+  <div id="feed-list" class="feed-list" aria-live="polite"></div>
+  <button id="more" class="ghost more" type="button" hidden>Ещё публикации</button>
+ </section>
+ <aside class="right panel">
+  <h2>Принципы доверия</h2>
+  <div class="feature"><b>01</b><strong>Личная ответственность</strong><p>У каждой записи есть реальный автор и принадлежащий ему мир.</p></div>
+  <div class="feature"><b>02</b><strong>Никаких фальшивых счётчиков</strong><p>Публикации берутся из SQLite лаборатории. Черновики видит только автор.</p></div>
+  <div class="feature"><b>03</b><strong>Модерация</strong><p>Жалобы доступны независимой роли модератора; чужие записи нельзя редактировать.</p></div>
+  <div id="moderator" class="mod-panel" hidden><h3>Жалобы на проверку</h3><div id="report-list"></div><button id="reload-reports" class="ghost" type="button">Обновить жалобы</button></div>
+  <p class="safe-note">Лаборатория не имеет подтверждения почты, восстановления аккаунта, долговременной защиты от атак и production-инфраструктуры. Для публичного запуска нужен отдельный аудит.</p>
+ </aside>
+</div>
+</main>
+<footer>© MARCOSA / LOCAL ENGINEERING EDITION. Публичный сайт и этот исследовательский сервер — разные среды.</footer>
+</div>
+<dialog id="report-dialog" aria-labelledby="report-title"><form id="report-form"><h2 id="report-title">Сообщить о проблеме</h2><p>Жалобу увидит только модератор этого сервера.</p><label>Причина<select name="reason"><option value="spam">Спам</option><option value="abuse">Оскорбления</option><option value="privacy">Нарушение приватности</option><option value="other">Другое</option></select></label><label>Комментарий<textarea name="detail" rows="3" maxlength="500"></textarea></label><div class="compose-actions"><button type="button" id="report-cancel" class="ghost">Отмена</button><button type="submit" class="gold">Отправить жалобу</button></div></form></dialog>
+</body>
+</html>
