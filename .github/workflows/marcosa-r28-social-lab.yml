@@ -51,11 +51,11 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/browser-cdp.mjs
           node server-lab/test/browser-cdp.mjs
-      - name: Upload six real browser frames of R28
+      - name: Upload fifteen real browser frames of R32
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: marcosa-r30-real-social-ads-browser-qa
+          name: marcosa-r32-verified-world-insights-browser-qa
           path: qa-r30/
           retention-days: 7
           if-no-files-found: error
