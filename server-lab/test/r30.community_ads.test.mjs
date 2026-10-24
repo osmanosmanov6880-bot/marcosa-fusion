@@ -161,8 +161,8 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
    r=await req('/account/export',{session:bob.session});
    assert.deepEqual(r.data.follows,[{slug:alice.slug}]);
    assert.equal(r.data.comments.length,1);
-   assert.equal(r.data.sponsorProposals.length,1);
-   assert.equal(r.data.sponsorProposals[0].status,'approved');
+   assert.equal(r.data.sponsorProposals.length,2);
+   assert.deepEqual(r.data.sponsorProposals.map(p=>p.status).sort(),['approved','revoked']);
    r=await req('/account/export',{session:carol.session});
    assert.equal(r.data.sponsorProposals.length,0);
    r=await req('/account',{method:'DELETE',session:alice.session,json:{confirm:'DELETE',password:PASSWORD}});
