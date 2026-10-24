@@ -37,23 +37,36 @@ async function session(){
  $('moderator').hidden=!state.me||state.me.role!=='moderator';
  $('sponsor-owner').hidden=!state.me;
  $('sponsor-moderation').hidden=!state.me||state.me.role!=='moderator';
- if(!state.me){clear($('my-sponsors'));clear($('sponsor-review-list'));}
+ $('sponsor-inbox').hidden=!state.me;
+ if(!state.me){clear($('my-sponsors'));clear($('received-sponsors'));clear($('sponsor-review-list'));}
  if(state.me){
   $('profile-line').textContent='@'+state.me.username+' · '+state.me.role+' · закрытое испытание';
-  const container=$('my-worlds'),choose=$('post-world'),sponsorChoose=$('sponsor-world');
-  clear(container);clear(choose);clear(sponsorChoose);
+  const container=$('my-worlds'),choose=$('post-world');
+  clear(container);clear(choose);
   for(const world of state.worlds){
    const item=node('p',world.title+' / '+world.slug,'world-own');container.append(item);
    const option=node('option',world.title);option.value=world.id;choose.append(option);
-   const sponsorOption=node('option',world.title);sponsorOption.value=world.id;sponsorChoose.append(sponsorOption);
+
   }
-  await Promise.all([myPosts(),mySponsors()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
  }
 }
 async function worlds(){
  const result=await api('/worlds'),wrap=$('world-list');clear(wrap);
  $('world-count').textContent=result.items.length+' миров';
+ const sponsorChoose=$('sponsor-world');clear(sponsorChoose);
+ for(const world of result.items){
+  if(!state.me||world.owner===state.me.username)continue;
+  const ownTarget=node('option',world.title+' / @'+world.owner);
+  // The world list has public slugs; get the actual ID via authenticated endpoint
+  // below to keep public API and reviewer contract separate.
+  ownTarget.value=world.id;
+  sponsorChoose.append(ownTarget);
+ }
+ const targetsExist=Boolean(sponsorChoose.options.length);
+ $('sponsor-form').querySelector('button[type="submit"]').disabled=!targetsExist;
+
  const followInfo=state.me?await Promise.all(result.items.map(w=>api('/worlds/'+encodeURIComponent(w.slug)+'/followers'))):[];
  for(const [i,world] of result.items.entries()){
   const card=node('article','','world-card');
@@ -183,6 +196,27 @@ async function sponsors(){
   link.target='_blank';link.rel='noopener noreferrer';
   card.append(link);panel.append(card);
  }
+}
+async function receivedSponsors(){
+ if(!state.me)return;
+ const data=await api('/me/received-sponsors');
+ const panel=$('received-sponsors');clear(panel);
+ for(const x of data.items){
+  const card=node('article','','report sponsor-review');
+  card.append(node('strong',x.brand_name+' → '+x.world));
+  card.append(node('p',x.headline));
+  card.append(node('small','Заявитель @'+x.applicant+' · '+x.landing_url));
+  for(const [decision,label] of [['accept','Разрешить тестовый показ'],['reject','Отклонить предложение']]){
+   const button=node('button',label,'ghost small');button.type='button';
+   button.addEventListener('click',()=>run(async()=>{
+    await api('/sponsors/'+x.id+'/creator-decision','POST',{decision});
+    await receivedSponsors();
+   },decision==='accept'?'Согласие сохранено, ожидает независимой проверки':'Предложение отклонено'));
+   card.append(button);
+  }
+  panel.append(card);
+ }
+ if(!data.items.length)panel.append(node('p','Владельцам твоих миров заявок пока нет.','muted'));
 }
 async function mySponsors(){
  if(!state.me)return;
