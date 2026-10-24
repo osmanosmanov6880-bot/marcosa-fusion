@@ -282,7 +282,7 @@
       '</div></main>',
       '<footer><span id="app-disclaimer"></span><span class="tip" id="app-keyboard"></span></footer>',
       '</div><noscript>This story requires JavaScript enabled in your browser.</noscript>',
-      '<script>',script,'</script></body></html>'
+      '<script>'+script+'</script></body></html>'
     ].join('\n');
     if(new TextEncoder().encode(html).length>MAX_HTML_BYTES)
       throw Error('PLAYABLE_TOO_LARGE');
