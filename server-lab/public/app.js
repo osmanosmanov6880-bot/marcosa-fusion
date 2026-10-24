@@ -96,6 +96,19 @@ async function worlds(){
  }
  if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
 }
+async function discover(query){
+ const found=await api('/discover?q='+encodeURIComponent(query));
+ const area=$('discover-results');clear(area);area.hidden=false;
+ area.append(node('h3','Результаты поиска: '+found.query));
+ for(const world of found.worlds){
+  const btn=node('button',world.title+' / @'+world.owner+' · '+world.posts_count+' историй','ghost discover-hit');
+  btn.type='button';btn.addEventListener('click',()=>run(async()=>{
+   await openWorld(world.slug);
+  }));area.append(btn);
+ }
+ for(const post of found.posts)area.append(postCard(post));
+ if(!found.worlds.length&&!found.posts.length)area.append(node('p','По этому запросу нет опубликованных материалов.'));
+}
 async function openWorld(slug){
  if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
  const world=state.worldCatalog.find(w=>w.slug===slug);
@@ -315,6 +328,13 @@ async function reports(){
  if(!commentData.items.length)commentPanel.append(node('p','Нет новых жалоб на комментарии.','muted'));
 
 }
+$('discover-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(()=>discover(form.elements.q.value.trim()),'Поиск завершён');
+});
+$('discover-clear').addEventListener('click',()=>{
+ $('discover-form').reset();clear($('discover-results'));$('discover-results').hidden=true;
+});
 $('login-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   const data=values(form);
