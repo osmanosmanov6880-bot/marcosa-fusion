@@ -103,6 +103,7 @@ jobs:
           node --check site/cinema-pilot.js
           node --check site/marcosa-brand.js
           node --check site/social-core.js
+          node --check site/social-journal.js
           node --check tools/r21_brand_cdp.cjs
           node --check tools/r22_reference_cdp.cjs
           node --check site/marcosa-gateway.js
@@ -120,7 +121,7 @@ jobs:
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/brand_r21.test.cjs tests/r22_reference.test.cjs tests/r23_quiet_social.test.cjs tests/r24_nocturne.test.cjs tests/r25_director.test.cjs tests/r26_social_first.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/brand_r21.test.cjs tests/r22_reference.test.cjs tests/r23_quiet_social.test.cjs tests/r24_nocturne.test.cjs tests/r25_director.test.cjs tests/r26_social_first.test.cjs tests/r27_journal.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -168,6 +169,8 @@ jobs:
           test -s dist/marcosa-nocturne.css
           test -s dist/marcosa-director.css
           test -s dist/marcosa-social-first.css
+          test -s dist/marcosa-journal.css
+          test -s dist/social-journal.js
           test -s dist/marcosa-director.js
           test -s dist/visual-city-director.webp
           test -s dist/visual-cascade-director.webp
@@ -261,6 +264,14 @@ jobs:
         with:
           name: r21-marcosa-brand-worlds-qa
           path: qa-r21/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R27 actual Journal application on desktop/mobile/compact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r27-marcosa-private-journal-qa
+          path: qa-r27/
           retention-days: 7
           if-no-files-found: error
       - name: Upload R25 director-edition desktop/mobile/compact screenshots
