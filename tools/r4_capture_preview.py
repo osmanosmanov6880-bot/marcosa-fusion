@@ -39,7 +39,7 @@ def main() -> None:
         needed = (
             "index.html", "network.js", "network.css", "immersive.js", "immersive.css",
             "marcosa-brand.css", "marcosa-brand.js", "marcosa-gateway.js",
-            "marcosa-cinematic.css", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-mark.svg",
+            "marcosa-cinematic.css", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-mark.svg",
             "visual-station.webp", "visual-city.webp", "visual-cascade.webp",
             "visual-hero.webp", "visual-archive.webp", "visual-control.webp",
             "visual-operator.webp", "visual-earthrise.webp",
