@@ -108,6 +108,10 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     const type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html';
     res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});res.end(data);return;
    }
+   if(method==='GET'&&route==='/marcosa-mark.svg'){
+    const data=await readFile(new URL('../site/marcosa-mark.svg',import.meta.url));
+    res.writeHead(200,{'Content-Type':'image/svg+xml; charset=utf-8'});res.end(data);return;
+   }
    if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab'});return;}
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
