@@ -8,6 +8,7 @@ const {spawn,spawnSync}=require('node:child_process');
 const {webcrypto}=require('node:crypto');
 const standalone=require('../site/creator-standalone.js');
 const creator=require('../site/creator.js');
+const playtest=require('../site/creator-playtest.js');
 const OUTPUT=path.resolve(__dirname,'../qa-r5');
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 const browser=()=>{
@@ -92,6 +93,10 @@ async function main(){
     await cdp.call('Page.enable');
     await cdp.call('Runtime.enable');
     await cdp.call('Network.enable');
+    await cdp.call('Browser.setDownloadBehavior',{
+      behavior:'allow',downloadPath:temp,eventsEnabled:true
+    });
+    const storyFingerprint=await standalone.storyFingerprint(draft,webcrypto);
     fs.mkdirSync(OUTPUT,{recursive:true});
     const expected=['Город общих решений','Смена на рассвете','Открытый маяк','Тихий контроль'];
     for(const device of [{name:'desktop',width:1440,height:900,mobile:false},
@@ -112,6 +117,7 @@ async function main(){
       if(!ready)throw Error('R12_INLINE_PLAYER_CSP_OR_MOUNT_FAILED_'+device.name);
       const protocol=await cdp.evalJS('location.protocol');
       if(protocol!=='file:')throw Error('NOT_INDEPENDENT_OFFLINE_FILE');
+      const feedbackReports=[];
       for(let first=0;first<2;first++)for(let second=0;second<2;second++){
         await cdp.evalJS('document.getElementById("play-restart").click()');
         await cdp.evalJS('document.getElementById("play-choose-'+(first?'b':'a')+'").click()');
@@ -123,7 +129,36 @@ async function main(){
           throw Error('R12_WRONG_ENDING '+device.name+' '+first+second+' '+ending);
         const choices=await cdp.evalJS('document.querySelectorAll("#play-choices button").length');
         if(choices!==0)throw Error('R12_ENDING_STILL_HAS_CHOICES');
+        if(!(await cdp.evalJS('!document.getElementById("play-feedback").hidden')))
+          throw Error('R13_FEEDBACK_NOT_VISIBLE_AT_ENDING');
+        const rating=first*2+second+1;
+        await cdp.evalJS('document.getElementById("play-rate-'+rating+'").click()');
+        const pressed=await cdp.evalJS('document.getElementById("play-rate-'+rating+'").getAttribute("aria-pressed")');
+        if(pressed!=='true')throw Error('R13_RATING_SELECTION_FAILED');
+        const reportName='marcosa-playtest-'+first+second+'.json';
+        const reportPath=path.join(temp,reportName);
+        if(fs.existsSync(reportPath))fs.unlinkSync(reportPath);
+        await cdp.evalJS('document.getElementById("play-download-feedback").click()');
+        let downloaded=false;
+        for(let attempt=0;attempt<110;attempt++){
+          if(fs.existsSync(reportPath)&&fs.statSync(reportPath).size>40){
+            downloaded=true;break;
+          }
+          await pause(60);
+        }
+        if(!downloaded)throw Error('R13_OFFLINE_FEEDBACK_DOWNLOAD_MISSING_'+device.name+'_'+reportName);
+        const report=playtest.parseReport(fs.readFileSync(reportPath,'utf8'));
+        fs.unlinkSync(reportPath);
+        if(report.path!==String(first)+second||report.rating!==rating||
+           report.story_fingerprint!==storyFingerprint)
+          throw Error('R13_WRONG_FEEDBACK_PAYLOAD_'+JSON.stringify(report));
+        feedbackReports.push(report);
       }
+      const feedbackSummary=playtest.aggregate(feedbackReports,storyFingerprint);
+      if(feedbackSummary.imported_reports!==4||
+         feedbackSummary.overall_average!==2.5||
+         feedbackSummary.endings.some(e=>e.count!==1))
+        throw Error('R13_PLAYTEST_ROUTES_OR_RATINGS_LOST_'+JSON.stringify(feedbackSummary));
       await cdp.evalJS('document.getElementById("play-back").click()');
       if((await cdp.evalJS('document.querySelectorAll("#play-choices button").length'))!==2)
         throw Error('R12_BACK_NAVIGATION_BROKEN');
@@ -140,7 +175,7 @@ async function main(){
       const png=Buffer.from(image.data,'base64');
       if(png.length<10000||png.toString('hex',0,4)!=='89504e47')throw Error('R12_BAD_PNG');
       fs.writeFileSync(path.join(OUTPUT,'r12-real-'+device.name+'-offline-playable.png'),png);
-      console.log('R12 offline Chrome '+device.name+': PASS (4 endings, back, restart, keyboard, zero network) / png='+png.length);
+      console.log('R12/R13 offline Chrome '+device.name+': PASS (4 endings, 4 opt-in feedback downloads, keyboard, zero network) / png='+png.length);
     }
     const attack=creator.demoDraft();
     attack.opening.scene='Сюжет содержит </script><img src=x onerror="window.hacked=1"> и текст для проверки.';
@@ -160,7 +195,7 @@ async function main(){
       throw Error('R12_UNTRUSTED_STORY_EXECUTED '+JSON.stringify(result));
     if(cdp.requests.some(u=>u.startsWith('https://')))throw Error('R12_XSS_EXTERNAL_REQUEST');
     console.log('R12 attacker-authored story: PASS (HTML inert, file://, no outbound network)');
-    console.log('R12 standalone file:// acceptance: PASS');
+    console.log('R12/R13 standalone file:// and feedback acceptance: PASS');
   }finally{
     if(cdp)try{cdp.close();}catch(e){}
     if(processRef){
