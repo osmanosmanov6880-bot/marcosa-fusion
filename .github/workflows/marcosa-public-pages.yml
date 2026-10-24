@@ -120,7 +120,7 @@ jobs:
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/brand_r21.test.cjs tests/r22_reference.test.cjs tests/r23_quiet_social.test.cjs tests/r24_nocturne.test.cjs tests/r25_director.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/brand_r21.test.cjs tests/r22_reference.test.cjs tests/r23_quiet_social.test.cjs tests/r24_nocturne.test.cjs tests/r25_director.test.cjs tests/r26_social_first.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -167,6 +167,7 @@ jobs:
           test -s dist/marcosa-quiet.js
           test -s dist/marcosa-nocturne.css
           test -s dist/marcosa-director.css
+          test -s dist/marcosa-social-first.css
           test -s dist/marcosa-director.js
           test -s dist/visual-city-director.webp
           test -s dist/visual-cascade-director.webp
