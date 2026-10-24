@@ -95,6 +95,7 @@ function firstPhase(){
   $('fn-checks').querySelectorAll('input')[6].click();
   $('fn-note').value='Opening and source checked.\nIndependent legal document still required.';
   $('fn-note').dispatchEvent(new Event('input',{bubbles:true}));
+  await wait(()=>$('fn14-save').disabled===false,'SAVE_BUTTON_AVAILABLE');
   $('fn14-save').click();
   await wait(async()=>((await store.list()).length===2),'SAVE_TWO');
   const versions=await store.list();
@@ -183,11 +184,13 @@ async function main(){
    await cdp.call('Emulation.setDeviceMetricsOverride',{width:device.width,height:device.height,deviceScaleFactor:1,mobile:device.mobile});
    cdp.requests.length=0;
    await cdp.call('Page.navigate',{url:'http://127.0.0.1:'+webport+'/film-network.html'});
+   await sleep(200);
    await ready(cdp);
    const first=await cdp.evalJS('('+firstPhase.toString()+')()',40000);
    if(first.pass!=='PASS_R14_TWO_IMMUTABLE_LOCAL_REVISIONS')throw Error('PHASE_ONE '+JSON.stringify(first));
    console.log('R14 '+device.name+' phase1: '+JSON.stringify(first));
    await cdp.call('Page.navigate',{url:'http://127.0.0.1:'+webport+'/film-network.html'});
+   await sleep(200);
    await ready(cdp);
    const second=await cdp.evalJS('('+restorePhase.toString()+')()',65000);
    if(second.pass!=='PASS_R14_REOPEN_JSON_TAMPER_LIMIT')throw Error('PHASE_TWO '+JSON.stringify(second));
