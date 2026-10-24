@@ -577,6 +577,24 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     });
     send(res,200,{id,status:body.decision,paid:false});return;
    }
+   // R38: a creator can update their World presentation, never its immutable
+   // slug, internal ownership, or other people's content.
+   const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
+   if(method==='PATCH'&&worldSettings){
+    const slug=worldSettings[1];
+    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>k==='title'||k==='description'),
+     400,'Можно изменять только название и описание');
+    const original=db.prepare('SELECT id,title,description FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
+    check(original,404,'Мир не найден');
+    const title=body.title===undefined?original.title:str(body.title);
+    const description=body.description===undefined?original.description:str(body.description);
+    check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
+    check(description.length<=400,400,'Описание слишком длинное');
+    const result=db.prepare('UPDATE worlds SET title=?,description=? WHERE id=? AND owner_id=?')
+     .run(title,description,original.id,user.id);
+    check(result.changes===1,409,'Обновление мира не удалось');
+    send(res,200,{id:original.id,slug,title,description,ownerEditable:true});return;
+   }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
