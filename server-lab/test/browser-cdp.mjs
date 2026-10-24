@@ -60,7 +60,10 @@ async function devtools(port){
    try{if(await evalJS(expression))return;}catch{}
    await pause(80);
   }
-  throw Error('WAIT_TIMEOUT '+label);
+  let diag='unavailable';
+  try{diag=JSON.stringify(await evalJS("(()=>({notice:document.getElementById('notice')?.textContent,formValid:document.getElementById('register-form')?.checkValidity(),registerOpen:document.getElementById('register-form')?.closest('details')?.open,identity:document.getElementById('identity')?.textContent}))()"));}catch{}
+  throw Error('WAIT_TIMEOUT '+label+' DIAGNOSTIC '+diag);
+
  }
  return{call,evalJS,wait,requests,errors,close:()=>ws.close()};
 }
@@ -116,7 +119,7 @@ async function main(){
    };
    await screenshot('guest');
    const identity='r28'+size.name;
-   const code="(()=>{const f=document.getElementById('register-form');f.elements.inviteCode.value='r28-browser-invite-that-is-long';f.elements.username.value='"+identity+"';f.elements.email.value='"+identity+"@example.net';f.elements.password.value='long-safe-password-2026';f.requestSubmit();return true;})()";
+   const code="(()=>{const f=document.getElementById('register-form');f.closest('details').open=true;f.elements.inviteCode.value='r28-browser-invite-that-is-long';f.elements.username.value='"+identity+"';f.elements.email.value='"+identity+"@example.net';f.elements.password.value='long-safe-password-2026';f.requestSubmit();return true;})()";
    await cdp.evalJS(code);
    await cdp.wait("document.getElementById('notice').textContent.includes('Локальный профиль создан')",'account-created');
    await cdp.evalJS("(()=>{const f=document.getElementById('login-form');f.elements.email.value='"+identity+"@example.net';f.elements.password.value='long-safe-password-2026';f.requestSubmit();return true;})()");
