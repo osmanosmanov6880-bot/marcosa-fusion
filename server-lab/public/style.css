@@ -45,3 +45,18 @@ dialog form{display:grid;gap:17px}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 /* Shared physical SVG identity, sized for the same MARCOSA network brand. */
 .brand-mark{display:block;object-fit:contain;padding:0;border:0!important;background:transparent!important;box-shadow:none!important;filter:drop-shadow(0 3px 13px #d6ad7566)}
+
+/* Real mobile Chrome QA: the app's first screen must show actual worlds,
+   not consume an entire handset with a decorative brand illustration. */
+@media(max-width:720px){
+ .topbar{padding:12px 0}
+ .hero{margin-top:10px;min-height:0}
+ .hero-copy{padding:24px 19px 20px}
+ .hero h1{font-size:clamp(43px,10.7vw,56px);line-height:1.015;margin:13px 0}
+ .hero-copy .eyebrow{font-size:9px;letter-spacing:.09em}
+ .hero-copy p{font-size:13px;line-height:1.47;margin:0 0 9px}
+ .hero-link{font-size:11px;padding:11px 15px;margin-top:5px}
+ .hero-art{display:none}
+ .stateline{margin:9px 0 17px;padding:8px 11px}
+ .workspace{gap:14px}
+}
