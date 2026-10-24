@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],cursor:null,reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -31,6 +31,14 @@ async function session(){
  $('identity').textContent=state.me?'@'+state.me.username:'Гость';
  document.body.dataset.mSession=state.me?'member':'guest';
  $('logout').hidden=!state.me;
+ $('feed-following').disabled=!state.me;
+ if(!state.me){
+  state.feedScope='all';state.activityCursor=null;
+  $('feed-all').setAttribute('aria-pressed','true');
+  $('feed-following').setAttribute('aria-pressed','false');
+  clear($('activity-list'));$('activity-count').textContent='0 новых';
+ }
+ $('activity-panel').hidden=!state.me;
  $('guest-access').hidden=Boolean(state.me);
  $('member-access').hidden=!state.me;
  $('composer-panel').hidden=!state.me;
@@ -48,7 +56,7 @@ async function session(){
    const option=node('option',world.title);option.value=world.id;choose.append(option);
 
   }
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true)]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
  }
 }
@@ -214,15 +222,35 @@ function postCard(post,own=false){
  }
  return card;
 }
+async function activity(reset=true){
+ if(!state.me)return;
+ const params=new URLSearchParams();
+ if(!reset&&state.activityCursor)params.set('cursor',state.activityCursor);
+ const result=await api('/me/activity?'+params.toString());
+ const target=$('activity-list');
+ if(reset)clear(target);
+ const labels={new_follow:'подписался на твой мир',post_comment:'прокомментировал твою запись',sponsor_proposal:'предложил тестовое размещение',sponsor_accepted:'принял предложение',sponsor_rejected:'отклонил предложение',sponsor_approved:'заявка прошла модерацию',sponsor_revoked:'отозвал рекламное согласие'};
+ for(const event of result.items){
+  const line=node('article','','activity-item');
+  line.append(node('strong','@'+event.actor+' · '+(labels[event.kind]||'действие в мире')));
+  if(event.world)line.append(node('span','World / '+event.world));
+  line.append(node('small',new Date(event.created_at).toLocaleString('ru-RU')+(event.read_at?'':' · НОВОЕ')));
+  target.append(line);
+ }
+ if(reset&&!result.items.length)target.append(node('p','Пока нет событий от других участников.','muted'));
+ $('activity-count').textContent=result.unreadCount+' новых';
+ state.activityCursor=result.nextCursor;
+ $('activity-more').hidden=!state.activityCursor;
+}
 async function feed(reset=true){
  const params=new URLSearchParams({limit:'12'});
  if(!reset&&state.cursor)params.set('cursor',state.cursor);
- const result=await api('/posts?'+params.toString());
+ const result=await api((state.feedScope==='following'?'/feed/following?':'/posts?')+params.toString());
  const wrap=$('feed-list');if(reset)clear(wrap);
  for(const post of result.items)wrap.append(postCard(post));
  state.cursor=result.nextCursor;
  $('more').hidden=!state.cursor;
- if(reset&&!result.items.length)wrap.append(node('p','Пока нет публичных публикаций. Создай первую запись в своём мире.'));
+ if(reset&&!result.items.length)wrap.append(node('p',state.feedScope==='following'?'В подписках пока нет опубликованных записей. Подпишись на интересный World.':'Пока нет публичных публикаций. Создай первую запись в своём мире.'));
 }
 async function myPosts(){
  const result=await api('/me/posts'),wrap=$('my-posts');clear(wrap);
@@ -420,6 +448,17 @@ $('world-close').addEventListener('click',()=>{
  $('world-detail').hidden=true;
  location.hash='worlds';
 });
+for(const [id,scope] of [['feed-all','all'],['feed-following','following']]){
+ $(id).addEventListener('click',()=>run(async()=>{
+  if(scope==='following'&&!state.me)throw Error('Сначала войди в аккаунт');
+  state.feedScope=scope;
+  $('feed-all').setAttribute('aria-pressed',String(scope==='all'));
+  $('feed-following').setAttribute('aria-pressed',String(scope==='following'));
+  await feed(true);
+ }));
+}
+$('activity-read').addEventListener('click',()=>run(async()=>{await api('/me/activity/read','POST',{});await activity(true);},'События отмечены прочитанными'));
+$('activity-more').addEventListener('click',()=>run(()=>activity(false)));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
 $('reload-reports').addEventListener('click',()=>run(()=>reports()));

@@ -175,3 +175,17 @@ dialog form{display:grid;gap:17px}
  .world-card .eyebrow{overflow-wrap:anywhere}
  .world-follow,.following,.world-open{width:100%}
 }
+
+/* R31 genuine subscription feed and private event inbox */
+.feed-tabs{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 17px}
+.feed-tabs button{flex:1;min-width:140px}
+.feed-tabs button[aria-pressed="true"]{background:#e3c59b;color:#111b29;border-color:#ead3b0}
+.feed-tabs button:disabled{cursor:not-allowed;opacity:.45}
+.activity-panel{padding-bottom:25px;margin-bottom:26px;border-bottom:1px solid var(--line)}
+.activity-panel h2{font-size:29px;margin:9px 0 12px}
+.activity-actions{display:flex;align-items:center;justify-content:space-between;gap:7px;margin:17px 0}
+#activity-count{font-size:12px;color:var(--gold)}
+.activity-item{display:grid;gap:5px;padding:12px 0;border-top:1px solid #d8bfa333;overflow-wrap:anywhere}
+.activity-item strong{font-size:12px;font-weight:650;color:var(--ink)}
+.activity-item span,.activity-item small{font-size:11px;color:var(--muted)}
+#activity-more{margin-top:13px;width:100%}
