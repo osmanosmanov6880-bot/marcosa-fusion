@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are twenty-seven independently reviewed public files in site/.
+Its inputs are twenty-nine independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -77,6 +77,12 @@ def build() -> dict:
         'end_human', 'end_algorithm', 'https://marcosa.club/'
     )):
         raise RuntimeError("R16 genuine source cinema snapshot is incomplete")
+    # R18: require genuinely embedded keyframes and the story's post-ending bridge.
+    for slug, expected in (('protocol-zero', 'network-continuation'),
+                           ('adverse-judge', 'marcosa-ending-continuation')):
+        playable = (SOURCE / ('film-' + slug + '.html')).read_text(encoding='utf-8')
+        if not all(x in playable for x in ('data:image/webp;base64,', expected, '</html>')):
+            raise RuntimeError('R18 standalone cinema is incomplete: ' + slug)
     if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
         raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
@@ -84,7 +90,8 @@ def build() -> dict:
     try:
         for name in PUBLIC_FILES:
             raw = (SOURCE / name).read_bytes()
-            if len(raw) > 512_000:
+            cap = 4_000_000 if name in ("film-protocol-zero.html", "film-adverse-judge.html") else 512_000
+            if len(raw) > cap:
                 raise RuntimeError(f"Unexpected oversized source: {name}")
             (tmp / name).write_bytes(raw)
             manifest["files"][name] = hashlib.sha256(raw).hexdigest()
