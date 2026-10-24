@@ -194,3 +194,16 @@ MARCOSA's offline R12 game now has an **optional ending rating** (1–5 stars), 
 - Tests cover real browser file:// downloads for all four endings, local report import and mismatch protections in desktop/mobile Chrome, data validation, CSP and the 16-file static release.
 
 See [R13 implementation, privacy limits, security and acceptance](docs/OFFLINE_PLAYTEST_FEEDBACK_R13_RU.md) and [automated regression tests](tests/playtest.test.cjs). No payment, Contabo deployment or Supabase account integration is implied.
+
+## R14 — Resumable film-site audit, immutable on-device snapshots
+
+The public film-network page now supports **explicit offline snapshots** of the review of up to 43 manually supplied, source-validated film domains:
+
+- Save an immutable local review version; retain up to **12 snapshots** in a browser IndexedDB database. Reopen any snapshot after refreshing the page. No autosave or server communication.
+- Reopen an R13 `marcosa-film-pilot-evidence/v1` JSON export directly into the review editor after strict validation (≤1 MiB). Unknown data, inconsistent self-check counts, forged independent verification, inflated shortlist or published status are rejected **without replacing current work**.
+- Restore and delete actions are confirmed. Adding a 13th snapshot is rejected atomically, and an older snapshot can be deleted manually to make room.
+- Multiline review notes now roundtrip through the validation layer, and the interface remains RU / EN / 中文, keyboard-accessible and responsive.
+- **Unencrypted local data:** browser site-data clearing can erase snapshots. Save a separate JSON file through R13's export button. None of this verifies site ownership, film rights or that 43 live domains exist.
+- Browser tests using desktop/mobile real Chrome exercise import, audit, IndexedDB save, reload, restoration, malformed-file refusal, 12-version limit and cleanup.
+
+[Russian R14 overview](docs/FILM_NETWORK_CONTINUITY_R14_RU.md) · [R14 regression tests](tests/film_continuity.test.cjs) · [R14 live browser acceptance](tools/r14_film_cdp.cjs).
