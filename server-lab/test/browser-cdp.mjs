@@ -10,7 +10,7 @@ import {join,resolve} from 'node:path';
 import {createApp} from '../server.mjs';
 
 const pause=ms=>new Promise(done=>setTimeout(done,ms));
-const SHOTS=resolve('qa-r28');
+const SHOTS=resolve('qa-r30');
 function browser(){
  for(const binary of ['google-chrome','google-chrome-stable','chromium','chromium-browser']){
   const found=spawnSync('which',[binary],{encoding:'utf8'});
@@ -114,7 +114,7 @@ async function main(){
    {name:'compact',width:360,height:740,mobile:true}
   ];
   for(const size of sizes){
-   console.log('R28 BROWSER SCREEN:',size.name);
+   console.log('R30 BROWSER SCREEN:',size.name);
    cdp.errors.length=0;cdp.requests.length=0;
    await cdp.call('Emulation.setDeviceMetricsOverride',{
     width:size.width,height:size.height,deviceScaleFactor:1,mobile:size.mobile
