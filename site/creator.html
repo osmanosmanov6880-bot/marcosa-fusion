@@ -12,13 +12,14 @@
   <script src="./creator-backup.js" defer></script>
   <script src="./creator-crypto.js" defer></script>
   <script src="./creator-standalone.js" defer></script>
+  <script src="./creator-playtest.js" defer></script>
 </head>
 <body class="mc-body">
 <div class="mc-shell">
   <header class="mc-header">
     <a class="mc-brand" href="./index.html" aria-label="MARCOSA — главная">
       <span class="mc-monogram" aria-hidden="true">M</span>
-      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R12</small></span>
+      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R13</small></span>
     </a>
     <div class="mc-top-actions">
       <nav class="mc-language" aria-label="Интерфейс / Interface language">
@@ -294,10 +295,49 @@
             </div>
           </div>
         </section>
+
+        <section class="mc-vault-card mc-playtest-card" id="mc-playtest" aria-labelledby="mc-playtest-heading">
+          <div class="mc-vault-card-head">
+            <div>
+              <p class="mc-panel-eyebrow">PLAYTEST / ANONYMOUS OFFLINE REVIEWS · R13</p>
+              <h3 id="mc-playtest-heading" data-mcp-text="title">ТЕСТИРОВАНИЕ ИСТОРИИ</h3>
+            </div>
+            <span class="mc-playtest-chip">MANUAL IMPORT · NO TRACKING</span>
+          </div>
+          <p class="mc-review-lead" data-mcp-text="intro">Раздай созданный HTML читателям. После финала каждый может добровольно скачать оценку (1–5) и отправить тебе JSON. Загрузи полученные файлы сюда, чтобы увидеть средние оценки по четырём финалам.</p>
+          <div class="mc-playtest-actions">
+            <label class="mc-btn mc-btn-primary mc-upload">
+              <span data-mcp-text="import">ЗАГРУЗИТЬ ФАЙЛЫ ОТЗЫВОВ JSON</span>
+              <input id="mc-playtest-files" type="file" multiple accept=".json,application/json"
+                     aria-label="Import anonymous offline playtest feedback JSON files">
+            </label>
+            <button type="button" id="mc-playtest-export" class="mc-btn mc-btn-outline" disabled
+                    data-mcp-text="download">СКАЧАТЬ СВОДКУ JSON</button>
+            <button type="button" id="mc-playtest-clear" class="mc-btn mc-btn-quiet"
+                    data-mcp-text="clear">ОЧИСТИТЬ СТАТИСТИКУ</button>
+          </div>
+          <p id="mc-playtest-status" class="mc-vault-status" role="status" aria-live="polite"></p>
+          <div class="mc-playtest-kpis" aria-label="Imported report summary">
+            <div class="mc-playtest-kpi">
+              <span data-mcp-text="count">Файлов отзывов</span>
+              <strong id="mc-playtest-count" aria-live="polite">0</strong>
+            </div>
+            <div class="mc-playtest-kpi">
+              <span data-mcp-text="average">Средняя оценка</span>
+              <strong id="mc-playtest-average" aria-live="polite">— / 5</strong>
+            </div>
+          </div>
+          <div id="mc-playtest-results" class="mc-playtest-results" aria-label="Four ending ratings"></div>
+          <div class="mc-vault-caution">
+            <span aria-hidden="true">◇</span>
+            <p data-mcp-text="caution">Оценки собираются только по желанию игроков и только вручную: файл не отправляется автоматически. Без аккаунтов и идентификаторов нельзя проверить уникальность участников или достоверность оценок. Не используй эти числа как доказательство реального спроса.</p>
+          </div>
+          <p class="mc-vault-caveat" data-mcp-text="cap">Не более 100 файлов за раз, 300 оценок в одной вкладке. Не сохраняется в облако или браузерную базу. Никаких имён, IP, времени и свободного текста.</p>
+        </section>
       </div>
     </section>
   </main>
-  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R12</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
+  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R13</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
 </div>
 </body>
 </html>

@@ -134,6 +134,18 @@
     '.action:disabled{opacity:.4;cursor:not-allowed}',
     'button:focus-visible{outline:3px solid #c9f9e4;outline-offset:3px}',
     '.ending{margin:15px 0 0;color:#9edecb;font:800 11px ui-monospace,monospace;letter-spacing:.14em}',
+    '.feedback{margin-top:29px;padding:24px 20px;border:1px solid #cfbd9b73;border-radius:13px;background:#142438d9}',
+    '.feedback h3{margin:0 0 9px;font:400 clamp(22px,2.2vw,29px) Georgia,serif;color:var(--gold)}',
+    '.feedback p{margin:0 0 18px;color:#c6d5de;font-size:12px;line-height:1.7}',
+    '.feedback fieldset{margin:0;padding:0;border:0;min-width:0}',
+    '.feedback legend{font-size:12px;font-weight:750;color:#cfe3e5;margin-bottom:12px}',
+    '.rating-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}',
+    '.rating{min-height:46px;border:1px solid #a0b6ba80;border-radius:9px;background:#1d314a;color:#f6deba;font-size:17px;font-weight:800}',
+    '.rating[aria-pressed="true"]{background:#edd2a6;color:#17263b;border-color:#fff1d6}',
+    '.rating:hover{border-color:#f5d5a4}',
+    '.feedback-export{margin-top:15px;width:100%;min-height:47px;border:1px solid #e9c69c;border-radius:9px;background:#dec395;color:#19283a;font-weight:850;font-size:12px}',
+    '.feedback-export:disabled{opacity:.43;cursor:not-allowed}',
+    '.feedback-status{min-height:18px;margin:12px 0 0!important;color:#afe1d5!important}',
     'footer{display:flex;align-items:center;gap:15px;justify-content:space-between;flex-wrap:wrap;',
     'padding:23px 0 0;color:#a7b7c6;font-size:11px;line-height:1.6}',
     '.tip{font:10px/1.6 ui-monospace,monospace;color:#c8bcae}',
@@ -167,23 +179,73 @@
       ru:{step:'СЦЕНА',ending:'ФИНАЛ',choose:'ВЫБЕРИ СВОЙ ПУТЬ',back:'← НАЗАД',again:'НАЧАТЬ СНОВА',
         finished:'ИСТОРИЯ ЗАВЕРШЕНА',offline:'АВТОНОМНАЯ ИСТОРИЯ',badge:'4 ФИНАЛА · 2 РЕШЕНИЯ',
         disclaimer:'Авторский файл · права на содержание не проверены MARCOSA · не опубликовано платформой',
-        keyboard:'Клавиши 1/2 — выбор · ← — назад · R — начать снова'},
+        keyboard:'Клавиши 1/2 — выбор · ← — назад · R — начать снова',
+        rateTitle:'КАК ТЕБЕ ЭТОТ ФИНАЛ?',ratePrompt:'Оцени впечатление от 1 до 5',
+        rating:'Оценка',downloadFeedback:'СКАЧАТЬ ОТЗЫВ ДЛЯ АВТОРА',
+        feedbackPrivacy:'Только оценка и выбранный финал. Без имени, IP, времени и личного текста. Файл остаётся у тебя, пока ты сам его не передашь.',
+        feedbackDone:'Отзыв сохранён на устройстве. Отправь файл автору самостоятельно.'},
       en:{step:'SCENE',ending:'ENDING',choose:'CHOOSE YOUR PATH',back:'← BACK',again:'START AGAIN',
         finished:'THE STORY ENDS HERE',offline:'OFFLINE INTERACTIVE STORY',badge:'4 ENDINGS · 2 CHOICES',
         disclaimer:'Author-created file · rights not independently verified · not published by MARCOSA',
-        keyboard:'Keys 1/2 — choice · ← — back · R — restart'},
+        keyboard:'Keys 1/2 — choice · ← — back · R — restart',
+        rateTitle:'HOW DID THIS ENDING FEEL?',ratePrompt:'Rate this ending from 1 to 5',
+        rating:'Rating',downloadFeedback:'DOWNLOAD FEEDBACK FOR AUTHOR',
+        feedbackPrivacy:'Only the rating and ending path. No name, IP, timestamp or personal text. The file stays on your device unless you share it yourself.',
+        feedbackDone:'Feedback saved on your device. Send the file to the author yourself.'},
       zh:{step:'场景',ending:'结局',choose:'选择你的道路',back:'← 返回',again:'重新开始',
         finished:'故事结束',offline:'离线互动故事',badge:'4 种结局 · 2 次选择',
         disclaimer:'作者创建的独立文件 · 未经独立版权审核 · 非 MARCOSA 平台发布',
-        keyboard:'按 1/2 选择 · ← 返回 · R 重新开始'}
+        keyboard:'按 1/2 选择 · ← 返回 · R 重新开始',
+        rateTitle:'你觉得这个结局如何？',ratePrompt:'给结局评分：1 至 5',
+        rating:'评分',downloadFeedback:'下载给作者的反馈文件',
+        feedbackPrivacy:'文件仅含评分及所选结局，不含姓名、IP、时间或个人文字。只有你主动分享后作者才会收到。',
+        feedbackDone:'评分文件已保存到本设备，可自行发送给作者。'}
     };
     const ui=translations[story.language]||translations.ru;
     const history=[];
+    let selectedRating=0,selectedPath=null;
     const text=(id,value)=>{$(id).textContent=String(value);};
     text('app-label',ui.offline);text('app-badge',ui.badge);
     text('app-title',story.title);text('app-tagline',story.tagline);
     text('app-disclaimer',ui.disclaimer);text('app-keyboard',ui.keyboard);
     text('play-back',ui.back);text('play-restart',ui.again);
+    text('feedback-heading',ui.rateTitle);
+    text('feedback-legend',ui.ratePrompt);
+    text('feedback-description',ui.feedbackPrivacy);
+    text('play-download-feedback',ui.downloadFeedback);
+    const ratingButtons=[];
+    for(let rating=1;rating<=5;rating++){
+      const button=document.createElement('button');
+      button.type='button';button.className='rating';
+      button.id='play-rate-'+rating;button.textContent='★ '+rating;
+      button.setAttribute('aria-label',ui.rating+' '+rating+' / 5');
+      button.setAttribute('aria-pressed','false');
+      button.addEventListener('click',()=>{
+        if(history.length!==2)return;
+        selectedRating=rating;
+        selectedPath=history.join('');
+        for(const node of ratingButtons)
+          node.setAttribute('aria-pressed',String(node===button));
+        $('play-download-feedback').disabled=false;
+        text('play-feedback-status','');
+      });
+      ratingButtons.push(button);$('play-rating-options').append(button);
+    }
+    $('play-download-feedback').addEventListener('click',()=>{
+      if(history.length!==2||selectedRating<1||selectedRating>5||
+         !/^[0-9a-f]{64}$/.test(story.story_fingerprint))return;
+      const report={
+        schema:'marcosa-playtest-feedback/v1',
+        story_fingerprint:story.story_fingerprint,
+        path:history.join(''),rating:selectedRating
+      };
+      const blob=new Blob([JSON.stringify(report,null,2)+'\n'],{type:'application/json;charset=utf-8'});
+      const url=URL.createObjectURL(blob),link=document.createElement('a');
+      link.href=url;link.download='marcosa-playtest-'+report.path+'.json';
+      document.body.append(link);link.click();link.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),2000);
+      text('play-feedback-status',ui.feedbackDone);
+    });
     document.title=story.title+' — MARCOSA Story';
     function render(){
       let part;
@@ -229,6 +291,14 @@
       }
       $('play-back').disabled=history.length===0;
       $('play-root').dataset.stage=String(step);
+      const path=part.ending?history.join(''):null;
+      if(path!==selectedPath){
+        selectedRating=0;selectedPath=path;
+        for(const button of ratingButtons)button.setAttribute('aria-pressed','false');
+        text('play-feedback-status','');
+      }
+      $('play-feedback').hidden=!part.ending;
+      $('play-download-feedback').disabled=!part.ending||!selectedRating;
     }
     $('play-back').addEventListener('click',()=>{if(history.length){history.pop();render();}});
     $('play-restart').addEventListener('click',()=>{history.length=0;render();});
@@ -246,12 +316,21 @@
     });
     render();
   }
+  async function storyFingerprint(draft,provider){
+    if(!provider||!provider.subtle||typeof provider.subtle.digest!=='function')
+      throw Error('WEBCRYPTO_UNAVAILABLE');
+    const normalized=authoredData(draft);
+    const bytes=new TextEncoder().encode(JSON.stringify(normalized));
+    const hash=new Uint8Array(await provider.subtle.digest('SHA-256',bytes));
+    return Array.from(hash,x=>x.toString(16).padStart(2,'0')).join('');
+  }
   async function buildPlayable(draft,options,provider){
     const content=authoredData(draft);
     const theme=options&&options.theme||'cosmos';
     if(!THEMES.includes(theme))throw Error('INVALID_PLAYABLE_THEME');
     if(!provider||!provider.subtle||typeof provider.subtle.digest!=='function')
       throw Error('WEBCRYPTO_UNAVAILABLE');
+    content.story_fingerprint=await storyFingerprint(draft,provider);
     const json=JSON.stringify(content);
     const base64=to64(new TextEncoder().encode(json));
     const script='('+portablePlayer.toString()+')('+JSON.stringify(base64)+');';
@@ -277,6 +356,12 @@
       '<h2 id="play-title"></h2><p class="body" id="play-body"></p>',
       '<p class="question" id="play-question"></p><div class="choices" id="play-choices" role="group" aria-label="Story choices"></div>',
       '<p class="ending" id="play-complete" hidden></p>',
+      '<section class="feedback" id="play-feedback" aria-labelledby="feedback-heading" hidden>',
+      '<h3 id="feedback-heading"></h3><p id="feedback-description"></p>',
+      '<fieldset><legend id="feedback-legend"></legend>',
+      '<div class="rating-options" id="play-rating-options"></div></fieldset>',
+      '<button type="button" class="feedback-export" id="play-download-feedback" disabled></button>',
+      '<p class="feedback-status" id="play-feedback-status" role="status" aria-live="polite"></p></section>',
       '<div class="actions"><button type="button" class="action" id="play-back" disabled></button>',
       '<button type="button" class="action" id="play-restart"></button></div>',
       '</div></main>',
@@ -352,5 +437,5 @@
       get previewHtml(){return lastPreview;}});
   }
   return Object.freeze({SCHEMA,MAX_HTML_BYTES,THEMES,COPY,I18N,authoredData,filename,
-    portablePlayer,buildPlayable,mount});
+    portablePlayer,storyFingerprint,buildPlayable,mount});
 });

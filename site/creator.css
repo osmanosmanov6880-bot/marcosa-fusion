@@ -508,3 +508,83 @@ textarea.mc-input{resize:vertical;min-height:80px;white-space:pre-wrap}
 @media(prefers-reduced-motion:reduce){
   .mc-standalone-card *,#mc-standalone-player{transition:none!important}
 }
+
+
+/* MARCOSA R13 / voluntary offline audience playtest */
+.mc-playtest-card{
+  border-color:#9bc6c38f;
+  background:linear-gradient(148deg,#152940,#101e32 56%,#101827 100%);
+}
+.mc-playtest-card:before{
+  background:linear-gradient(90deg,transparent 1%,#81bfc1 24%,#f0c68f 57%,#d55b83 89%,transparent);
+}
+.mc-playtest-card .mc-vault-card-head h3{font-size:clamp(24px,2.2vw,34px)}
+.mc-playtest-chip{
+  flex:none;color:#a2ead6;background:#102a30b8;
+  border:1px solid #77bba69c;border-radius:8px;padding:9px 12px;
+  font:800 10px/1.7 ui-monospace,Consolas,monospace;letter-spacing:.06em
+}
+.mc-playtest-actions{
+  display:grid;grid-template-columns:1.3fr 1fr 1fr;gap:9px;margin:20px 0 4px
+}
+.mc-playtest-actions .mc-btn{min-height:53px;padding:12px 10px;font-size:10px}
+.mc-playtest-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin:18px 0}
+.mc-playtest-kpi{
+  min-width:0;display:flex;flex-direction:column;gap:9px;
+  background:linear-gradient(115deg,#20334a,#142438);
+  border:1px solid #b6c4c075;border-radius:12px;padding:19px 20px
+}
+.mc-playtest-kpi span{
+  color:#b7d1d8;font:750 10px ui-monospace,Consolas,monospace;
+  letter-spacing:.07em;line-height:1.5
+}
+.mc-playtest-kpi strong{
+  font:normal clamp(30px,3vw,43px)/1.2 Georgia,"Times New Roman",serif;
+  color:#f3d7a9;overflow-wrap:anywhere
+}
+.mc-playtest-results{display:grid;gap:10px;margin:18px 0 26px}
+.mc-playtest-ending{
+  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;
+  gap:10px 13px;padding:13px 15px;background:#112237c9;
+  border:1px solid #96b9bf57;border-radius:9px
+}
+.mc-playtest-caption{display:flex;flex-direction:column;gap:5px;min-width:0}
+.mc-playtest-caption strong{
+  font:800 13px ui-monospace,Consolas,monospace;
+  color:#f6d7a2;letter-spacing:.04em
+}
+.mc-playtest-ending-title{color:#bdcfdb;font-size:11px;line-height:1.5;overflow-wrap:anywhere}
+.mc-playtest-score{
+  justify-self:end;min-width:110px;text-align:right;color:#d2e6d9;
+  font:750 11px/1.5 ui-monospace,Consolas,monospace
+}
+.mc-playtest-bar{
+  grid-column:1/-1;height:5px;background:#8aafaf36;border-radius:30px;overflow:hidden
+}
+.mc-playtest-bar span{
+  display:block;height:100%;width:0;background:linear-gradient(90deg,#68c5b9,#e6c38f,#e57889);
+  transition:width .23s ease;border-radius:30px
+}
+@media(max-width:1100px){
+  .mc-playtest-actions{grid-template-columns:1fr 1fr}
+  .mc-playtest-actions .mc-btn:first-child{grid-column:1/-1}
+}
+@media(max-width:800px){
+  .mc-playtest-actions{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .mc-playtest-actions .mc-btn:first-child{grid-column:auto}
+}
+@media(max-width:600px){
+  .mc-playtest-actions{grid-template-columns:1fr}
+  .mc-playtest-actions .mc-btn:first-child{grid-column:auto}
+  .mc-playtest-card .mc-vault-card-head{flex-wrap:wrap}
+  .mc-playtest-kpi{padding:14px 13px}
+  .mc-playtest-kpi strong{font-size:29px}
+  .mc-playtest-ending{grid-template-columns:minmax(0,1fr)}
+  .mc-playtest-score{justify-self:start;text-align:left}
+}
+@media(prefers-reduced-motion:reduce){
+  .mc-playtest-bar span{transition:none!important}
+}
+@media print{
+  .mc-playtest-card{display:none!important}
+}

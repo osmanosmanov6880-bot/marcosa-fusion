@@ -13,7 +13,7 @@ const {spawn,spawnSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const DIST=path.join(ROOT,'dist');
 const SHOTS=path.join(ROOT,'qa-r5');
-const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js','creator-backup.js','creator-crypto.js']);
+const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js','creator-backup.js','creator-crypto.js','creator-standalone.js','creator-playtest.js']);
 const MIME={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',js:'text/javascript; charset=utf-8'};
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function browser(){
@@ -324,6 +324,82 @@ function r11EncryptedRecovery(){
   })();
 }
 
+
+function r13PlaytestAnalysis(){
+  return (async function(){
+    const $=id=>document.getElementById(id);
+    const engine=window.MarcosaPlayableExport;
+    const analyzer=window.MarcosaPlaytest;
+    const dashboard=window.MarcosaPlaytestRuntime;
+    if(!engine||!analyzer||!dashboard)throw Error('R13_DASHBOARD_NOT_MOUNTED');
+    const original=window.MarcosaCreatorRuntime.getEditedDraft();
+    const fingerprint=await engine.storyFingerprint(original,window.crypto);
+    const ratings=[
+      {schema:analyzer.SCHEMA,story_fingerprint:fingerprint,path:'00',rating:5},
+      {schema:analyzer.SCHEMA,story_fingerprint:fingerprint,path:'01',rating:4},
+      {schema:analyzer.SCHEMA,story_fingerprint:fingerprint,path:'10',rating:3},
+      {schema:analyzer.SCHEMA,story_fingerprint:fingerprint,path:'11',rating:1}
+    ];
+    const input=$('mc-playtest-files');
+    const transfer=new DataTransfer();
+    ratings.forEach((report,i)=>transfer.items.add(new File(
+      [JSON.stringify(report)],'offline-reader-'+i+'.json',{type:'application/json'}
+    )));
+    input.files=transfer.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+    let imported=false;
+    for(let i=0;i<120;i++){
+      if(dashboard.count===4){imported=true;break;}
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    if(!imported)throw Error('R13_DASHBOARD_IMPORT_TIMEOUT '+$('mc-playtest-status').textContent);
+    const summary=dashboard.summary;
+    if(summary?.imported_reports!==4||summary.overall_average!==3.25||
+       summary.endings.some(x=>x.count!==1)||
+       $('mc-playtest-count').textContent!=='4'||
+       $('mc-playtest-export').disabled)
+      throw Error('R13_DASHBOARD_WRONG_TOTALS '+JSON.stringify(summary));
+    $('mc-playtest-export').click();
+    if(!$('mc-playtest-status').textContent.includes('Анонимная сводка'))
+      throw Error('R13_SUMMARY_EXPORT_FAILED');
+    const bad={...ratings[0],story_fingerprint:'0'.repeat(64)};
+    const mixed=new DataTransfer();
+    mixed.items.add(new File([JSON.stringify(ratings[0])],'correct.json',{type:'application/json'}));
+    mixed.items.add(new File([JSON.stringify(bad)],'wrong-story.json',{type:'application/json'}));
+    input.files=mixed.files;
+    input.dispatchEvent(new Event('change',{bubbles:true}));
+    let rejected=false;
+    for(let i=0;i<120;i++){
+      if($('mc-playtest-status').textContent.includes('другой редакции')){
+        rejected=true;break;
+      }
+      await new Promise(resolve=>setTimeout(resolve,50));
+    }
+    if(!rejected||dashboard.count!==4)
+      throw Error('R13_MISMATCHED_BATCH_NOT_ATOMIC');
+    $('mc-playtest').scrollIntoView({block:'start',behavior:'auto'});
+    await new Promise(resolve=>setTimeout(resolve,160));
+    if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)
+      throw Error('R13_MOBILE_HORIZONTAL_OVERFLOW');
+    return {result:'PASS_R13_OFFLINE_REPORT_IMPORT',reports:4,average:3.25,
+      per_ending:[1,1,1,1],mismatched_batch_rejected:true};
+  })();
+}
+function r13InvalidateStaleResults(){
+  return (async function(){
+    const field=document.getElementById('mc-field-title');
+    const runtime=window.MarcosaPlaytestRuntime;
+    if(runtime?.count!==4)throw Error('R13_EXPECTED_IMPORTED_REPORTS');
+    field.value='Редакция после тестирования читателей';
+    field.dispatchEvent(new Event('input',{bubbles:true}));
+    if(runtime.count!==0||
+       document.getElementById('mc-playtest-count').textContent!=='0'||
+       !document.getElementById('mc-playtest-export').disabled)
+      throw Error('R13_STALE_FEEDBACK_WAS_NOT_CLEARED');
+    return 'PASS_R13_STORY_REVISION_INVALIDATION';
+  })();
+}
+
 function r10Cleanup(){
   return (async function(){
     const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
@@ -426,11 +502,24 @@ async function main(){
       if(encryptedPng.length<10000||encryptedPng.toString('hex',0,4)!=='89504e47')
         throw Error('R11_BAD_PNG_'+device.name);
       fs.writeFileSync(path.join(SHOTS,'r11-live-'+device.name+'-encrypted-vault.png'),encryptedPng);
+      const playtest=await evaluate(cdp,'('+r13PlaytestAnalysis.toString()+')()',30000);
+      if(playtest?.result!=='PASS_R13_OFFLINE_REPORT_IMPORT')
+        throw Error('R13_ANALYTICS_E2E_FAILED '+JSON.stringify(playtest));
+      console.log('R13 real Chrome '+device.name+':',JSON.stringify(playtest));
+      const chart=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+      const chartPng=Buffer.from(chart.data,'base64');
+      if(chartPng.length<10000||chartPng.toString('hex',0,4)!=='89504e47')
+        throw Error('R13_BAD_ANALYTICS_PNG_'+device.name);
+      fs.writeFileSync(path.join(SHOTS,'r13-live-'+device.name+'-playtest-analytics.png'),chartPng);
+      const invalidated=await evaluate(cdp,'('+r13InvalidateStaleResults.toString()+')()',15000);
+      if(invalidated!=='PASS_R13_STORY_REVISION_INVALIDATION')
+        throw Error('R13_VERSION_MISMATCH_NOT_INVALIDATED');
+      console.log('R13 real Chrome '+device.name+':',invalidated,'screenshot bytes:',chartPng.length);
       const clean=await evaluate(cdp,'('+r10Cleanup.toString()+')()',20000);
       if(clean!=='PASS_R10_CLEANUP')throw Error('R10_CLEANUP_FAILED');
       console.log('R10 real Chrome '+device.name+':',clean,'screenshot bytes:',backupPng.length);
     }
-    console.log('R9/R10/R11 CDP end-to-end: PASS (desktop/mobile, IndexedDB, AES-GCM encrypted archive, integrity & recovery)');
+    console.log('R9–R13 CDP end-to-end: PASS (desktop/mobile, encrypted archives, offline reader feedback dashboard)');
   }finally{
     if(cdp)try{cdp.close();}catch(err){}
     if(chrome){
