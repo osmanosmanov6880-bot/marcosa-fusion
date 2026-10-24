@@ -263,7 +263,8 @@
   function replaceSites(records){
     // Restore validated author *self-checks*, never server confirmations.
     // Validate the whole payload before modifying the current workspace.
-    const normalized=report(records,new Date().toISOString()).sites.map(normalizeSite);
+    const normalized=records.map(normalizeSite);
+    report(normalized,new Date().toISOString()); // validate uniqueness and all constraints
     sites=normalized;selected=sites[0]?.slot||null;render();
     return sites.length;
   }
