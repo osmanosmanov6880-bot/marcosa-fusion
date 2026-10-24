@@ -158,6 +158,15 @@ $('delete-form').addEventListener('submit',event=>{
   form.reset();await session();await worlds();await feed(true);
  },'Все данные локального аккаунта удалены');
 });
+$('account-export').addEventListener('click',()=>run(async()=>{
+ const data=await api('/account/export');
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+ const uri=URL.createObjectURL(blob);
+ const link=node('a');link.href=uri;
+ link.download='marcosa-account-'+new Date().toISOString().slice(0,10)+'.json';
+ document.body.append(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(uri),1500);
+},'Экспорт подготовлен: храните файл в защищённом месте'));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
 $('reload-reports').addEventListener('click',()=>run(()=>reports()));
