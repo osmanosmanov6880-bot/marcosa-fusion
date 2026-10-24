@@ -4,12 +4,14 @@ on:
     branches: [main]
     paths:
       - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
+      - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
     branches: [main]
     paths:
       - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
+      - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -58,6 +60,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/10_rls_isolation.sql
+      - name: Create additive R37 activity and appeal RLS schema in isolated Postgres
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql
+      - name: Verify activity and appeals with three distinct identities
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/20_rls_activity_appeals.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
