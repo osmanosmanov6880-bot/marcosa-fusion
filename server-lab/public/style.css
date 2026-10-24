@@ -62,3 +62,11 @@ dialog form{display:grid;gap:17px}
 }
 
 .export-button{display:block;width:100%;margin:23px 0 5px;font-size:11px}
+
+/* Real social content outranks login furniture once a member is authenticated. */
+@media(max-width:720px){
+ body[data-m-session="member"] .workspace{display:flex!important;flex-direction:column!important}
+ body[data-m-session="member"] .workspace>.center{order:0;width:100%;min-width:0}
+ body[data-m-session="member"] .workspace>.left{order:1;width:100%}
+ body[data-m-session="member"] .workspace>.right{order:2;width:100%}
+}
