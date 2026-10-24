@@ -115,6 +115,9 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
    r=await req('/mod/comment-reports',{session:carol.session});assert.equal(r.data.items.length,0);
    r=await req('/mod/sponsors',{session:carol.session});
    assert.equal(r.status,200);assert.equal(r.data.items.length,1);
+   app.db.prepare("UPDATE users SET role='moderator' WHERE id=?").run(alice.id);
+   r=await req('/mod/sponsors/'+appId+'/review',{method:'POST',session:alice.session,json:{decision:'approved'}});
+   assert.equal(r.status,403,'World owner cannot independently approve her own sponsored placement');
    r=await req('/mod/sponsors/'+appId+'/review',{method:'POST',session:carol.session,json:{decision:'approved'}});
    assert.equal(r.status,200);assert.equal(r.data.paid,false);
    r=await req('/mod/sponsors/'+appId+'/review',{method:'POST',session:carol.session,json:{decision:'approved'}});
