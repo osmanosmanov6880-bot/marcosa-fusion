@@ -98,10 +98,11 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   res.setHeader('Cache-Control','no-store');
   res.setHeader('Cross-Origin-Resource-Policy','same-origin');
   res.setHeader('Content-Security-Policy',"default-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'");
-  const route=new URL(req.url||'/','http://localhost').pathname;
-  const query=new URL(req.url||'/','http://localhost').searchParams;
   const method=req.method||'GET';
   try{
+   const incoming=new URL(req.url||'/','http://localhost');
+   const route=incoming.pathname;
+   const query=incoming.searchParams;
    if(method==='GET'&&['/','/app.js','/style.css'].includes(route)){
     const name=route==='/'?'index.html':route.slice(1);
     const data=await readFile(new URL('./public/'+name,import.meta.url));
@@ -132,6 +133,16 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
     send(res,200,page(stmt.byWorld.all(worldRoute[1],cursor,21),20));return;
+   }
+   if(method==='GET'&&route==='/api/account/export'){
+    const user=requireUser(req);
+    // All rows are owner-bound; never include password hashes or session tokens.
+    const worlds=stmt.myWorlds.all(user.id);
+    const posts=db.prepare('SELECT id,world_id,body,status,created_at,updated_at FROM posts WHERE author_id=? ORDER BY id ASC').all(user.id);
+    const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
+    send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports});
+    return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
     const user=requireUser(req);
