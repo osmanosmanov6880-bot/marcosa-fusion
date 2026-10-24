@@ -130,8 +130,8 @@ async function main(){
    };
    await screenshot('guest');
    // Guest must be able to open a real World without creating an account.
-   await cdp.wait("document.querySelector('.world-open[href="#world-u-r30host"]')!==null",'r30-public-world-link');
-   await cdp.evalJS("document.querySelector('.world-open[href="#world-u-r30host"]').click()");
+   await cdp.wait("document.querySelector('.world-open[href=\"#world-u-r30host\"]')!==null",'r30-public-world-link');
+   await cdp.evalJS("document.querySelector('.world-open[href=\"#world-u-r30host\"]').click()");
    await cdp.wait("document.getElementById('world-detail')?.hidden===false",'r30-open-world');
    const worldAudit=await cdp.evalJS("(()=>({title:document.getElementById('world-detail-title').textContent,visible:!document.getElementById('world-detail').hidden,width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}))()");
    if(!worldAudit.visible||!worldAudit.title.includes('r30host')||worldAudit.width>worldAudit.viewport+2)
