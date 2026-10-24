@@ -341,3 +341,23 @@ html[data-m-world="film-network"] .fn-hero h1{font:400 clamp(47px,5vw,76px)/1.05
 @media(prefers-reduced-motion:reduce){
  .q23-hero-visual:before,.q23-actions a,.q23-directory-card,.so-card,.m-transition{transition:none!important;animation:none!important}
 }
+
+/* R23 visual acceptance: the Social editorial image belongs in the right
+   column, never behind the text with an empty second column. */
+@media(min-width:901px){
+ html[data-m-world="social"] .so-hero{display:grid!important;grid-template-columns:minmax(0,1.13fr) minmax(0,.87fr)!important;gap:0!important;align-items:stretch!important}
+ html[data-m-world="social"] .so-hero-copy{position:relative!important;grid-column:1!important;grid-row:1!important;max-width:none!important;align-self:center!important;padding:62px clamp(35px,5vw,80px)!important}
+ html[data-m-world="social"] .so-art{display:block!important;position:relative!important;grid-column:2!important;grid-row:1!important;
+  inset:auto!important;top:auto!important;right:auto!important;bottom:auto!important;left:auto!important;
+  width:100%!important;height:100%!important;min-height:550px!important;opacity:.83!important;
+  background:url("./visual-city.webp") 52% center/cover no-repeat!important;
+  filter:grayscale(.8) sepia(.22) saturate(.48) brightness(.99)!important}
+ html[data-m-world="social"] .so-art:after{background:linear-gradient(90deg,#f8f5ef8f,transparent 42%),linear-gradient(0deg,#f8f5ef35,transparent 67%)!important}
+ html[data-m-world="social"] .m-world-bar{display:none!important}
+}
+@media(max-width:900px){
+ html[data-m-world="social"] .so-hero{display:block!important}
+ html[data-m-world="social"] .so-art{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;
+  min-height:0!important;opacity:.24!important}
+ html[data-m-world="social"] .so-hero-copy{position:relative!important;z-index:3!important}
+}
