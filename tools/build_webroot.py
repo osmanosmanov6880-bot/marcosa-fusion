@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -49,6 +49,8 @@ def build() -> dict:
         raise RuntimeError("R11 encrypted vault controls or crypto source are missing")
     if any(anchor not in creator for anchor in ('id="mc-standalone"', 'id="mc-standalone-preview"', 'id="mc-standalone-download"', 'id="mc-standalone-player"', 'sandbox="allow-scripts"', 'src="./creator-standalone.js"')):
         raise RuntimeError("R12 standalone playable story export or sandbox preview is missing")
+    if any(anchor not in creator for anchor in ('id="mc-playtest"', 'id="mc-playtest-files"', 'id="mc-playtest-results"', 'src="./creator-playtest.js"')):
+        raise RuntimeError("R13 offline playtest analysis dashboard is incomplete")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:
