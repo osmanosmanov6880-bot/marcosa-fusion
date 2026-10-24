@@ -87,6 +87,22 @@ async function main(){
    })
   });
   if(seed.status!==201)throw Error('R30_SEED_OWNER_FAILED '+seed.status);
+  // An independent signed-in creator will interact with each browser user's World.
+  const hostLogin=await fetch(base+'/api/auth/login',{
+   method:'POST',headers:{'Content-Type':'application/json',Origin:base},
+   body:JSON.stringify({email:'r30host@example.net',password:'long-safe-password-2026'})
+  });
+  if(hostLogin.status!==200)throw Error('R31_SEED_ACTOR_LOGIN_FAILED_'+hostLogin.status);
+  const hostCookie=hostLogin.headers.get('set-cookie')?.split(';')[0];
+  if(!hostCookie)throw Error('R31_ACTOR_COOKIE_MISSING');
+  async function realHostAction(path,body={}){
+   const r=await fetch(base+'/api'+path,{
+    method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:hostCookie},
+    body:JSON.stringify(body)
+   });
+   if(r.status!==201&&r.status!==200)throw Error('R31_REAL_ACTOR_API_FAILED '+path+' '+r.status);
+  }
+
 
   chrome=spawn(browser(),[
    '--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-features=MediaRouter,CalculateNativeWinOcclusion',
@@ -186,6 +202,23 @@ async function main(){
    await cdp.wait("document.getElementById('my-sponsors').textContent.includes('revoked')",'r30-consent-revocation');
    const revoked=await cdp.evalJS("document.getElementById('my-sponsors').textContent.includes('revoked')");
    if(!revoked)throw Error('R30_SPONSOR_REVOCATION_NOT_REFLECTED_'+size.name);
+
+
+   // R31: a second real account follows and comments on this user. Browser
+   // must show the recipient-only activity from SQLite, not fabricated counters.
+   const owned=lab.db.prepare('SELECT id,slug FROM worlds WHERE slug=?').get('u-'+identity);
+   const ownPost=owned&&lab.db.prepare("SELECT id FROM posts WHERE world_id=? AND status='published' ORDER BY id DESC LIMIT 1").get(owned.id);
+   if(!ownPost)throw Error('R31_POST_NOT_DURABLE_'+size.name);
+   await realHostAction('/worlds/'+owned.slug+'/follow');
+   await realHostAction('/posts/'+ownPost.id+'/comments',{body:'A real second person replied'});
+   await cdp.evalJS("document.getElementById('notification-panel').open=true;document.getElementById('creator-insights').open=true;document.getElementById('notification-refresh').click()");
+   await cdp.wait("document.getElementById('notification-badge')?.textContent==='2'",'r31-real-activity-counter');
+   const inbox=await cdp.evalJS("document.querySelectorAll('#notification-list .notification-entry.unread').length");
+   if(inbox!==2)throw Error('R31_ACTIVITY_INBOX_NOT_REAL_'+size.name+' '+inbox);
+   await cdp.evalJS("document.getElementById('insights-refresh').click()");
+   await cdp.wait("document.querySelector('.insights-total')?.textContent.includes('1 подписок')&&document.querySelector('.insights-total')?.textContent.includes('1 ответов')",'r31-world-insights');
+   await cdp.evalJS("document.getElementById('notification-read').click()");
+   await cdp.wait("document.getElementById('notification-badge')?.textContent==='0'",'r31-inbox-read-state');
 
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length)throw Error('EXTERNAL_NETWORK_ACCESS '+external.slice(0,5).join(' | '));
