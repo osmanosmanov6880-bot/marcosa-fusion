@@ -18,7 +18,7 @@ from r25_grade_cinematic_assets import place as place_director_grade
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -216,6 +216,23 @@ def build() -> dict:
         raise RuntimeError("R26 social feed-first layout missing")
     if "const quickCount=$('so-saved-count');" not in social_js:
         raise RuntimeError("R26 saved count not connected to real local data")
+    # R27: a genuinely functional private multi-entry journal must ship in the
+    # real Social page. Its storage is browser-only and cannot claim publication.
+    if not all(t in social for t in (
+        'id="so-journal"', 'id="s27-editor"', 'id="s27-list"',
+        'id="s27-export"', 'id="s27-import"', 'id="s27-undo"',
+        'href="./marcosa-journal.css"', 'src="./social-journal.js"'
+    )):
+        raise RuntimeError("R27 private journal interface missing")
+    journal_js = (SOURCE / "social-journal.js").read_text(encoding="utf-8")
+    for token in ("maxItems:MAX_ITEMS", "localOnly:true", "JSON.parse",
+                  "root.localStorage.setItem", "list.replaceChildren",
+                  "locked=true"):
+        if token not in journal_js:
+            raise RuntimeError("R27 private journal safety/function missing: " + token)
+    for token in ("innerHTML", "XMLHttpRequest", "fetch(", "sendBeacon("):
+        if token in journal_js:
+            raise RuntimeError("R27 unsafe editor or remote data flow: " + token)
     # R22: the cinematic home is an actual navigable interface, not a flat poster.
     required_r22 = (
         'id="m22-experience"', 'class="m22-gateway-sidebar"',
