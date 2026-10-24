@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are fourteen independently reviewed public files in site/.
+Its inputs are fifteen independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -47,6 +47,8 @@ def build() -> dict:
         raise RuntimeError("R8 creator engine is not discoverable from Story Lab")
     if any(anchor not in creator for anchor in ('id="mc-crypto"', 'id="mc-crypto-pass"', 'id="mc-crypto-confirm"', 'id="mc-crypto-download"', 'id="mc-crypto-file"', 'src="./creator-crypto.js"')):
         raise RuntimeError("R11 encrypted vault controls or crypto source are missing")
+    if any(anchor not in creator for anchor in ('id="mc-standalone"', 'id="mc-standalone-preview"', 'id="mc-standalone-download"', 'id="mc-standalone-player"', 'sandbox="allow-scripts"', 'src="./creator-standalone.js"')):
+        raise RuntimeError("R12 standalone playable story export or sandbox preview is missing")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:

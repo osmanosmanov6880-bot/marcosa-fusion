@@ -165,3 +165,18 @@ The Creator Engine now offers an **opt-in encrypted whole-vault export** alongsi
 - RU/EN/Chinese authoring UI, keyboard-focusable inputs, mobile layout, live WebCrypto tests in desktop/mobile Chromium, Node encryption/tamper tests, and screenshots.
 
 See [R11 encryption format and cautions](docs/ENCRYPTED_ARCHIVE_R11_RU.md) and [cryptographic tests](tests/crypto.test.cjs). The Supabase connector currently lists **zero available projects**; R10's RLS SQL remains an unexecuted design. Production MARCOSA, Contabo, Stripe, authentication and server moderation were not changed.
+
+
+## R12 — Export a self-contained playable branching story
+
+The author can now turn the two-choice / four-ending Creator Engine draft into **one entirely standalone HTML mini-game** which readers can open offline with file://. No hosting, account, payment, server, dependencies or download other than the single author-created file.
+
+- The editor adds three visually distinct themes (starry night, crimson horizon, northern lights), a sandboxed, live HTML preview, and a rights/sponsorship/privacy acknowledgment gate before download.
+- All story text is encoded as JSON Base64 payload (not HTML or script source). The standalone player displays every author field with textContent only, preserving all four unique endings. Navigate with buttons or keyboard (1/2, ArrowLeft, R).
+- A Content Security Policy blocks network requests, foreign resources and untrusted scripts; the sole inline script is pinned to its exact SHA-256 hash, generated through WebCrypto. Nothing from IndexedDB, local backups, passwords or moderator decisions gets into the exported file.
+- Generated HTML works from file:// without a web server, even though compiling the file in the Creator Engine requires the secure GitHub Pages/localhost WebCrypto environment.
+- Automated Node contract/XSS/CSP tests, real desktop and mobile Chrome file:// tests of all four endings, back/restart, keyboard, offline behavior and screenshot evidence. The public build allowlist is now exactly **15 files**.
+
+This is an author-owned **local file export**, not a verified MARCOSA publication or licensed distribution of third-party content. The independent security and review gates remain outside the static prototype.
+
+Documentation: [R12 offline playable story architecture](docs/OFFLINE_PLAYABLE_STORY_R12_RU.md), [unit tests](tests/standalone.test.cjs), [real offline browser test](tools/r12_offline_cdp.cjs).
