@@ -9,7 +9,7 @@
  if(typeof module==='object'&&module.exports)module.exports=api;
  if(root&&root.document){
    root.MarcosaFilmNetwork=api;
-   const boot=()=>api.mount(root.document,root);
+   const boot=()=>{root.MarcosaFilmNetworkRuntime=api.mount(root.document,root);};
    if(root.document.readyState==='loading')root.document.addEventListener('DOMContentLoaded',boot,{once:true});
    else boot();
  }
@@ -89,6 +89,12 @@
   if(typeof x!=='string'||x.trim().length<min||x.trim().length>max||/[\u0000-\u001f\u007f]/.test(x))throw Error('INVALID_'+name);
   return x.trim();
  }
+ function safeNote(value){
+  if(typeof value!=='string')throw Error('INVALID_NOTE');
+  const note=value.replace(/\r\n?/g,'\n').trim();
+  if(note.length>MAX_TEXT||/[\u0000-\u0009\u000b-\u001f\u007f]/.test(note))throw Error('INVALID_NOTE');
+  return note;
+ }
  function newSite(raw){
   if(!raw||typeof raw!=='object'||!SLOT.test(raw.asset_id))throw Error('INVALID_SITE_SLOT');
   const domain=network.checkDomain(raw.domain);
@@ -109,7 +115,7 @@
    throw Error('UNKNOWN_SITE_FIELD');
   if(!SLOT.test(site.slot)||network.checkDomain(site.domain)!==site.domain)throw Error('INVALID_SITE');
   const name=site.name===''?'':strictText(site.name,1,100,'NAME');
-  const note=site.note===''?'':strictText(site.note,1,MAX_TEXT,'NOTE');
+  const note=safeNote(site.note);
   if(!site.checks||Array.isArray(site.checks)||Object.keys(site.checks).sort().join('|')!==CHECKS.slice().sort().join('|'))
    throw Error('INVALID_SITE_CHECKS');
   const checks={};for(const key of CHECKS){if(typeof site.checks[key]!=='boolean')throw Error('INVALID_CHECK');checks[key]=site.checks[key];}
@@ -254,7 +260,19 @@
    }catch(err){say('choose');}
   });
   localization();
-  return Object.freeze({get sites(){return sites.map(normalizeSite);},get selected(){return selected;},get language(){return language;}});
+  function replaceSites(records){
+    // Restore validated author *self-checks*, never server confirmations.
+    // Validate the whole payload before modifying the current workspace.
+    const normalized=report(records,new Date().toISOString()).sites.map(normalizeSite);
+    sites=normalized;selected=sites[0]?.slot||null;render();
+    return sites.length;
+  }
+  return Object.freeze({
+    get sites(){return sites.map(normalizeSite);},
+    get selected(){return selected;},
+    get language(){return language;},
+    replaceSites
+  });
  }
  return Object.freeze({SCHEMA,CHECKS,REQUIRED,importCsv,newSite,normalizeSite,checked,eligible,shortlist,report,referral,mount});
 });
