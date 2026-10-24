@@ -132,10 +132,10 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     send(res,200,page(stmt.feed.all(cursor,limit+1),limit));return;
    }
    if(method==='GET'&&route==='/api/worlds'){
-    const items=db.prepare('SELECT w.slug,w.title,w.description,u.username AS owner,
+    const items=db.prepare(`SELECT w.slug,w.title,w.description,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30').all();
+FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30`).all();
     send(res,200,{items});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
