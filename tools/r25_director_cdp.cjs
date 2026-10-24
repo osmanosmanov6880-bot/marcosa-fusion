@@ -145,6 +145,14 @@ function inspectBrand(expected){
    if(getComputedStyle(document.body).backgroundColor==='rgb(243, 240, 233)')
     throw Error('R25_LIGHT_BACKGROUND_HAS_RETURNED');
  
+   if(window.innerWidth<=720){
+    const menuButton=document.querySelector('.mi-header button[data-mn-open]');
+    if(!menuButton)throw Error('R25_NATIVE_CATALOGUE_BUTTON_MISSING');
+    const rect=menuButton.getBoundingClientRect();
+    if(rect.left<0||rect.right>document.documentElement.clientWidth-3||rect.width<90||
+       getComputedStyle(menuButton).display==='none')
+     throw Error('R25_MOBILE_CATALOGUE_BUTTON_CLIPPED_'+JSON.stringify({left:rect.left,right:rect.right,width:rect.width}));
+   }
    // R25: a working, accessible, source-backed three-frame director's scene.
    const director=window.MarcosaDirector;
    if(!director||director.edition!=='R25'||director.sceneCount!==3||!director.localOnly)
