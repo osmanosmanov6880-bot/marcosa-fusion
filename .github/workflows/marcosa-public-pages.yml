@@ -49,10 +49,12 @@ jobs:
           node --check site/creator-crypto.js
           node --check site/creator-standalone.js
           node --check site/film-network.js
+          node --check site/film-continuity.js
+          node --check tools/r14_film_cdp.cjs
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -74,11 +76,13 @@ jobs:
           test -s dist/film-network.html
           test -s dist/film-network.css
           test -s dist/film-network.js
+          test -s dist/film-continuity.js
           test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
           node tools/r9_cdp_smoke.cjs
           node tools/r12_offline_cdp.cjs
+          node tools/r14_film_cdp.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -105,6 +109,14 @@ jobs:
         with:
           name: r5-visual-qa
           path: qa-r5/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R14 browser recovery screenshots
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r14-film-audit-qa
+          path: qa-r14/
           retention-days: 7
           if-no-files-found: error
       - name: Upload static Pages artifact
