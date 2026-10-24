@@ -1,0 +1,262 @@
+/* MARCOSA R28 — REAL LOCAL SOCIAL API.
+ * Executable Node 22+ laboratory: invite-only accounts, secure password hashes,
+ * HttpOnly sessions, Worlds, published/draft posts and moderation reports.
+ * NOT a production identity service: no verified email/recovery, and SQLite
+ * is NOT the intended Supabase/Postgres production system of record.
+ * Deliberately loopback-only; no server changes or credentials required.
+ */
+import {createServer} from 'node:http';
+import {DatabaseSync} from 'node:sqlite';
+import {readFile} from 'node:fs/promises';
+import {dirname,resolve} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {promisify} from 'node:util';
+import {scrypt,randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
+
+const makeKey=promisify(scrypt);
+const file=fileURLToPath(import.meta.url);
+const DAY=86400000;
+const COOKIE='marcosa_session';
+const hash=s=>createHash('sha256').update(s).digest('hex');
+const str=x=>typeof x==='string'?x.trim():'';
+const int=x=>/^[1-9][0-9]{0,14}$/.test(String(x))&&Number.isSafeInteger(Number(x))?Number(x):0;
+const REASONS=new Set(['spam','abuse','privacy','other']);
+class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
+const check=(condition,status,message)=>{if(!condition)throw new HttpError(status,message);};
+const send=(res,status,value,headers={})=>{
+ res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...headers});
+ res.end(JSON.stringify(value));
+};
+const cookie=(token,maxAge=86400)=>COOKIE+'='+token+'; Path=/; HttpOnly; SameSite=Strict; Max-Age='+maxAge;
+const getCookie=header=>{
+ const found=String(header||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(COOKIE+'='));
+ const value=found?found.slice(COOKIE.length+1):'';
+ return /^[a-f0-9]{64}$/.test(value)?value:null;
+};
+const pwdHash=async(password,salt)=>(await makeKey(password,salt,64,{N:16384,r:8,p:1,maxmem:67108864})).toString('hex');
+const passwordMatches=async(password,record)=>{
+ const digest=await pwdHash(password,record?.salt||'00000000000000000000000000000000');
+ return Boolean(record)&&timingSafeEqual(Buffer.from(digest,'hex'),Buffer.from(record.password_hash,'hex'));
+};
+async function readJSON(req){
+ check(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()==='application/json',415,'Нужен application/json');
+ const chunks=[];let length=0;
+ for await(const chunk of req){length+=chunk.length;check(length<=65536,413,'Слишком большой запрос');chunks.push(chunk);}
+ let result;try{result=JSON.parse(Buffer.concat(chunks).toString('utf8'));}
+ catch{throw new HttpError(400,'Некорректный JSON');}
+ check(result&&typeof result==='object'&&!Array.isArray(result),400,'Нужен JSON-объект');
+ return result;
+}
+const SCHEMA=[
+ 'PRAGMA foreign_keys=ON',
+ 'CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT \'member\' CHECK(role IN (\'member\',\'moderator\')), created_at INTEGER NOT NULL)',
+ 'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
+ 'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
+ 'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
+ 'CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 2000), status TEXT NOT NULL CHECK(status IN (\'draft\',\'published\',\'hidden\')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)',
+ 'CREATE INDEX IF NOT EXISTS idx_posts_public ON posts(status,id DESC)',
+ 'CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(author_id,id DESC)',
+ 'CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN (\'spam\',\'abuse\',\'privacy\',\'other\')), detail TEXT NOT NULL DEFAULT \'\', status TEXT NOT NULL DEFAULT \'open\' CHECK(status IN (\'open\',\'reviewed\')), created_at INTEGER NOT NULL, UNIQUE(post_id,reporter_id))',
+ 'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status,id DESC)'
+].join(';\n')+';';
+
+export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.now()}={}){
+ const db=new DatabaseSync(databasePath);
+ db.exec(SCHEMA);
+ const rateMap=new Map();
+ const stmt={
+  email:db.prepare('SELECT * FROM users WHERE email=?'),
+  session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
+  myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  feed:db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?")
+ };
+ function throttle(key,max,duration){
+  const current=now(),a=rateMap.get(key);
+  const next=!a||current>a.until?{count:1,until:current+duration}:{count:a.count+1,until:a.until};
+  rateMap.set(key,next);if(rateMap.size>10000)rateMap.clear();
+  check(next.count<=max,429,'Превышен лимит запросов');
+ }
+ const clientIp=req=>req.socket.remoteAddress||'unknown';
+ function originGuard(req){
+  const host=String(req.headers.host||'');
+  check(host&&req.headers.origin==='http://'+host,403,'Недопустимый источник');
+ }
+ function who(req){
+  const raw=getCookie(req.headers.cookie);
+  return raw?stmt.session.get(hash(raw),now())||null:null;
+ }
+ function requireUser(req){const user=who(req);check(user,401,'Нужен вход в аккаунт');return user;}
+ const page=(rows,limit)=>{
+  const items=rows.slice(0,limit);
+  return{items,nextCursor:rows.length>limit?String(items.at(-1).id):null};
+ };
+ async function handle(req,res){
+  res.setHeader('X-Content-Type-Options','nosniff');
+  res.setHeader('X-Frame-Options','DENY');
+  res.setHeader('Referrer-Policy','no-referrer');
+  res.setHeader('Cache-Control','no-store');
+  res.setHeader('Cross-Origin-Resource-Policy','same-origin');
+  res.setHeader('Content-Security-Policy',"default-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'");
+  const route=new URL(req.url||'/','http://localhost').pathname;
+  const query=new URL(req.url||'/','http://localhost').searchParams;
+  const method=req.method||'GET';
+  try{
+   if(method==='GET'&&['/','/app.js','/style.css'].includes(route)){
+    const name=route==='/'?'index.html':route.slice(1);
+    const data=await readFile(new URL('./public/'+name,import.meta.url));
+    const type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html';
+    res.writeHead(200,{'Content-Type':type+'; charset=utf-8'});res.end(data);return;
+   }
+   if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab'});return;}
+   if(method==='GET'&&route==='/api/auth/me'){
+    const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
+   }
+   if(method==='GET'&&route==='/api/posts'){
+    const limit=Number(query.get('limit')||12);
+    check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный размер страницы');
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный указатель страницы');
+    send(res,200,page(stmt.feed.all(cursor,limit+1),limit));return;
+   }
+   if(method==='GET'&&route==='/api/worlds'){
+    const items=db.prepare('SELECT w.slug,w.title,w.description,u.username AS owner FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30').all();
+    send(res,200,{items});return;
+   }
+   const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
+   if(method==='GET'&&worldRoute){
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный указатель страницы');
+    send(res,200,page(stmt.byWorld.all(worldRoute[1],cursor,21),20));return;
+   }
+   if(method==='GET'&&route==='/api/me/posts'){
+    const user=requireUser(req);
+    const items=db.prepare('SELECT p.id,p.body,p.status,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? ORDER BY p.id DESC LIMIT 50').all(user.id);
+    send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/mod/reports'){
+    const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT r.id,r.post_id,r.reason,r.detail,r.status,r.created_at,u.username AS reporter FROM reports r JOIN users u ON u.id=r.reporter_id WHERE r.status='open' ORDER BY r.id ASC LIMIT 100").all();
+    send(res,200,{items});return;
+   }
+   check(['POST','PATCH','DELETE'].includes(method),404,'Маршрут не найден');
+   originGuard(req);
+   throttle('mut:'+clientIp(req),180,60000);
+   const body=await readJSON(req);
+   if(method==='POST'&&route==='/api/auth/register'){
+    throttle('signup:'+clientIp(req),8,600000);
+    check(inviteCode.length>=12,403,'Регистрация по приглашениям временно закрыта');
+    check(timingSafeEqual(Buffer.from(hash(str(body.inviteCode)),'hex'),Buffer.from(hash(inviteCode),'hex')),403,'Неверный код приглашения');
+    const email=str(body.email).toLowerCase(),username=str(body.username).toLowerCase();
+    const password=body.password;
+    check(email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),400,'Неверная почта');
+    check(/^[a-z][a-z0-9_]{2,23}$/.test(username),400,'Имя: 3–24 латинских символа');
+    check(typeof password==='string'&&password.length>=12&&password.length<=128,400,'Пароль: 12–128 символов');
+    const salt=randomBytes(16).toString('hex'),secret=await pwdHash(password,salt);
+    const id=randomUUID(),worldId=randomUUID();
+    try{
+     db.exec('BEGIN IMMEDIATE');
+     db.prepare('INSERT INTO users(id,email,username,salt,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,username,salt,secret,now());
+     db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,'u-'+username,'Мир '+username,now());
+     db.exec('COMMIT');
+    }catch(e){db.exec('ROLLBACK');throw new HttpError(409,'Регистрация с указанными данными невозможна');}
+    send(res,201,{created:true,username,world:'u-'+username});return;
+   }
+   if(method==='POST'&&route==='/api/auth/login'){
+    throttle('login:'+clientIp(req),20,600000);
+    const email=str(body.email).toLowerCase(),password=typeof body.password==='string'?body.password:'';
+    check(email.length<=254&&password.length<=128,400,'Некорректный запрос');
+    const user=stmt.email.get(email);
+    check(await passwordMatches(password,user),401,'Неверная почта или пароль');
+    const token=randomBytes(32).toString('hex');
+    db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(hash(token),user.id,now()+DAY);
+    send(res,200,{authenticated:true},{'Set-Cookie':cookie(token)});return;
+   }
+   if(method==='POST'&&route==='/api/auth/logout'){
+    const token=getCookie(req.headers.cookie);
+    if(token)db.prepare('DELETE FROM sessions WHERE token_hash=?').run(hash(token));
+    send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
+   }
+   const user=requireUser(req);
+   if(method==='POST'&&route==='/api/worlds'){
+    const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
+    check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
+    check(/^[a-z][a-z0-9-]{2,39}$/.test(slug),400,'Неверный адрес мира');
+    check(description.length<=400,400,'Описание слишком длинное');
+    const n=db.prepare('SELECT count(*) AS n FROM worlds WHERE owner_id=?').get(user.id).n;
+    check(n<3,409,'Лимит: три мира');
+    const id=randomUUID();
+    try{db.prepare('INSERT INTO worlds(id,owner_id,slug,title,description,created_at) VALUES(?,?,?,?,?,?)').run(id,user.id,slug,title,description,now());}
+    catch{throw new HttpError(409,'Адрес мира занят');}
+    send(res,201,{id,slug,title,description});return;
+   }
+   if(method==='POST'&&route==='/api/posts'){
+    throttle('post:'+user.id,25,3600000);
+    const worldId=str(body.worldId),text=str(body.body),status=body.status||'draft';
+    check(text.length>=1&&text.length<=2000,400,'Текст: 1–2000 символов');
+    check(status==='draft'||status==='published',400,'Неверный статус');
+    check(db.prepare('SELECT id FROM worlds WHERE id=? AND owner_id=?').get(worldId,user.id),403,'Нет прав на этот мир');
+    const id=db.prepare('INSERT INTO posts(world_id,author_id,body,status,created_at,updated_at) VALUES(?,?,?,?,?,?)').run(worldId,user.id,text,status,now(),now()).lastInsertRowid;
+    send(res,201,{id:Number(id),status,worldId});return;
+   }
+   const item=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})$/);
+   if(item&&(method==='PATCH'||method==='DELETE')){
+    const id=int(item[1]);check(id>0,400,'Неверный ID');
+    const post=db.prepare('SELECT id,body,status FROM posts WHERE id=? AND author_id=?').get(id,user.id);
+    check(post,404,'Запись не найдена');
+    if(method==='DELETE'){
+     db.prepare('DELETE FROM posts WHERE id=? AND author_id=?').run(id,user.id);
+     send(res,200,{deleted:true});return;
+    }
+    check(post.status!=='hidden',409,'Публикация скрыта модерацией');
+    const text=body.body===undefined?post.body:str(body.body),status=body.status===undefined?post.status:body.status;
+    check(text.length>=1&&text.length<=2000,400,'Текст: 1–2000 символов');
+    check(status==='draft'||status==='published',400,'Неверный статус');
+    db.prepare('UPDATE posts SET body=?,status=?,updated_at=? WHERE id=? AND author_id=?').run(text,status,now(),id,user.id);
+    send(res,200,{id,body:text,status});return;
+   }
+   if(method==='POST'&&route==='/api/reports'){
+    const postId=int(body.postId),reason=body.reason,detail=str(body.detail);
+    check(postId>0&&REASONS.has(reason)&&detail.length<=500,400,'Некорректная жалоба');
+    const post=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(postId);
+    check(post,404,'Запись не найдена');
+    check(post.author_id!==user.id,403,'На собственную запись пожаловаться нельзя');
+    try{db.prepare('INSERT INTO reports(post_id,reporter_id,reason,detail,created_at) VALUES(?,?,?,?,?)').run(postId,user.id,reason,detail,now());}
+    catch{throw new HttpError(409,'Жалоба уже принята');}
+    send(res,201,{received:true});return;
+   }
+   const hide=route.match(/^\/api\/mod\/posts\/([1-9][0-9]{0,14})\/hide$/);
+   if(method==='POST'&&hide){
+    check(user.role==='moderator',403,'Доступ запрещён');
+    const id=int(hide[1]);
+    const result=db.prepare("UPDATE posts SET status='hidden',updated_at=? WHERE id=? AND status='published'").run(now(),id);
+    check(result.changes===1,404,'Запись не найдена');
+    db.prepare("UPDATE reports SET status='reviewed' WHERE post_id=?").run(id);
+    send(res,200,{hidden:true});return;
+   }
+   if(method==='DELETE'&&route==='/api/account'){
+    check(body.confirm==='DELETE',400,'Требуется подтверждение DELETE');
+    const stored=stmt.email.get(user.email);
+    check(await passwordMatches(typeof body.password==='string'?body.password:'',stored),403,'Неверный пароль');
+    db.prepare('DELETE FROM users WHERE id=?').run(user.id);
+    send(res,200,{deleted:true},{'Set-Cookie':cookie('',0)});return;
+   }
+   throw new HttpError(404,'Маршрут не найден');
+  }catch(e){
+   if(res.headersSent){res.destroy();return;}
+   if(!(e instanceof HttpError))console.error('R28 request failed:',e?.message||'unknown');
+   send(res,e instanceof HttpError?e.status:500,{error:e instanceof HttpError?e.message:'Внутренняя ошибка'});
+  }
+ }
+ const server=createServer((req,res)=>{void handle(req,res);});
+ return{server,db,close:()=>new Promise((ok,bad)=>server.close(err=>{db.close();err?bad(err):ok();}))};
+}
+if(process.argv[1]&&resolve(process.argv[1])===file){
+ const host=process.env.HOST||'127.0.0.1';
+ if(!['127.0.0.1','localhost','::1'].includes(host)){
+  console.error('R28 is loopback-only. Refusing external network bind.');process.exit(1);
+ }
+ const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||''});
+ const port=Number(process.env.PORT||8787);
+ app.server.listen(port,host,()=>console.log('MARCOSA R28 LAB at http://'+host+':'+app.server.address().port));
+}
