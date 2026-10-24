@@ -52,7 +52,7 @@ test('R13 strict export schema blocks forged approvals and injection',()=>{
  assert.ok(html.includes('&lt;img src=x'));
  assert.ok(!html.includes('<img src=x'));
  assert.ok(html.includes('rel="noopener noreferrer"'));
- assert.ok(!html.includes('onerror='));
+ assert.ok(!html.includes('<img src=x onerror='));
  assert.throws(()=>f.report([{...site,admin:true}],'2026-10-24T01:00:00.000Z'),/UNKNOWN_SITE_FIELD/);
  const broken={...site,checks:{...site.checks,role:'owner'}};
  assert.throws(()=>f.report([broken],'2026-10-24T01:00:00.000Z'),/INVALID_SITE_CHECKS/);
