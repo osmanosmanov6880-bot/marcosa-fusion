@@ -111,7 +111,7 @@ async function main(){
    await cdp.call('Page.navigate',{url:base+'/'});
    await cdp.wait("document.readyState==='complete'&&document.getElementById('notice')?.textContent.includes('сервер готов')",'public-ready');
    const initial=await cdp.evalJS('(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,headline:document.querySelector("h1")?.textContent,feed:!!document.getElementById("feed-list"),height:document.querySelector(".hero").getBoundingClientRect().height}))()');
-   if(initial.width>initial.viewport+2||!initial.headline.includes('Мир начинается')||!initial.feed)
+   if((size.mobile&&initial.height>470)||initial.width>initial.viewport+2||!initial.headline.includes('Мир начинается')||!initial.feed)
     throw Error('PUBLIC_LAYOUT_BROKEN '+size.name+' '+JSON.stringify(initial));
    const screenshot=async kind=>{
     const result=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
