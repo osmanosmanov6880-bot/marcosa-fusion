@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are fifteen independently reviewed public files in site/.
+Its inputs are twenty independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -51,6 +51,12 @@ def build() -> dict:
         raise RuntimeError("R12 standalone playable story export or sandbox preview is missing")
     if any(anchor not in creator for anchor in ('id="mc-playtest"', 'id="mc-playtest-files"', 'id="mc-playtest-results"', 'src="./creator-playtest.js"')):
         raise RuntimeError("R13 offline playtest analysis dashboard is incomplete")
+    films = (SOURCE / "film-network.html").read_text(encoding="utf-8")
+    if any(anchor not in films for anchor in (
+        'id="fn-continuity"', 'id="fn14-save"', 'id="fn14-import"',
+        'id="fn14-list"', 'src="./film-continuity.js"'
+    )):
+        raise RuntimeError("R14 offline review continuity controls are missing")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:
