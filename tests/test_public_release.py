@@ -124,14 +124,33 @@ class PublicPreviewTests(unittest.TestCase):
             "stories.html", "stories.css", "stories.js",
             "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html",
             "social.html", "social-core.css", "social-core.js",
-            "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css",
+            "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js",
             "visual-station.webp", "visual-city.webp", "visual-cascade.webp", "visual-hero.webp",
             "visual-archive.webp", "visual-control.webp", "visual-operator.webp", "visual-earthrise.webp",
+            "visual-city-director.webp", "visual-cascade-director.webp", "visual-hero-director.webp",
+            "visual-archive-director.webp", "visual-control-director.webp", "visual-station-director.webp",
             "build-manifest.json", ".marcosa-preview-generated",
         })
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
         for name, digest in manifest["files"].items():
             self.assertEqual(digest, hashlib.sha256((dist / name).read_bytes()).hexdigest())
+        # R25: derived (not generated) cinema grades must retain original WebP
+        # frames, dimensions and provenance in the signed release manifest.
+        from PIL import Image
+        grade_pairs = (("visual-city.webp", "visual-city-director.webp"),
+                       ("visual-cascade.webp", "visual-cascade-director.webp"),
+                       ("visual-hero.webp", "visual-hero-director.webp"),
+                       ("visual-archive.webp", "visual-archive-director.webp"),
+                       ("visual-control.webp", "visual-control-director.webp"),
+                       ("visual-station.webp", "visual-station-director.webp"))
+        for original, graded in grade_pairs:
+            self.assertIn(original, manifest["files"])
+            self.assertIn(graded, manifest["files"])
+            self.assertNotEqual(manifest["files"][original], manifest["files"][graded])
+            self.assertGreater((dist / graded).stat().st_size, (dist / original).stat().st_size)
+            with Image.open(dist / graded) as image:
+                self.assertEqual(image.size, (1600, 900))
+                self.assertEqual(image.format, "WEBP")
         self.assertNotIn("supabase", " ".join(files))
 
     def test_staging_is_explicitly_restricted_to_trusted_main_and_dedicated_user(self):
