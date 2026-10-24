@@ -201,7 +201,8 @@ async function main(){
   await cdp.call('Page.enable');await cdp.call('Runtime.enable');await cdp.call('Network.enable');
   fs.mkdirSync(SHOTS,{recursive:true});
   for(const d of [{name:'desktop',width:1440,height:900,mobile:false},
-                  {name:'mobile',width:390,height:844,mobile:true}]){
+                  {name:'mobile',width:390,height:844,mobile:true},
+                  {name:'compact',width:360,height:740,mobile:true}]){
    await cdp.call('Emulation.setDeviceMetricsOverride',
     {width:d.width,height:d.height,deviceScaleFactor:1,mobile:d.mobile});
    for(const [file,world] of pages){
