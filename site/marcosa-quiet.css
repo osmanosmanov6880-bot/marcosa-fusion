@@ -10,7 +10,7 @@
 }
 html{scroll-behavior:smooth}
 html[data-m-world]{--m-accent:#aa9477!important;--m-glow:transparent!important;font-size:16px}
-html[data-m-world] body{font-family:var(--q-sans);line-height:1.55;letter-spacing:0;overflow-x:hidden}
+html[data-m-world] body{font-family:var(--q-sans)!important;line-height:1.55;letter-spacing:0;overflow-x:hidden}
 html[data-m-world] a:focus-visible,html[data-m-world] button:focus-visible,html[data-m-world] input:focus-visible,html[data-m-world] textarea:focus-visible{outline:3px solid #8c8b6d!important;outline-offset:3px}
 html[data-m-world] ::selection{background:#cabca6!important;color:#252923!important}
 html[data-m-world] .m-world-bar{background:rgba(251,249,245,.96)!important;border:1px solid #d8d0c3!important;box-shadow:0 14px 40px #00000020!important}
