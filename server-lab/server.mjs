@@ -64,7 +64,10 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_comments_visible ON comments(post_id,status,id DESC)",
  "CREATE TABLE IF NOT EXISTS comment_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')), created_at INTEGER NOT NULL, UNIQUE(comment_id,reporter_id))",
  "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
- "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)"
+ "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)",
+ "CREATE TABLE IF NOT EXISTS activity_events (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')), world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, read_at INTEGER, CHECK(recipient_id<>actor_id))",
+ "CREATE INDEX IF NOT EXISTS idx_activity_owner ON activity_events(recipient_id,id DESC)",
+ "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL"
 ].join(';\n')+';';
 
 
@@ -121,7 +124,8 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
   myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?")
+  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
  function throttle(key,max,duration){
   const current=now(),a=rateMap.get(key);
@@ -143,6 +147,21 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   const items=rows.slice(0,limit);
   return{items,nextCursor:rows.length>limit?String(items.at(-1).id):null};
  };
+ // Activity is written in the same SQLite transaction as the event that produced it.
+ // Each row represents a genuine user action, never an inferred impression/view.
+ function atomic(action){
+  db.exec('BEGIN IMMEDIATE');
+  try{const result=action();db.exec('COMMIT');return result;}
+  catch(error){db.exec('ROLLBACK');throw error;}
+ }
+ function recordActivity(recipientId,actorId,kind,{worldId=null,postId=null,sponsorId=null}={}){
+  if(recipientId===actorId)return;
+  db.prepare("INSERT INTO activity_events(recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at) VALUES(?,?,?,?,?,?,?)")
+   .run(recipientId,actorId,kind,worldId,postId,sponsorId,now());
+  // Local lab retention: bounded private inbox. No third-party analytics or tracking.
+  db.prepare("DELETE FROM activity_events WHERE recipient_id=? AND id NOT IN (SELECT id FROM activity_events WHERE recipient_id=? ORDER BY id DESC LIMIT 250)")
+   .run(recipientId,recipientId);
+ }
  async function handle(req,res){
   res.setHeader('X-Content-Type-Options','nosniff');
   res.setHeader('X-Frame-Options','DENY');
@@ -168,6 +187,14 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
    if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab'});return;}
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
+   }
+   if(method==='GET'&&route==='/api/feed/following'){
+    const user=requireUser(req);
+    const limit=Number(query.get('limit')||12);
+    check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный размер страницы');
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный указатель страницы');
+    send(res,200,{...page(stmt.following.all(user.id,cursor,limit+1),limit),scope:'following'});return;
    }
    if(method==='GET'&&route==='/api/posts'){
     const limit=Number(query.get('limit')||12);
@@ -250,6 +277,16 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const items=db.prepare("SELECT r.id,r.reason,r.comment_id,c.body,r.created_at FROM comment_reports r JOIN comments c ON c.id=r.comment_id WHERE r.status='open' AND c.status='published' ORDER BY r.id ASC LIMIT 100").all();
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/me/activity'){
+    const user=requireUser(req);
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный указатель событий');
+    const limit=20;
+    const rows=db.prepare("SELECT e.id,e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? AND e.id<? ORDER BY e.id DESC LIMIT ?")
+     .all(user.id,cursor,limit+1);
+    const unreadCount=db.prepare('SELECT count(*) AS n FROM activity_events WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
+    send(res,200,{...page(rows,limit),unreadCount});return;
+   }
    if(method==='GET'&&route==='/api/account/export'){
     const user=requireUser(req);
     // All rows are owner-bound; never include password hashes or session tokens.
@@ -259,8 +296,9 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
+    const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals,activity});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -312,6 +350,10 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if(method==='POST'&&route==='/api/me/activity/read'){
+    const result=db.prepare('UPDATE activity_events SET read_at=? WHERE recipient_id=? AND read_at IS NULL').run(now(),user.id);
+    send(res,200,{read:result.changes,unreadCount:0});return;
+   }
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
@@ -320,7 +362,11 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
     if(method==='POST'){
      throttle('follow:'+user.id,70,3600000);
-     const result=db.prepare('INSERT OR IGNORE INTO world_follows(world_id,user_id,created_at) VALUES(?,?,?)').run(world.id,user.id,now());
+     const result=atomic(()=>{
+      const inserted=db.prepare('INSERT OR IGNORE INTO world_follows(world_id,user_id,created_at) VALUES(?,?,?)').run(world.id,user.id,now());
+      if(inserted.changes)recordActivity(world.owner_id,user.id,'new_follow',{worldId:world.id});
+      return inserted;
+     });
      send(res,result.changes?201:200,{followed:true});return;
     }
     db.prepare('DELETE FROM world_follows WHERE world_id=? AND user_id=?').run(world.id,user.id);
@@ -331,8 +377,13 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     throttle('comment:'+user.id,25,3600000);
     const postId=int(commentWrite[1]),text=str(body.body);
     check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
-    check(db.prepare("SELECT 1 FROM posts WHERE id=? AND status='published'").get(postId),404,'Публикация недоступна');
-    const id=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
+    const post=db.prepare("SELECT author_id,world_id FROM posts WHERE id=? AND status='published'").get(postId);
+    check(post,404,'Публикация недоступна');
+    const id=atomic(()=>{
+     const created=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
+     recordActivity(post.author_id,user.id,'post_comment',{worldId:post.world_id,postId});
+     return created;
+    });
     send(res,201,{id:Number(id),postId,body:text});return;
    }
    const removeComment=route.match(/^\/api\/comments\/([1-9][0-9]{0,14})$/);
@@ -367,12 +418,15 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    const withdraw=route.match(/^\/api\/sponsors\/([1-9][0-9]{0,14})\/withdraw$/);
    if(method==='POST'&&withdraw){
     const id=int(withdraw[1]);
-    const item=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS creator_id,a.status FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=?").get(id);
+    const item=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS creator_id,a.world_id,a.status FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=?").get(id);
     check(item,404,'Предложение не найдено');
     check(item.applicant_id===user.id||item.creator_id===user.id,403,'Отозвать может только заявитель или владелец мира');
     check(['pending_creator','pending_review','approved'].includes(item.status),409,'Заявка уже закрыта');
-    const result=db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE id=? AND status IN ('pending_creator','pending_review','approved')").run(now(),id);
-    check(result.changes===1,409,'Состояние заявки изменилось');
+    atomic(()=>{
+     const result=db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE id=? AND status IN ('pending_creator','pending_review','approved')").run(now(),id);
+     check(result.changes===1,409,'Состояние заявки изменилось');
+     recordActivity(item.applicant_id===user.id?item.creator_id:item.applicant_id,user.id,'sponsor_revoked',{worldId:item.world_id,sponsorId:id});
+    });
     send(res,200,{id,status:'revoked',paid:false,visible:false});return;
    }
    // R30 paid-advertising gate: a proposal is NOT a paid campaign.
@@ -397,7 +451,11 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status IN ('pending_creator','pending_review')").get(user.id).n;
     check(count<3,409,'Допускается не более трёх нерассмотренных предложений');
     throttle('sponsor:'+user.id,4,86400000);
-    const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending_creator',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
+    const id=atomic(()=>{
+     const created=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending_creator',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
+     recordActivity(targetWorld.owner_id,user.id,'sponsor_proposal',{worldId,sponsorId:Number(created)});
+     return created;
+    });
     send(res,201,{id:Number(id),status:'pending_creator',paid:false,verification:'not-verified',ownerConsent:false});return;
    }
    // Two approvals are independent: first World owner, then independent moderator.
@@ -405,13 +463,16 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
    if(method==='POST'&&creatorDecision){
     check(body.decision==='accept'||body.decision==='reject',400,'Неверное решение владельца');
     const id=int(creatorDecision[1]);
-    const proposal=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS world_owner FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_creator'").get(id);
+    const proposal=db.prepare("SELECT a.owner_id AS applicant_id,a.world_id,w.owner_id AS world_owner FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_creator'").get(id);
     check(proposal,404,'Заявка не найдена');
     check(proposal.world_owner===user.id,403,'Решение может принять только владелец World');
     check(proposal.applicant_id!==user.id,403,'Нельзя согласовывать собственную рекламную заявку');
     const status=body.decision==='accept'?'pending_review':'rejected';
-    const result=db.prepare("UPDATE sponsor_proposals SET status=? WHERE id=? AND status='pending_creator'").run(status,id);
-    check(result.changes===1,409,'Решение уже принято');
+    atomic(()=>{
+     const result=db.prepare("UPDATE sponsor_proposals SET status=? WHERE id=? AND status='pending_creator'").run(status,id);
+     check(result.changes===1,409,'Решение уже принято');
+     recordActivity(proposal.applicant_id,user.id,body.decision==='accept'?'sponsor_accepted':'sponsor_rejected',{worldId:proposal.world_id,sponsorId:id});
+    });
     send(res,200,{id,status,paid:false});return;
    }
    const reviewSponsor=route.match(/^\/api\/mod\/sponsors\/([1-9][0-9]{0,14})\/review$/);
@@ -419,12 +480,17 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     check(user.role==='moderator',403,'Нет прав модератора');
     check(body.decision==='approved'||body.decision==='rejected',400,'Неверное решение');
     const id=int(reviewSponsor[1]);
-    const application=db.prepare("SELECT a.owner_id,w.owner_id AS creator_id FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_review'").get(id);
+    const application=db.prepare("SELECT a.owner_id,a.world_id,w.owner_id AS creator_id FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_review'").get(id);
     check(application,404,'Заявка не найдена');
     check(application.owner_id!==user.id&&application.creator_id!==user.id,403,'Независимый модератор не должен быть покупателем или владельцем World');
-    const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending_review'")
-     .run(body.decision,user.id,now(),id);
-    check(result.changes===1,409,'Заявка уже рассмотрена');
+    atomic(()=>{
+     const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending_review'")
+      .run(body.decision,user.id,now(),id);
+     check(result.changes===1,409,'Заявка уже рассмотрена');
+     const kind=body.decision==='approved'?'sponsor_approved':'sponsor_rejected';
+     recordActivity(application.owner_id,user.id,kind,{worldId:application.world_id,sponsorId:id});
+     recordActivity(application.creator_id,user.id,kind,{worldId:application.world_id,sponsorId:id});
+    });
     send(res,200,{id,status:body.decision,paid:false});return;
    }
    if(method==='POST'&&route==='/api/worlds'){
