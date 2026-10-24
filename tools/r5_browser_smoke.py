@@ -142,6 +142,44 @@ window.addEventListener('load',function(){
 });
 </script>"""
 
+
+SOURCE_ATLAS_TEST=r"""<script>
+window.addEventListener('load',function(){
+  setTimeout(function(){
+    try{
+      const $=id=>document.getElementById(id);
+      const api=window.MarcosaSourceAtlas;
+      if(!api||api.RECORDS.length!==33)throw Error('SOURCE_DATA_NOT_LOADED');
+      if(document.querySelectorAll('#sh-grid .sh-card').length!==33)throw Error('SOURCE_GRID_COUNT');
+      const first=api.RECORDS.filter(x=>x.kind==='github');
+      if(first.length!==20)throw Error('REPO_COUNT');
+      if(api.RECORDS.filter(x=>x.kind==='archive').length!==13)throw Error('ZIP_COUNT');
+      document.querySelector('[data-sh-filter="cinema"]').click();
+      const cinemaCount=document.querySelectorAll('#sh-grid .sh-card').length;
+      if(cinemaCount<4||cinemaCount>10)throw Error('CINEMA_FILTER');
+      const search=$('sh-search');search.value='protocol-zero';
+      search.dispatchEvent(new Event('input',{bubbles:true}));
+      if(document.querySelectorAll('#sh-grid .sh-card').length!==1)throw Error('SOURCE_SEARCH');
+      const link=document.querySelector('#sh-grid a.sh-link');
+      if(!link||link.href!=='https://github.com/osmanosmanov6880-bot/protocol-zero')
+        throw Error('SOURCE_REAL_GITHUB_LINK');
+      if(link.getAttribute('rel')!=='noopener noreferrer')throw Error('OUTBOUND_LINK_SECURITY');
+      document.querySelector('[data-sh-filter="archives"]').click();
+      search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));
+      if(document.querySelectorAll('#sh-grid .sh-card').length!==13)throw Error('ZIP_FILTER');
+      if(document.querySelector('#sh-grid a.sh-link'))throw Error('PRIVATE_ARCHIVE_GOT_DOWNLOAD_LINK');
+      if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)throw Error('HORIZONTAL_SCROLL');
+      const meta=document.createElement('meta');meta.name='r5-browser-smoke';meta.content='PASS-R15-SOURCE-ATLAS';
+      document.head.append(meta);
+    }catch(e){
+      const meta=document.createElement('meta');meta.name='r5-browser-smoke';
+      meta.content='FAIL-R15-'+String(e.message||e).slice(0,65);
+      document.head.append(meta);
+    }
+  },650);
+});
+</script>"""
+
 def run_case(here:Path,filename:str,hook:str,fragment:str="",viewport:str="1440,900")->bool:
     html=(DIST/filename).read_text(encoding="utf-8")
     if "</body>" not in html:
@@ -172,14 +210,17 @@ def main()->int:
         here=Path(temp)
         for filename in ("index.html","network.css","network.js","immersive.css","immersive.js",
                          "stories.html","stories.css","stories.js",
-                         "creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js","creator-crypto.js","creator-standalone.js","creator-playtest.js"):
+                         "creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js","creator-crypto.js","creator-standalone.js","creator-playtest.js",
+                         "source-hub.html","source-hub.css","source-hub.js"):
             shutil.copyfile(DIST/filename,here/filename)
         ok1=run_case(here,"stories.html",STORY_TEST)
         ok2=run_case(here,"index.html",ROUTE_TEST,"#network-product=proofos")
         ok3=run_case(here,"stories.html",STORY_ROUTE_TEST,"#story=signal.00")
         ok4=run_case(here,"creator.html",CREATOR_TEST)
         ok5=run_case(here,"creator.html",CREATOR_TEST,viewport="390,844")
-        return 0 if ok1 and ok2 and ok3 and ok4 and ok5 else 3
+        ok6=run_case(here,"source-hub.html",SOURCE_ATLAS_TEST)
+        ok7=run_case(here,"source-hub.html",SOURCE_ATLAS_TEST,viewport="390,844")
+        return 0 if all((ok1,ok2,ok3,ok4,ok5,ok6,ok7)) else 3
 
 if __name__=="__main__":
     raise SystemExit(main())
