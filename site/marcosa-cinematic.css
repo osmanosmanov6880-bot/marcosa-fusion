@@ -270,3 +270,9 @@ html[data-m-world] .m-transition-progress i{background:linear-gradient(90deg,tra
 @media(prefers-reduced-motion:reduce){
  html[data-m-world] .m-transition:before,html[data-m-world] .m-transition:after,html[data-m-world] .m-transition-mark{animation:none!important}
 }
+
+/* R22 visual QA: on desktop the Gateway already has a full sidebar.
+   Do not let the global launcher obscure the actual application navigation. */
+@media(min-width:721px){
+ html[data-m-world="gateway"] .m-world-bar{display:none!important}
+}
