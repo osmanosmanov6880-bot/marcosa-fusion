@@ -16,6 +16,8 @@ on:
       - "site/**"
       - "tests/**"
       - "tools/build_webroot.py"
+      - "tools/build_cinema_r18.py"
+      - "tools/r18_multicinema_cdp.cjs"
       - ".github/workflows/marcosa-public-pages.yml"
   workflow_dispatch:
 
