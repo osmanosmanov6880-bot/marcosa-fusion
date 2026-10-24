@@ -48,9 +48,10 @@ jobs:
           node --check site/creator-backup.js
           node --check site/creator-crypto.js
           node --check site/creator-standalone.js
+          node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -69,6 +70,7 @@ jobs:
           test -s dist/creator-backup.js
           test -s dist/creator-crypto.js
           test -s dist/creator-standalone.js
+          test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
           node tools/r9_cdp_smoke.cjs
