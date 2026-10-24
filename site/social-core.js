@@ -41,7 +41,7 @@
   function render(){
    let count=0;
    for(const card of cards){
-    const matchesType=filter==='all'||card.dataset.soType===filter;
+    const matchesType=filter==='saved'?saved.includes(card.dataset.soId):(filter==='all'||card.dataset.soType===filter);
     const haystack=(card.dataset.soSearch+' '+card.textContent).toLocaleLowerCase('ru');
     const matchesSearch=!query||haystack.includes(query);
     card.hidden=!(matchesType&&matchesSearch);
@@ -64,23 +64,31 @@
    const id=button.dataset.soSave;
    if(!Object.prototype.hasOwnProperty.call(LABELS,id))return;
    saved=saved.includes(id)?saved.filter(x=>x!==id):saved.concat(id);
-   if(write(KEY_SAVED,saved))bookmarks();
+   if(write(KEY_SAVED,saved)){bookmarks();render();}
    else $('so-bookmark-summary').textContent='Не удалось сохранить закладку: хранилище браузера недоступно.';
   }));
-  const original=read(KEY_DRAFT,'');
-  if(typeof original==='string')text.value=original.slice(0,700);
+  function showPrivateNote(value){
+   const card=$('so-personal-note'),body=$('so-personal-note-body');
+   if(!card||!body)return;
+   card.hidden=!value;
+   body.textContent=value||'';
+  }
+    const original=read(KEY_DRAFT,'');
+  if(typeof original==='string'){text.value=original.slice(0,700);showPrivateNote(text.value);}
   function counter(){$('so-length').textContent=String(text.value.length)+' / 700';}
   text.addEventListener('input',counter);
   $('so-save-draft').addEventListener('click',()=>{
    const value=text.value.trim();
    if(!value){info.textContent='Сначала напиши хотя бы одну мысль.';text.focus();return;}
-   info.textContent=write(KEY_DRAFT,value)
+   const success=write(KEY_DRAFT,value);
+   info.textContent=success
     ?'Черновик сохранён только в этом браузере. Другие пользователи его не видят.'
     :'Не удалось сохранить: браузер запрещает локальное хранилище.';
+   if(success)showPrivateNote(value);
   });
   $('so-clear-draft').addEventListener('click',()=>{
    const success=del(KEY_DRAFT);
-   text.value='';counter();
+   text.value='';counter();if(success)showPrivateNote('');
    info.textContent=success?'Локальный черновик удалён. Публикаций не было.':'Браузер не разрешил удалить сохранение.';
   });
   counter();bookmarks();render();
