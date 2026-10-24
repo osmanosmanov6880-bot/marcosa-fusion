@@ -80,6 +80,12 @@
  </aside>
  <section class="center">
   <div class="section-heading" id="worlds"><div><span class="eyebrow">DISCOVER / REAL WORLD OWNERSHIP</span><h2>Настоящие <em>миры.</em></h2></div><span id="world-count" class="count"></span></div>
+  <form id="discover-form" class="discover-form" role="search">
+   <label for="discover-input">Поиск опубликованных миров и историй</label>
+   <div class="discover-line"><input id="discover-input" name="q" minlength="2" maxlength="72" placeholder="Тема, мир, история" required>
+   <button type="submit" class="ghost">Найти</button><button id="discover-clear" type="button" class="ghost">Сбросить</button></div>
+  </form>
+  <div id="discover-results" class="discover-results" aria-live="polite" hidden></div>
   <div id="world-list" class="world-grid"></div>
   <section id="world-detail" class="panel world-detail" aria-labelledby="world-detail-title" hidden>
    <button id="world-close" class="ghost small" type="button">← Все миры</button>
