@@ -66,6 +66,12 @@
    throw Error('TAMPERED_REPORT');
   return expected;
  }
+ function reportSites(report){
+  return report.sites.map(item=>{
+   const {slot,domain,name,checks,note}=item;
+   return kit.normalizeSite({slot,domain,name,checks,note});
+  });
+ }
  function exportReport(sites,when){
   const report=kit.report(sites,when);
   const text=JSON.stringify(report,null,2)+'\n';
@@ -232,7 +238,7 @@
      lock(true);
      try{
       const snapshot=await store.get(entry.id);
-      const count=runtime.replaceSites(snapshot.report.sites.map(x=>kit.normalizeSite(x)));
+      const count=runtime.replaceSites(reportSites(snapshot.report));
       status('statusRestored',String(count));
      }catch(err){status('statusFail');}
      finally{lock(false);}
@@ -265,7 +271,7 @@
     if(file.size>MAX_BYTES)throw Error('REPORT_SIZE');
     const input=parseReport(await file.text());
     if(runtime.sites.length&&typeof win.confirm==='function'&&!win.confirm(t('confirmFile')))return;
-    const count=runtime.replaceSites(input.sites.map(x=>kit.normalizeSite(x)));
+    const count=runtime.replaceSites(reportSites(input));
     status('statusImported',String(count));
    }catch(err){status('statusInvalid');}
    finally{lock(false);}
@@ -278,5 +284,5 @@
   catch(err){store=null;lock(false);status('statusStorage');refresh();}
   return Object.freeze({refresh,get available(){return !!store;}});
  }
- return Object.freeze({MAX_BYTES,MAX_SNAPSHOTS,parseReport,exportReport,validateSnapshot,createStore,mount});
+ return Object.freeze({MAX_BYTES,MAX_SNAPSHOTS,parseReport,reportSites,exportReport,validateSnapshot,createStore,mount});
 });
