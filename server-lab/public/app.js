@@ -75,6 +75,48 @@ async function worlds(){
  }
  if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
 }
+async function discussion(postId,region){
+ const list=await api('/posts/'+postId+'/comments');
+ clear(region);
+ for(const item of list.items){
+  const row=node('div','','comment-item');
+  row.append(node('strong','@'+item.username),node('p',item.body,'comment-copy'));
+  if(state.me&&item.username!==state.me.username){
+   const report=node('button','Пожаловаться','ghost small');report.type='button';
+   report.addEventListener('click',()=>{
+    state.reportComment=item.id;state.reportPost=null;
+    $('report-dialog').showModal();
+   });
+   row.append(report);
+  }
+  if(state.me&&item.username===state.me.username){
+   const remove=node('button','Удалить','ghost small');remove.type='button';
+   remove.addEventListener('click',()=>run(async()=>{
+    await api('/comments/'+item.id,'DELETE',{});
+    await discussion(postId,region);
+   },'Комментарий удалён'));
+   row.append(remove);
+  }
+  region.append(row);
+ }
+ if(!list.items.length)region.append(node('p','Будь первым участником обсуждения.','muted'));
+ if(list.nextCursor)region.append(node('p','Показаны последние 20 комментариев.','muted'));
+ if(!state.me)return;
+ const form=node('form','','comment-form');
+ const label=node('label','Твой ответ'),input=node('textarea');
+ input.name='body';input.maxLength=800;input.required=true;input.rows=2;
+ input.placeholder='Ответить по существу, до 800 символов';
+ label.append(input);
+ const sendBtn=node('button','Отправить ответ','gold small');sendBtn.type='submit';
+ form.append(label,sendBtn);region.append(form);
+ form.addEventListener('submit',event=>{
+  event.preventDefault();const entry=event.currentTarget;
+  run(async()=>{
+   await api('/posts/'+postId+'/comments','POST',{body:entry.elements.body.value});
+   await discussion(postId,region);
+  },'Ответ опубликован');
+ });
+}
 function postCard(post,own=false){
  const card=node('article','','post');
  card.append(node('span',own?'МОЯ ЗАПИСЬ / '+post.status:'@'+post.username+' / '+post.world,'eyebrow'));
@@ -96,10 +138,17 @@ function postCard(post,own=false){
   },'Действие обработано'));actions.append(remove);
  }else if(state.me&&post.username!==state.me.username){
   const report=node('button','Пожаловаться','ghost small');report.type='button';
-  report.addEventListener('click',()=>{state.reportPost=post.id;$('report-dialog').showModal();});
+  report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;$('report-dialog').showModal();});
   actions.append(report);
  }
- card.append(actions);return card;
+ card.append(actions);
+ if(!own||post.status==='published'){
+  const thread=node('details','','discussion'),summary=node('summary','Обсуждение · '+Number(post.comments_count||0));
+  const region=node('div','','comment-region');thread.append(summary,region);
+  thread.addEventListener('toggle',()=>{if(thread.open)run(()=>discussion(post.id,region));});
+  card.append(thread);
+ }
+ return card;
 }
 async function feed(reset=true){
  const params=new URLSearchParams({limit:'12'});
@@ -164,11 +213,15 @@ $('post-form').addEventListener('submit',event=>{
 });
 $('report-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
-  await api('/reports','POST',{...values(form),postId:state.reportPost});
-  $('report-dialog').close();form.reset();state.reportPost=null;
+  if(state.reportComment){
+   await api('/comments/'+state.reportComment+'/report','POST',{reason:values(form).reason});
+  }else{
+   await api('/reports','POST',{...values(form),postId:state.reportPost});
+  }
+  $('report-dialog').close();form.reset();state.reportPost=null;state.reportComment=null;
  },'Жалоба отправлена модератору');
 });
-$('report-cancel').addEventListener('click',()=>$('report-dialog').close());
+$('report-cancel').addEventListener('click',()=>{state.reportPost=null;state.reportComment=null;$('report-dialog').close();});
 $('delete-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   await api('/account','DELETE',values(form));
