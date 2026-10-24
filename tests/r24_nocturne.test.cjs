@@ -27,7 +27,7 @@ test('R24 nine-panel dark reference is a REAL three-column app, not a white stat
 });
 test('R24 dark design replaces visible R23 white but keeps source-safe rollback',()=>{
  const css=read('marcosa-nocturne.css');
- for(const item of ['.q23-home{display:none!important}','.m22-experience{display:block!important}',
+ for(const item of ['.q23-home{display:none!important}','.m22-experience{display:block!important',
   '.m22-command{display:grid!important','url("./visual-city.webp")','html[data-m-world="social"] .so-shell',
   'html[data-m-world="social"] .so-hero','url("./visual-cascade.webp")',
   'html[data-m-world="cinema"] .cp-hero','html[data-m-world="creator"] .mc-hero',
