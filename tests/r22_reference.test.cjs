@@ -36,7 +36,7 @@ test('R22 literal design brief is checked in and accurate about release boundari
  const brief=fs.readFileSync(path.join(ROOT,'docs/MARCOSA_R22_REFERENCE_IMPLEMENTATION_BRIEF_RU.md'),'utf8');
  assert.ok(brief.includes('НЕ генерировать новые изображения'));
  assert.ok(brief.includes('GitHub Pages'));
- assert.ok(brief.includes('не равно промышленному AAA-продакшену'));
+ assert.ok(brief.includes('не равен промышленному AAA-продакшену'));
 });
 test('R22 original film packages stay unmodified and branded scripts are executable',()=>{
  for(const file of ['marcosa-gateway.js','marcosa-brand.js']){
