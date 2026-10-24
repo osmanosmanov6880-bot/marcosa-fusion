@@ -34,7 +34,17 @@ def main() -> None:
     reports = []
     with tempfile.TemporaryDirectory(prefix="marcosa-r4-snap-") as tmp:
         here = Path(tmp)
-        for filename in ("index.html", "network.js", "network.css", "immersive.js", "immersive.css"):
+        # R22: evidence must render the real deployed brand/layout and sourced
+        # artwork, not the unstyled HTML produced by copying only 5 R4 assets.
+        needed = (
+            "index.html", "network.js", "network.css", "immersive.js", "immersive.css",
+            "marcosa-brand.css", "marcosa-brand.js", "marcosa-gateway.js",
+            "marcosa-cinematic.css", "marcosa-mark.svg",
+            "visual-station.webp", "visual-city.webp", "visual-cascade.webp",
+            "visual-hero.webp", "visual-archive.webp", "visual-control.webp",
+            "visual-operator.webp", "visual-earthrise.webp",
+        )
+        for filename in needed:
             shutil.copyfile(DIST / filename, here / filename)
         # Screenshots of the actual existing catalogue, not a mock-up.
         original = (here / "index.html").read_text(encoding="utf-8")
