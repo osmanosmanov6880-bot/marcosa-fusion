@@ -1,4 +1,4 @@
-name: "MARCOSA | R28 real social server lab"
+name: "MARCOSA | real social server + World/Ads lab"
 on:
   push:
     branches: [main]
@@ -13,6 +13,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: marcosa-community-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 jobs:
   test-real-api:
     runs-on: ubuntu-latest
@@ -37,7 +40,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node --test server-lab/test/core.test.mjs
+          node --check server-lab/test/r30.community_ads.test.mjs
+          node --check server-lab/test/r30.migration.test.mjs
+          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs
       - name: Real Chromium — desktop and phones, signup, login, publish
         shell: bash
         run: |
@@ -48,8 +53,8 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: marcosa-r28-real-social-browser-qa
-          path: qa-r28/
+          name: marcosa-r30-real-social-ads-browser-qa
+          path: qa-r30/
           retention-days: 7
           if-no-files-found: error
       - name: Confirm public preview remains isolated

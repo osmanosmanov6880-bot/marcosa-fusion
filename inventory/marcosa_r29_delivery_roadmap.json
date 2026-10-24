@@ -110,14 +110,15 @@
       "priority": "P0",
       "target_day": 60,
       "track": "social",
-      "status": "planned",
+      "status": "prototype_only",
       "goal": "Комментарии, подписки, уведомления, жалобы и решения с апелляцией",
       "acceptance": "Реальные межпользовательские взаимодействия, privacy, роль модератора и отчёт об апелляциях",
       "depends_on": [
         "R29-003",
         "R29-004"
       ],
-      "verified_complete": false
+      "verified_complete": false,
+      "r30_work_in_progress": "R30 local SQLite real follows and comment moderation. Notifications, appeals, production Auth/RLS and public multiuser operations remain unimplemented."
     },
     {
       "id": "R29-006",
@@ -189,27 +190,29 @@
       "priority": "P1",
       "target_day": 120,
       "track": "ads-inventory",
-      "status": "planned",
+      "status": "prototype_only",
       "goal": "Sponsored World и Contextual Card с рекламной маркировкой",
       "acceptance": "Реальный eligible inventory, формальное согласие автора World, viewability методика",
       "depends_on": [
         "R29-009",
         "R29-010"
       ],
-      "verified_complete": false
+      "verified_complete": false,
+      "r30_work_in_progress": "R30 bilateral unpaid sponsor requests, creator consent and independent moderator review. No verified advertiser, ad delivery, billable impressions or cash."
     },
     {
       "id": "R29-012",
       "priority": "P1",
       "target_day": 120,
       "track": "ads-review",
-      "status": "planned",
+      "status": "partial",
       "goal": "Advertiser verification, creative review, reject, appeals и audit trail",
       "acceptance": "Проверенные бренды, запрещённые категории блокируются, маркировка sponsor visible",
       "depends_on": [
         "R29-011"
       ],
-      "verified_complete": false
+      "verified_complete": false,
+      "r30_work_in_progress": "R30 basic manual pilot review and HTTPS checks only. Company identity verification, creative/legal rights proof and formal appeal workflow still missing."
     },
     {
       "id": "R29-013",
@@ -320,5 +323,20 @@
       ],
       "verified_complete": false
     }
-  ]
+  ],
+  "r30_work": {
+    "branch": "feature/marcosa-r30-world-community-and-sponsor-pilot",
+    "pr": 34,
+    "scope": "Local-only community + two-party unpaid sponsor approval",
+    "verification": "GitHub Actions queued; NOT yet verified",
+    "production_impact": "none",
+    "payments": "not implemented",
+    "auth": "existing local test-only invite authentication",
+    "rls": "reference design only, not executed",
+    "blockers": [
+      "No accessible Supabase project",
+      "Unverified SSH staging host key",
+      "Real-world company verification and payment compliance missing"
+    ]
+  }
 }

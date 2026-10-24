@@ -57,19 +57,71 @@ const SCHEMA=[
  'CREATE INDEX IF NOT EXISTS idx_posts_public ON posts(status,id DESC)',
  'CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(author_id,id DESC)',
  'CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN (\'spam\',\'abuse\',\'privacy\',\'other\')), detail TEXT NOT NULL DEFAULT \'\', status TEXT NOT NULL DEFAULT \'open\' CHECK(status IN (\'open\',\'reviewed\')), created_at INTEGER NOT NULL, UNIQUE(post_id,reporter_id))',
- 'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status,id DESC)'
+ 'CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status,id DESC)',
+ "CREATE TABLE IF NOT EXISTS world_follows (world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY(world_id,user_id))",
+ "CREATE INDEX IF NOT EXISTS idx_follows_user ON world_follows(user_id,created_at DESC)",
+ "CREATE TABLE IF NOT EXISTS comments (id INTEGER PRIMARY KEY AUTOINCREMENT, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 800), status TEXT NOT NULL DEFAULT 'published' CHECK(status IN ('published','hidden')), created_at INTEGER NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_comments_visible ON comments(post_id,status,id DESC)",
+ "CREATE TABLE IF NOT EXISTS comment_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')), created_at INTEGER NOT NULL, UNIQUE(comment_id,reporter_id))",
+ "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)"
 ].join(';\n')+';';
+
+
+function upgradeLegacySponsorStatuses(db){
+ // Earlier R30 local databases allowed approved/rejected but not revoked.
+ // Preserve rows and their IDs in a single atomic transaction; never wipe profiles.
+ const legacy=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='sponsor_proposals'").get()?.sql||'';
+ if(legacy.includes("'revoked'"))return false;
+ if(!legacy)throw Error('Missing sponsor_proposals table');
+ const previous=db.prepare('SELECT count(*) AS n FROM sponsor_proposals').get().n;
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  db.exec(`
+   CREATE TABLE sponsor_proposals_upgrade_r30 (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+    brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75),
+    headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130),
+    landing_url TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending_creator'
+     CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')),
+    created_at INTEGER NOT NULL,
+    reviewed_at INTEGER,
+    reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL
+   );
+   INSERT INTO sponsor_proposals_upgrade_r30
+    (id,owner_id,world_id,brand_name,headline,landing_url,status,created_at,reviewed_at,reviewer_id)
+    SELECT id,owner_id,world_id,brand_name,headline,landing_url,status,created_at,reviewed_at,reviewer_id
+    FROM sponsor_proposals;
+   DROP TABLE sponsor_proposals;
+   ALTER TABLE sponsor_proposals_upgrade_r30 RENAME TO sponsor_proposals;
+   CREATE INDEX idx_sponsor_status ON sponsor_proposals(status,id DESC);
+  `);
+  if(db.prepare('SELECT count(*) AS n FROM sponsor_proposals').get().n!==previous)
+   throw Error('Sponsor migration row count mismatch');
+  if(db.prepare('PRAGMA foreign_key_check').all().length)
+   throw Error('Sponsor migration invalid foreign key references');
+  db.exec('COMMIT');
+  return true;
+ }catch(error){
+  db.exec('ROLLBACK');
+  throw error;
+ }
+}
 
 export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.now()}={}){
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
  const stmt={
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
   myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
-  feed:db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?")
+  feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
  function throttle(key,max,duration){
   const current=now(),a=rateMap.get(key);
@@ -124,8 +176,28 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     check(cursor>0,400,'Неверный указатель страницы');
     send(res,200,page(stmt.feed.all(cursor,limit+1),limit));return;
    }
+   if(method==='GET'&&route==='/api/discover'){
+    // Parameterized search; returns no drafts, hidden posts or private member data.
+    const raw=str(query.get('q')).normalize('NFC');
+    check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
+      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
+      FROM worlds w JOIN users u ON u.id=w.owner_id
+      WHERE instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw);
+    const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
+      (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
+      FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
+      WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
+      ORDER BY p.id DESC LIMIT 12`).all(raw);
+    send(res,200,{query:raw,worlds,posts,limit:12});return;
+   }
    if(method==='GET'&&route==='/api/worlds'){
-    const items=db.prepare('SELECT w.slug,w.title,w.description,u.username AS owner FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30').all();
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+(SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
+(SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
+FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30`).all();
     send(res,200,{items});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
@@ -134,14 +206,61 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     check(cursor>0,400,'Неверный указатель страницы');
     send(res,200,page(stmt.byWorld.all(worldRoute[1],cursor,21),20));return;
    }
+   // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
+   const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/followers$/);
+   if(method==='GET'&&followRead){
+    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followRead[1]);
+    check(world,404,'Мир не найден');
+    const count=db.prepare('SELECT count(*) AS n FROM world_follows WHERE world_id=?').get(world.id).n;
+    const visitor=who(req);
+    const followed=Boolean(visitor&&db.prepare('SELECT 1 FROM world_follows WHERE world_id=? AND user_id=?').get(world.id,visitor.id));
+    send(res,200,{slug:followRead[1],count,followed,owned:visitor?.id===world.owner_id});return;
+   }
+   const commentRead=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
+   if(method==='GET'&&commentRead){
+    const id=int(commentRead[1]);
+    check(db.prepare("SELECT 1 FROM posts WHERE id=? AND status='published'").get(id),404,'Публикация не найдена');
+    const limit=20;
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный курсор комментариев');
+    const rows=db.prepare("SELECT c.id,c.body,c.created_at,u.username FROM comments c JOIN users u ON u.id=c.author_id WHERE c.post_id=? AND c.status='published' AND c.id<? ORDER BY c.id DESC LIMIT ?").all(id,cursor,limit+1);
+    send(res,200,page(rows,limit));return;
+   }
+   if(method==='GET'&&route==='/api/sponsors/approved'){
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' ORDER BY a.id DESC LIMIT 12").all();
+    send(res,200,{items,paid:false,production:false});return;
+   }
+   if(method==='GET'&&route==='/api/me/sponsors'){
+    const user=requireUser(req);
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.status,w.slug AS world,a.created_at FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id DESC LIMIT 30").all(user.id);
+    send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/me/received-sponsors'){
+    const recipient=requireUser(req);
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE w.owner_id=? AND a.status IN ('pending_creator','pending_review','approved') ORDER BY a.id ASC LIMIT 50").all(recipient.id);
+    send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/mod/sponsors'){
+    const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,a.status,w.slug AS world,u.username AS applicant FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=a.owner_id WHERE a.status='pending_review' ORDER BY a.id ASC LIMIT 50").all();
+    send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/mod/comment-reports'){
+    const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT r.id,r.reason,r.comment_id,c.body,r.created_at FROM comment_reports r JOIN comments c ON c.id=r.comment_id WHERE r.status='open' AND c.status='published' ORDER BY r.id ASC LIMIT 100").all();
+    send(res,200,{items});return;
+   }
    if(method==='GET'&&route==='/api/account/export'){
     const user=requireUser(req);
     // All rows are owner-bound; never include password hashes or session tokens.
     const worlds=stmt.myWorlds.all(user.id);
     const posts=db.prepare('SELECT id,world_id,body,status,created_at,updated_at FROM posts WHERE author_id=? ORDER BY id ASC').all(user.id);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
+    const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
+    const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
+    const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports});
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -193,6 +312,121 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   // R30 real community: follow relationships are per signed-in user.
+   const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
+   if(followWrite&&(method==='POST'||method==='DELETE')){
+    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
+    check(world,404,'Мир не найден');
+    check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
+    if(method==='POST'){
+     throttle('follow:'+user.id,70,3600000);
+     const result=db.prepare('INSERT OR IGNORE INTO world_follows(world_id,user_id,created_at) VALUES(?,?,?)').run(world.id,user.id,now());
+     send(res,result.changes?201:200,{followed:true});return;
+    }
+    db.prepare('DELETE FROM world_follows WHERE world_id=? AND user_id=?').run(world.id,user.id);
+    send(res,200,{followed:false});return;
+   }
+   const commentWrite=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
+   if(method==='POST'&&commentWrite){
+    throttle('comment:'+user.id,25,3600000);
+    const postId=int(commentWrite[1]),text=str(body.body);
+    check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
+    check(db.prepare("SELECT 1 FROM posts WHERE id=? AND status='published'").get(postId),404,'Публикация недоступна');
+    const id=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),postId,body:text});return;
+   }
+   const removeComment=route.match(/^\/api\/comments\/([1-9][0-9]{0,14})$/);
+   if(method==='DELETE'&&removeComment){
+    const result=db.prepare('DELETE FROM comments WHERE id=? AND author_id=?').run(int(removeComment[1]),user.id);
+    check(result.changes===1,404,'Комментарий не найден');
+    send(res,200,{deleted:true});return;
+   }
+   const reportComment=route.match(/^\/api\/comments\/([1-9][0-9]{0,14})\/report$/);
+   if(method==='POST'&&reportComment){
+    throttle('comment-report:'+user.id,30,3600000);
+    check(REASONS.has(body.reason),400,'Причина жалобы не поддерживается');
+    const id=int(reportComment[1]);
+    const comment=db.prepare("SELECT c.author_id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id=? AND c.status='published' AND p.status='published'").get(id);
+    check(comment,404,'Комментарий не найден');
+    check(comment.author_id!==user.id,403,'Нельзя жаловаться на собственный комментарий');
+    try{
+     db.prepare('INSERT INTO comment_reports(comment_id,reporter_id,reason,created_at) VALUES(?,?,?,?)').run(id,user.id,body.reason,now());
+    }catch{throw new HttpError(409,'Жалоба уже зарегистрирована');}
+    send(res,201,{received:true});return;
+   }
+   const hideComment=route.match(/^\/api\/mod\/comments\/([1-9][0-9]{0,14})\/hide$/);
+   if(method==='POST'&&hideComment){
+    check(user.role==='moderator',403,'Нет прав модератора');
+    const id=int(hideComment[1]);
+    const result=db.prepare("UPDATE comments SET status='hidden' WHERE id=? AND status='published'").run(id);
+    check(result.changes===1,404,'Комментарий не найден');
+    db.prepare("UPDATE comment_reports SET status='reviewed' WHERE comment_id=?").run(id);
+    send(res,200,{hidden:true});return;
+   }
+   // Explicit revocation by advertiser or creator; accepted ads disappear immediately.
+   const withdraw=route.match(/^\/api\/sponsors\/([1-9][0-9]{0,14})\/withdraw$/);
+   if(method==='POST'&&withdraw){
+    const id=int(withdraw[1]);
+    const item=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS creator_id,a.status FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=?").get(id);
+    check(item,404,'Предложение не найдено');
+    check(item.applicant_id===user.id||item.creator_id===user.id,403,'Отозвать может только заявитель или владелец мира');
+    check(['pending_creator','pending_review','approved'].includes(item.status),409,'Заявка уже закрыта');
+    const result=db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE id=? AND status IN ('pending_creator','pending_review','approved')").run(now(),id);
+    check(result.changes===1,409,'Состояние заявки изменилось');
+    send(res,200,{id,status:'revoked',paid:false,visible:false});return;
+   }
+   // R30 paid-advertising gate: a proposal is NOT a paid campaign.
+   // There is no billing, impressions ledger, view tracking, or automatic delivery.
+   if(method==='POST'&&route==='/api/sponsors/proposals'){
+    const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
+    const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
+    check(targetWorld,404,'Выбранный World не найден');
+    check(targetWorld.owner_id!==user.id,403,'Нельзя предложить рекламу собственному World');
+    check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
+    check(headline.length>=5&&headline.length<=130,400,'Заголовок предложения: 5–130 символов');
+    const submittedUrl=str(body.landingUrl);
+    check(submittedUrl.length<=500,400,'Адрес слишком длинный');
+    let normalized;
+    try{
+     const url=new URL(submittedUrl);
+     const host=url.hostname.toLowerCase();
+     check(url.protocol==='https:'&&!url.username&&!url.password&&!url.port,400,'Разрешены только общедоступные HTTPS-сайты');
+     check(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(host)&&!host.endsWith('.local')&&!host.endsWith('.internal')&&!/^[0-9.]+$/.test(host),400,'Необходимо публичное доменное имя');
+     url.hash='';normalized=url.href;
+    }catch(e){if(e instanceof HttpError)throw e;throw new HttpError(400,'Неверный адрес сайта');}
+    const count=db.prepare("SELECT count(*) AS n FROM sponsor_proposals WHERE owner_id=? AND status IN ('pending_creator','pending_review')").get(user.id).n;
+    check(count<3,409,'Допускается не более трёх нерассмотренных предложений');
+    throttle('sponsor:'+user.id,4,86400000);
+    const id=db.prepare("INSERT INTO sponsor_proposals(owner_id,world_id,brand_name,headline,landing_url,status,created_at) VALUES(?,?,?,?,?,'pending_creator',?)").run(user.id,worldId,brandName,headline,normalized,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),status:'pending_creator',paid:false,verification:'not-verified',ownerConsent:false});return;
+   }
+   // Two approvals are independent: first World owner, then independent moderator.
+   const creatorDecision=route.match(/^\/api\/sponsors\/([1-9][0-9]{0,14})\/creator-decision$/);
+   if(method==='POST'&&creatorDecision){
+    check(body.decision==='accept'||body.decision==='reject',400,'Неверное решение владельца');
+    const id=int(creatorDecision[1]);
+    const proposal=db.prepare("SELECT a.owner_id AS applicant_id,w.owner_id AS world_owner FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_creator'").get(id);
+    check(proposal,404,'Заявка не найдена');
+    check(proposal.world_owner===user.id,403,'Решение может принять только владелец World');
+    check(proposal.applicant_id!==user.id,403,'Нельзя согласовывать собственную рекламную заявку');
+    const status=body.decision==='accept'?'pending_review':'rejected';
+    const result=db.prepare("UPDATE sponsor_proposals SET status=? WHERE id=? AND status='pending_creator'").run(status,id);
+    check(result.changes===1,409,'Решение уже принято');
+    send(res,200,{id,status,paid:false});return;
+   }
+   const reviewSponsor=route.match(/^\/api\/mod\/sponsors\/([1-9][0-9]{0,14})\/review$/);
+   if(method==='POST'&&reviewSponsor){
+    check(user.role==='moderator',403,'Нет прав модератора');
+    check(body.decision==='approved'||body.decision==='rejected',400,'Неверное решение');
+    const id=int(reviewSponsor[1]);
+    const application=db.prepare("SELECT a.owner_id,w.owner_id AS creator_id FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_review'").get(id);
+    check(application,404,'Заявка не найдена');
+    check(application.owner_id!==user.id&&application.creator_id!==user.id,403,'Независимый модератор не должен быть покупателем или владельцем World');
+    const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending_review'")
+     .run(body.decision,user.id,now(),id);
+    check(result.changes===1,409,'Заявка уже рассмотрена');
+    send(res,200,{id,status:body.decision,paid:false});return;
+   }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
