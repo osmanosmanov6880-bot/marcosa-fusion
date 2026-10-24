@@ -44,7 +44,8 @@ jobs:
         with:
           node-version: "22"
       - name: Install pinned image-grade dependency
-        run: python -m pip install --disable-pip-version-check --only-binary=:all: "Pillow==12.0.0"
+        run: |
+          python -m pip install --disable-pip-version-check --only-binary=:all: Pillow==12.0.0
       - name: Verify Python and JS source
         shell: bash
         run: |
