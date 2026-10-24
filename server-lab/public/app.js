@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],cursor:null,reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],cursor:null,reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -54,6 +54,7 @@ async function session(){
 }
 async function worlds(){
  const result=await api('/worlds'),wrap=$('world-list');clear(wrap);
+ state.worldCatalog=result.items;
  $('world-count').textContent=result.items.length+' миров';
  const sponsorChoose=$('sponsor-world');clear(sponsorChoose);
  for(const world of result.items){
@@ -84,9 +85,46 @@ async function worlds(){
    },following?'Подписка отменена':'Подписка сохранена'));
    card.append(btn);
   }
+  const open=node('a','Открыть World ↗','world-open');
+  open.href='#world-'+encodeURIComponent(world.slug);
+  open.addEventListener('click',event=>{
+   event.preventDefault();location.hash='world-'+world.slug;
+   run(()=>openWorld(world.slug));
+  });
+  card.append(open);
   wrap.append(card);
  }
  if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
+}
+async function openWorld(slug){
+ if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
+ const world=state.worldCatalog.find(w=>w.slug===slug);
+ if(!world)throw Error('Мир не найден');
+ const [posts,approved]=await Promise.all([
+  api('/worlds/'+encodeURIComponent(slug)+'/posts'),
+  api('/sponsors/approved')
+ ]);
+ const panel=$('world-detail');
+ $('world-detail-title').textContent=world.title;
+ $('world-detail-description').textContent=world.description||'Цифровой мир автора @'+world.owner;
+ $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций';
+ const list=$('world-detail-posts');clear(list);
+ for(const item of posts.items)list.append(postCard(item));
+ if(!posts.items.length)list.append(node('p','Здесь пока нет опубликованных историй.','muted'));
+ if(posts.nextCursor)list.append(node('p','Показаны последние 20 историй.','muted'));
+ const spons=$('world-detail-sponsor');clear(spons);
+ for(const proposal of approved.items.filter(x=>x.world===slug)){
+  const card=node('article','','sponsor-item');
+  card.append(node('span',proposal.disclosure,'pilot-disclosure'));
+  card.append(node('strong',proposal.brand_name));
+  card.append(node('p',proposal.headline,'sponsor-headline'));
+  const link=node('a','Открыть сайт ↗','sponsor-link');
+  link.href=proposal.landing_url;link.rel='noopener noreferrer';link.target='_blank';
+  card.append(link);spons.append(card);
+ }
+ panel.hidden=false;
+ const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ panel.scrollIntoView({behavior:reduce?'instant':'smooth',block:'start'});
 }
 async function discussion(postId,region){
  const list=await api('/posts/'+postId+'/comments');
@@ -342,10 +380,18 @@ $('account-export').addEventListener('click',()=>run(async()=>{
  document.body.append(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(uri),1500);
 },'Экспорт подготовлен: храните файл в защищённом месте'));
+$('world-close').addEventListener('click',()=>{
+ $('world-detail').hidden=true;
+ location.hash='worlds';
+});
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
 $('reload-reports').addEventListener('click',()=>run(()=>reports()));
 session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
- .then(()=>notice('Локальный сервер готов. Данные настоящие, но изолированы от production.'))
+ .then(()=>{
+  notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
+  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
+  if(requested)run(()=>openWorld(requested));
+ })
  .catch(e=>notice(e.message));
 })();
