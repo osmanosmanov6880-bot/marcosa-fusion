@@ -79,17 +79,29 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
    let r=await req('/sponsors/approved');
    assert.equal(r.status,200);assert.equal(r.data.paid,false);assert.equal(r.data.items.length,0);
    for(const malicious of ['javascript:alert(1)','http://studio.example.org/','https://127.0.0.1/','https://localhost/','https://bad.local/','https://user:pass@studio.example.org/']){
-    r=await req('/sponsors/proposals',{method:'POST',session:alice.session,json:{...form,landingUrl:malicious}});
+    r=await req('/sponsors/proposals',{method:'POST',session:bob.session,json:{...form,landingUrl:malicious}});
     assert.equal(r.status,400,'reject unsafe URL '+malicious);
    }
-   r=await req('/sponsors/proposals',{method:'POST',session:bob.session,json:form});assert.equal(r.status,403);
-   r=await req('/sponsors/proposals',{method:'POST',session:alice.session,json:form});
-   assert.equal(r.status,201);assert.equal(r.data.status,'pending');assert.equal(r.data.paid,false);appId=r.data.id;
+   // The advertiser (Bob) requests placement in creator Alice's World.
+   // The owner cannot buy "advertising" from herself; the two sides remain distinct.
+   r=await req('/sponsors/proposals',{method:'POST',session:alice.session,json:form});assert.equal(r.status,403);
+   r=await req('/sponsors/proposals',{method:'POST',session:bob.session,json:form});
+   assert.equal(r.status,201);assert.equal(r.data.status,'pending_creator');assert.equal(r.data.paid,false);appId=r.data.id;
    r=await req('/sponsors/approved');assert.equal(r.data.items.length,0);
+   r=await req('/me/received-sponsors',{session:alice.session});
+   assert.equal(r.status,200);assert.equal(r.data.items.length,1);
+   assert.equal(r.data.items[0].applicant,'bob30');
+   r=await req('/me/received-sponsors',{session:bob.session});
+   assert.equal(r.data.items.length,0);
    r=await req('/mod/sponsors',{session:alice.session});assert.equal(r.status,403);
    r=await req('/mod/sponsors/'+appId+'/review',{method:'POST',session:alice.session,json:{decision:'approved'}});assert.equal(r.status,403);
-   r=await req('/me/sponsors',{session:alice.session});
+   r=await req('/sponsors/'+appId+'/creator-decision',{method:'POST',session:bob.session,json:{decision:'accept'}});assert.equal(r.status,403);
+   r=await req('/sponsors/'+appId+'/creator-decision',{method:'POST',session:alice.session,json:{decision:'accept'}});
+   assert.equal(r.status,200);assert.equal(r.data.status,'pending_review');
+   r=await req('/sponsors/approved');assert.equal(r.data.items.length,0);
+   r=await req('/me/sponsors',{session:bob.session});
    assert.equal(r.status,200);assert.equal(r.data.items.length,1);
+   assert.equal(r.data.items[0].status,'pending_review');
    assert.equal(Object.hasOwn(r.data.items[0],'landing_url'),false);
   });
   await t.test('only moderator can process comments reports and third-party sponsorship',async()=>{
@@ -114,11 +126,12 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
   });
   await t.test('account portability and deletion cascade real follows, comments and proposals',async()=>{
    let r=await req('/account/export',{session:alice.session});assert.equal(r.status,200);
-   assert.equal(r.data.sponsorProposals.length,1);
-   assert.equal(r.data.sponsorProposals[0].status,'approved');
+   assert.equal(r.data.sponsorProposals.length,0);
    r=await req('/account/export',{session:bob.session});
    assert.deepEqual(r.data.follows,[{slug:alice.slug}]);
    assert.equal(r.data.comments.length,1);
+   assert.equal(r.data.sponsorProposals.length,1);
+   assert.equal(r.data.sponsorProposals[0].status,'approved');
    r=await req('/account/export',{session:carol.session});
    assert.equal(r.data.sponsorProposals.length,0);
    r=await req('/account',{method:'DELETE',session:alice.session,json:{confirm:'DELETE',password:PASSWORD}});
