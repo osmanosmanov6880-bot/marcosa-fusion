@@ -133,8 +133,8 @@ async function main(){
    await cdp.wait("document.querySelector('.world-open[href=\"#world-u-r30host\"]')!==null",'r30-public-world-link');
    await cdp.evalJS("document.querySelector('.world-open[href=\"#world-u-r30host\"]').click()");
    await cdp.wait("document.getElementById('world-detail')?.hidden===false",'r30-open-world');
-   const worldAudit=await cdp.evalJS("(()=>({title:document.getElementById('world-detail-title').textContent,visible:!document.getElementById('world-detail').hidden,width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}))()");
-   if(!worldAudit.visible||!worldAudit.title.includes('r30host')||worldAudit.width>worldAudit.viewport+2)
+   const worldAudit=await cdp.evalJS("(()=>({title:document.getElementById('world-detail-title').textContent,visible:!document.getElementById('world-detail').hidden,width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,cols:getComputedStyle(document.getElementById('world-list')).gridTemplateColumns.trim().split(/\\s+/).length}))()");
+   if((size.mobile&&worldAudit.cols!==1)||!worldAudit.visible||!worldAudit.title.includes('r30host')||worldAudit.width>worldAudit.viewport+2)
     throw Error('R30_GUEST_WORLD_DETAIL_BROKEN_'+size.name+' '+JSON.stringify(worldAudit));
    await cdp.evalJS("(()=>{document.getElementById('world-detail').scrollIntoView({behavior:'instant',block:'start'});return true;})()");
    await pause(140);
