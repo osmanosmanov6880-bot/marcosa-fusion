@@ -1,4 +1,4 @@
-<!doctype html><html lang="ru" data-m-world="gateway"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MARCOSA — A Network of Worlds | Люди, истории, творчество</title><meta name="description" content="MARCOSA — социальное пространство идей, историй и творческих проектов. Публичное превью: локальные черновики, настоящее интерактивное кино, без отслеживания."><link rel="stylesheet" href="./network.css"><link rel="stylesheet" href="./immersive.css"><link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"></head><body style="margin:0;background:#07090e;color:#f5f3ee;font-family:system-ui,sans-serif"><main class="mi-landing" id="mi-home" aria-labelledby="m22-hero-title">
+<!doctype html><html lang="ru" data-m-world="gateway"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MARCOSA — A Network of Worlds | Люди, истории, творчество</title><meta name="description" content="MARCOSA — социальное пространство идей, историй и творческих проектов. Публичное превью: локальные черновики, настоящее интерактивное кино, без отслеживания."><link rel="stylesheet" href="./network.css"><link rel="stylesheet" href="./immersive.css"><link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css"></head><body style="margin:0;background:#07090e;color:#f5f3ee;font-family:system-ui,sans-serif"><main class="mi-landing" id="mi-home" aria-labelledby="m22-hero-title">
   <header class="mi-header">
     <a class="mi-brand" href="#mi-home" aria-label="MARCOSA - Network OS"><span class="mi-brand-glyph" aria-hidden="true">M</span><span class="mi-brand-word">MARCOSA<small>COMMUNITY / THE SOCIAL EDITION</small></span></a>
     <div class="mi-header-right"><span class="mi-header-note">SOCIAL FIRST · CINEMA · CREATIVE STUDIO</span><button class="mi-outline-link" type="button" data-mn-open>КАТАЛОГ РАЗДЕЛОВ <span aria-hidden="true">&#8599;</span></button></div>
@@ -80,10 +80,20 @@
       <label class="m22-find" for="m22-world-search"><span aria-hidden="true">⌕</span><input id="m22-world-search" type="search" placeholder="Поиск по мирам и проектам..." maxlength="80" autocomplete="off"></label>
       <div class="m22-console-status"><span></span> ONE MARCOSA <small>/ 06 INTERACTIVE FILMS</small></div>
     </div>
-    <div class="m22-artwork" aria-label="Кинематографический городской пейзаж из собственных материалов MARCOSA">
+    <div class="m22-artwork m25-artwork" data-m25-active-scene="city" aria-label="Кинематографическая городская панорама из оригинальных материалов MARCOSA">
+      <div class="m25-visual m25-visual--city is-active" data-m25-visual="city" aria-hidden="true"></div>
+      <div class="m25-visual m25-visual--cinema" data-m25-visual="cinema" aria-hidden="true"></div>
+      <div class="m25-visual m25-visual--studio" data-m25-visual="studio" aria-hidden="true"></div>
+      <div class="m25-scene-noise" aria-hidden="true"></div>
+      <div class="m25-scene-control" id="m25-scene-chooser" role="group" aria-label="Выбрать кинематографический кадр">
+        <span class="m25-scene-control-label">SCENE / VIEW</span>
+        <button type="button" class="is-active" data-m25-scene="city" aria-pressed="true" aria-label="Показать панораму города"><span>01</span><b>Город</b></button>
+        <button type="button" data-m25-scene="cinema" aria-pressed="false" aria-label="Показать киноисторию"><span>02</span><b>Кино</b></button>
+        <button type="button" data-m25-scene="studio" aria-pressed="false" aria-label="Показать творческую студию"><span>03</span><b>Студия</b></button>
+      </div>
       <div class="m22-art-depth" aria-hidden="true"></div>
       <div class="m22-hero-copy">
-        <p class="m22-kicker">MARCOSA / STORIES CONNECT PEOPLE</p>
+        <p class="m22-kicker">MARCOSA <span class="m25-kicker-line" aria-hidden="true"></span> STORIES CONNECT PEOPLE</p>
         <h1 id="m22-hero-title">A network<br><em>of worlds.</em></h1>
         <p class="m22-hero-lead">Люди, идеи и истории соединяются здесь. Открой ленту, сохрани вдохновение, создай свою историю — в одном пространстве MARCOSA.</p>
         <div class="m22-cta">
@@ -97,7 +107,7 @@
         </div>
       </div>
       <div class="m22-beamline" aria-hidden="true"></div>
-      <div class="m22-film-corner">MARCOSA / SOURCE-BACKED EDITION</div>
+      <div class="m22-film-corner m25-caption"><span class="m25-caption-title">01 / CITY EDITION</span><span>ORIGINAL SOURCE / MARCOSA</span></div>
     </div>
   </div>
   <aside class="m22-featured" aria-label="Реальные миры">
@@ -114,7 +124,7 @@
 </section>
 <section class="m22-worlds" aria-labelledby="m22-worlds-title">
 <div class="m22-worlds-heading"><div><span>02 / КАЖДЫЙ МИР СО СВОИМ ХАРАКТЕРОМ</span><h2 id="m22-worlds-title">Выбери свой мир.</h2></div><p>Четыре направления. Разное настроение, единый характер MARCOSA. Каждая карточка ведёт к действующему разделу.</p></div>
-<div class="m22-world-grid">
+<div class="m22-world-grid m25-world-grid">
 <a class="m22-world-card m22-world-social" href="./social.html" data-m22-search="social people люди сообщество"><span class="m22-world-badge">01 / SOCIAL CORE</span><span class="m22-world-card-copy"><strong>People first.<br>Ideas without limits.</strong><small>Лента проектов, поиск, закладки и локальные черновики</small><i>ОТКРЫТЬ ЛЕНТУ ↗</i></span></a>
 <a class="m22-world-card m22-world-cinema" href="./cinema-pilot.html" data-m22-search="cinema кино фильмы stories"><span class="m22-world-badge">02 / CINEMA</span><span class="m22-world-card-copy"><strong>Stories<br>come to life.</strong><small>Шесть настоящих интерактивных историй</small><i>СМОТРЕТЬ ↗</i></span></a>
 <a class="m22-world-card m22-world-creator" href="./creator.html" data-m22-search="creator studio творчество редактор"><span class="m22-world-badge">03 / CREATOR STUDIO</span><span class="m22-world-card-copy"><strong>Turn imagination<br>into worlds.</strong><small>Работающий редактор, локальный архив, экспорт</small><i>СОЗДАТЬ ↗</i></span></a>
@@ -234,4 +244,4 @@
     </div>
   </dialog>
 
-<script src="./immersive.js" defer></script><script src="./network.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-gateway.js" defer></script><script src="./marcosa-quiet.js" defer></script></body></html>
+<script src="./immersive.js" defer></script><script src="./network.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-gateway.js" defer></script><script src="./marcosa-director.js" defer></script><script src="./marcosa-quiet.js" defer></script></body></html>
