@@ -141,9 +141,20 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   check(next.count<=max,429,'Превышен лимит запросов');
  }
  const clientIp=req=>req.socket.remoteAddress||'unknown';
- function originGuard(req){
+ // R36: reject DNS-rebinding / Host-header attacks, even on public GET endpoints.
+ // A malicious external hostname resolving to 127.0.0.1 must not access this lab.
+ const isLoopback=ip=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(String(ip||''));
+ function hostGuard(req){
   const host=String(req.headers.host||'');
-  check(host&&req.headers.origin==='http://'+host,403,'Недопустимый источник');
+  const match=/^(?:localhost|127\.0\.0\.1|\[::1\])(?::([1-9][0-9]{0,4}))?$/i.exec(host);
+  check(Boolean(match),421,'Неподтверждённый локальный Host');
+  const actualPort=server.address()?.port;
+  check(!match[1]||Number(match[1])===actualPort,421,'Неверный порт локального сервера');
+  check(isLoopback(req.socket.localAddress)&&isLoopback(req.socket.remoteAddress),403,'Только локальное подключение');
+  return host;
+ }
+ function originGuard(req,host){
+  check(req.headers.origin==='http://'+host,403,'Недопустимый источник');
  }
  function who(req){
   const raw=getCookie(req.headers.cookie);
@@ -178,6 +189,7 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   res.setHeader('Content-Security-Policy',"default-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; script-src 'self'; style-src 'self'; connect-src 'self'; img-src 'self'");
   const method=req.method||'GET';
   try{
+   const verifiedHost=hostGuard(req);
    const incoming=new URL(req.url||'/','http://localhost');
    const route=incoming.pathname;
    const query=incoming.searchParams;
@@ -348,7 +360,7 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     send(res,200,{items});return;
    }
    check(['POST','PATCH','DELETE'].includes(method),404,'Маршрут не найден');
-   originGuard(req);
+   originGuard(req,verifiedHost);
    throttle('mut:'+clientIp(req),180,60000);
    const body=await readJSON(req);
    if(method==='POST'&&route==='/api/auth/register'){
