@@ -74,6 +74,20 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
    r=await req('/comments/'+comment+'/report',{method:'POST',session:alice.session,json:{reason:'abuse'}});assert.equal(r.status,201);
    r=await req('/comments/'+comment+'/report',{method:'POST',session:alice.session,json:{reason:'abuse'}});assert.equal(r.status,409);
   });
+  await t.test('discover only published materials and parameterized search',async()=>{
+   let result=await req('/discover?q=Original');
+   assert.equal(result.status,200);
+   assert.equal(result.data.posts.length,1);
+   assert.equal(result.data.posts[0].body,'Original work in the creator World');
+   result=await req('/discover?q=Private');
+   assert.equal(result.status,200);
+   assert.equal(result.data.posts.length,0);
+   result=await req('/discover?q='+encodeURIComponent("' OR 1=1 --"));
+   assert.equal(result.status,200);
+   assert.equal(result.data.posts.length,0);
+   result=await req('/discover?q=a');
+   assert.equal(result.status,400);
+  });
   await t.test('paid advertising is NOT live: proposals pending, no public display, HTTPS-only',async()=>{
    const form={worldId:alice.world,brandName:'Imaginary Studio Lab',headline:'A transparent pilot for story creators',landingUrl:'https://studio.example.org/work'};
    let r=await req('/sponsors/approved');
@@ -103,6 +117,20 @@ test('R30: real cross-account community + safely reviewed unpaid sponsor pilot',
    assert.equal(r.status,200);assert.equal(r.data.items.length,1);
    assert.equal(r.data.items[0].status,'pending_review');
    assert.equal(Object.hasOwn(r.data.items[0],'landing_url'),false);
+  });
+  await t.test('applicant revocation makes pending placement invisible',async()=>{
+   const form={worldId:alice.world,brandName:'Pilot Copy',headline:'Unpaid pilot with instant opt out',landingUrl:'https://studio.example.org/pilot'};
+   let r=await req('/sponsors/proposals',{method:'POST',session:bob.session,json:form});
+   assert.equal(r.status,201);
+   const id=r.data.id;
+   r=await req('/sponsors/'+id+'/withdraw',{method:'POST',session:carol.session,json:{}});
+   assert.equal(r.status,403);
+   r=await req('/sponsors/'+id+'/withdraw',{method:'POST',session:bob.session,json:{}});
+   assert.equal(r.status,200);assert.equal(r.data.visible,false);
+   r=await req('/sponsors/approved');
+   assert.equal(r.data.items.length,0);
+   r=await req('/sponsors/'+id+'/creator-decision',{method:'POST',session:alice.session,json:{decision:'accept'}});
+   assert.equal(r.status,404);
   });
   await t.test('only moderator can process comments reports and third-party sponsorship',async()=>{
    app.db.prepare("UPDATE users SET role='moderator' WHERE id=?").run(carol.id);
