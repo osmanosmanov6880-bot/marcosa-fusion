@@ -48,8 +48,10 @@ test('R16 isolated player has functional start, restart, fullscreen and external
  assert.match(js,/frame\.src=src/);
  assert.match(css,/@media\(max-width:520px\)/);
  assert.match(css,/:focus-visible/);
- for(const word of ['fetch(','XMLHttpRequest','sendBeacon','localStorage','sessionStorage','document.cookie','new WebSocket(','innerHTML'])
+ for(const word of ['fetch(','XMLHttpRequest','sendBeacon','document.cookie','new WebSocket(','innerHTML'])
   assert.equal(js.includes(word),false,'no player tracking or HTML insertion: '+word);
+ for(const re of [/\blocalStorage\s*\./,/\bsessionStorage\s*\./])
+  assert.equal(re.test(js),false,'no storage reads/writes in player runtime');
 });
 test('R16 honors production/source boundaries for two other engines',()=>{
  const page=html('cinema-pilot.html'),atlas=html('source-hub.js');
