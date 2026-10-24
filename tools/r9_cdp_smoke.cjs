@@ -13,7 +13,7 @@ const {spawn,spawnSync}=require('node:child_process');
 const ROOT=path.resolve(__dirname,'..');
 const DIST=path.join(ROOT,'dist');
 const SHOTS=path.join(ROOT,'qa-r5');
-const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js','creator-backup.js']);
+const PUBLIC=new Set(['creator.html','creator.css','creator.js','creator-vault.js','creator-backup.js','creator-crypto.js']);
 const MIME={html:'text/html; charset=utf-8',css:'text/css; charset=utf-8',js:'text/javascript; charset=utf-8'};
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function browser(){
@@ -237,6 +237,93 @@ function r10BackupRestore(){
       versions:[current.revisions.length,restored.revisions.length]};
   })();
 }
+
+function r11EncryptedRecovery(){
+  return (async function(){
+    const $=id=>document.getElementById(id);
+    const wait=async(test,why)=>{
+      for(let attempt=0;attempt<180;attempt++){
+        if(await test())return;
+        await new Promise(resolve=>setTimeout(resolve,65));
+      }
+      throw Error('R11_WAIT_'+why+' / '+$('mc-crypto-feedback').textContent);
+    };
+    const api=window.MarcosaVaultCrypto;
+    const backup=window.MarcosaVaultBackup;
+    const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
+    if(!api||!window.MarcosaCryptoRuntime?.available||!window.isSecureContext)
+      throw Error('R11_CRYPTO_UNAVAILABLE');
+    const passphrase='MARCOSA-Horizon-Golden-Stars-2026';
+    const records=await store.list();
+    if(records.length!==2||records.some(x=>x.revisions.length<3))
+      throw Error('R11_SOURCE_MISSING');
+    const plain=backup.stringifyBackup(records,new Date().toISOString());
+    const encrypted=await api.encryptBackup(plain,passphrase,window.crypto);
+    if(encrypted.includes('Новая редакция')||encrypted.includes(records[0].id))
+      throw Error('R11_PLAINTEXT_LEAK');
+    const decrypted=await api.decryptBackup(encrypted,passphrase,window.crypto);
+    if(JSON.stringify(decrypted.projects)!==JSON.stringify(records))
+      throw Error('R11_ROUNDTRIP_NOT_IDENTICAL');
+    let wrongRejected=false;
+    try{
+      await api.decryptBackup(encrypted,'Different-Horizon-Golden-Stars-2026',window.crypto);
+    }catch(err){wrongRejected=err.message==='DECRYPT_FAILED';}
+    if(!wrongRejected)throw Error('R11_WRONG_PASSWORD_ACCEPTED');
+    const tampered=JSON.parse(encrypted);
+    tampered.ciphertext=(tampered.ciphertext[0]==='A'?'B':'A')+tampered.ciphertext.slice(1);
+    let tamperRejected=false;
+    try{
+      await api.decryptBackup(JSON.stringify(tampered),passphrase,window.crypto);
+    }catch(err){tamperRejected=err.message==='DECRYPT_FAILED';}
+    if(!tamperRejected)throw Error('R11_CORRUPTED_ARCHIVE_ACCEPTED');
+    $('mc-crypto-pass').value=passphrase;
+    $('mc-crypto-confirm').value=passphrase;
+    $('mc-crypto-download').click();
+    await wait(()=>$('mc-crypto-feedback').textContent.includes('Зашифрованная копия'),'ENCRYPT_UI');
+    if($('mc-crypto-pass').value||$('mc-crypto-confirm').value)
+      throw Error('R11_PASSWORD_LEFT_IN_INPUTS_AFTER_EXPORT');
+    // Test actual full deletion and import via the encrypted file picker.
+    for(const record of records)await store.remove(record.id);
+    await window.MarcosaLocalVaultRuntime.refresh();
+    if((await store.list()).length!==0)throw Error('R11_CLEAR_BEFORE_RESTORE');
+    window.confirm=()=>true;
+    const upload=async(password,fileText)=>{
+      $('mc-crypto-pass').value=password;
+      const file=new File([fileText],'marcosa-encrypted-vault.json',{type:'application/json'});
+      const transfer=new DataTransfer();
+      transfer.items.add(file);
+      $('mc-crypto-file').files=transfer.files;
+      $('mc-crypto-file').dispatchEvent(new Event('change',{bubbles:true}));
+    };
+    await upload(passphrase,encrypted);
+    await wait(async()=>((await store.list()).length===2&&
+      $('mc-crypto-feedback').textContent.includes('расшифрован')),'RESTORE_UI');
+    if($('mc-crypto-pass').value||$('mc-crypto-confirm').value)
+      throw Error('R11_PASSWORD_LEFT_AFTER_IMPORT');
+    let restored=await store.list();
+    if(!restored.every(x=>records.some(y=>JSON.stringify(x)===JSON.stringify(y))))
+      throw Error('R11_VERSION_HISTORY_ALTERED');
+    $('mc-crypto-feedback').textContent='R11_SECOND_IMPORT';
+    await upload(passphrase,encrypted);
+    await wait(()=>$('mc-crypto-feedback').textContent.includes('совпадающих пропущено: 2'),'IDEMPOTENT_IMPORT');
+    if((await store.list()).length!==2)throw Error('R11_REIMPORT_DUPLICATED');
+    $('mc-crypto-feedback').textContent='R11_WRONG_PASSWORD_TEST';
+    await upload('Different-Horizon-Golden-Stars-2026',encrypted);
+    await wait(()=>$('mc-crypto-feedback').textContent.includes('Не удалось расшифровать'),'WRONG_PASSWORD_UI');
+    if($('mc-crypto-pass').value)throw Error('R11_PASSWORD_LEFT_AFTER_FAILURE');
+    if((await store.list()).length!==2)throw Error('R11_BAD_PASSWORD_CORRUPTED_VAULT');
+    $('mc-crypto').scrollIntoView({block:'start',behavior:'auto'});
+    await new Promise(resolve=>setTimeout(resolve,180));
+    if(document.documentElement.scrollWidth>document.documentElement.clientWidth+3)
+      throw Error('R11_MOBILE_HORIZONTAL_OVERFLOW');
+    restored=await store.list();
+    return {result:'PASS_R11_AES_GCM_ENCRYPT_DECRYPT',projects:restored.length,
+      revisions:restored.map(r=>r.revisions.length),bytes:encrypted.length,
+      wrong_password_rejected:true,tampering_rejected:true,
+      idempotent:true,passwords_cleared:true};
+  })();
+}
+
 function r10Cleanup(){
   return (async function(){
     const store=window.MarcosaLocalVault.createVault(window.indexedDB,window.crypto);
@@ -330,11 +417,20 @@ async function main(){
       if(backupPng.length<10000||backupPng.toString('hex',0,4)!=='89504e47')
         throw Error('R10_BAD_PNG_'+device.name);
       fs.writeFileSync(path.join(SHOTS,'r10-live-'+device.name+'-vault-restore.png'),backupPng);
+      const cryptoTest=await evaluate(cdp,'('+r11EncryptedRecovery.toString()+')()',70000);
+      if(cryptoTest?.result!=='PASS_R11_AES_GCM_ENCRYPT_DECRYPT')
+        throw Error('R11_CRYPTO_E2E_FAILED '+JSON.stringify(cryptoTest));
+      console.log('R11 real Chrome '+device.name+':',JSON.stringify(cryptoTest));
+      const encryptedShot=await cdp.call('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+      const encryptedPng=Buffer.from(encryptedShot.data,'base64');
+      if(encryptedPng.length<10000||encryptedPng.toString('hex',0,4)!=='89504e47')
+        throw Error('R11_BAD_PNG_'+device.name);
+      fs.writeFileSync(path.join(SHOTS,'r11-live-'+device.name+'-encrypted-vault.png'),encryptedPng);
       const clean=await evaluate(cdp,'('+r10Cleanup.toString()+')()',20000);
       if(clean!=='PASS_R10_CLEANUP')throw Error('R10_CLEANUP_FAILED');
       console.log('R10 real Chrome '+device.name+':',clean,'screenshot bytes:',backupPng.length);
     }
-    console.log('R9/R10 CDP end-to-end: PASS (desktop/mobile, real IndexedDB and full archive recovery)');
+    console.log('R9/R10/R11 CDP end-to-end: PASS (desktop/mobile, IndexedDB, AES-GCM encrypted archive, integrity & recovery)');
   }finally{
     if(cdp)try{cdp.close();}catch(err){}
     if(chrome){
