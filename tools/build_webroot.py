@@ -12,11 +12,12 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from r22_extract_cinematic_assets import place as place_cinematic_assets
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -136,6 +137,15 @@ def build() -> dict:
         raise RuntimeError('R21 Social Core privacy boundary changed')
     if 'href="./social.html"' not in html:
         raise RuntimeError('R21 Social Core missing from home discovery')
+    # R22: the cinematic home is an actual navigable interface, not a flat poster.
+    required_r22 = (
+        'id="m22-experience"', 'class="m22-gateway-sidebar"',
+        'id="m22-world-search"', 'href="./social.html"',
+        'href="./cinema-pilot.html"', 'href="./creator.html"',
+        'href="./source-hub.html"', 'src="./marcosa-gateway.js"'
+    )
+    if any(token not in html for token in required_r22):
+        raise RuntimeError("R22 live cinematic gateway is incomplete")
     if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
         raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
@@ -148,6 +158,8 @@ def build() -> dict:
                 raise RuntimeError(f"Unexpected oversized source: {name}")
             (tmp / name).write_bytes(raw)
             manifest["files"][name] = hashlib.sha256(raw).hexdigest()
+        # R22 sourced cinematic WebP artwork; no new image generation or external dependency.
+        place_cinematic_assets(SOURCE, tmp, manifest)
         (tmp / "build-manifest.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
