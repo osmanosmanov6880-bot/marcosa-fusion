@@ -345,9 +345,9 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     check(user.role==='moderator',403,'Нет прав модератора');
     check(body.decision==='approved'||body.decision==='rejected',400,'Неверное решение');
     const id=int(reviewSponsor[1]);
-    const application=db.prepare("SELECT owner_id FROM sponsor_proposals WHERE id=? AND status='pending_review'").get(id);
+    const application=db.prepare("SELECT a.owner_id,w.owner_id AS creator_id FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.id=? AND a.status='pending_review'").get(id);
     check(application,404,'Заявка не найдена');
-    check(application.owner_id!==user.id,403,'Нельзя проверять собственную заявку');
+    check(application.owner_id!==user.id&&application.creator_id!==user.id,403,'Независимый модератор не должен быть покупателем или владельцем World');
     const result=db.prepare("UPDATE sponsor_proposals SET status=?,reviewer_id=?,reviewed_at=? WHERE id=? AND status='pending_review'")
      .run(body.decision,user.id,now(),id);
     check(result.changes===1,409,'Заявка уже рассмотрена');
