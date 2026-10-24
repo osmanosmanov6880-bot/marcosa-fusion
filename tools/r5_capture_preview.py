@@ -15,7 +15,7 @@ DIST=ROOT/"dist"
 OUTPUT=ROOT/"qa-r5"
 CHROME=next((p for n in ("google-chrome","google-chrome-stable","chromium","chromium-browser")
              if (p:=shutil.which(n))),None)
-FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js","creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js")
+FILES=("stories.html","stories.css","stories.js","network.js","index.html","network.css","immersive.css","immersive.js","creator.html","creator.css","creator.js","creator-vault.js","creator-backup.js","creator-crypto.js")
 
 def hook(mode:str)->tuple[str,str]:
     # Instead of JS scrollIntoView (which can produce a blank headless snapshot
@@ -50,6 +50,13 @@ def hook(mode:str)->tuple[str,str]:
             .mc-vault-section{margin:8px auto!important;padding-top:4px!important}
             .mc-vault-card:not(.mc-backup-card){display:none!important}
             .mc-vault-main{grid-template-columns:1fr!important;max-width:760px;margin:0 auto}"""
+    elif mode=="r11-crypto":
+        script=""
+        styles="""header.mc-header,.mc-hero,.mc-workspace,.mc-footer{display:none!important}
+            .mc-vault-heading{display:none!important}
+            .mc-vault-section{margin:8px auto!important;padding-top:4px!important}
+            .mc-vault-card:not(.mc-crypto-card){display:none!important}
+            .mc-vault-main{grid-template-columns:1fr!important;max-width:760px;margin:0 auto}"""
     elif mode=="r9-vault":
         script=""
         styles="""header.mc-header,.mc-hero,.mc-workspace,.mc-footer{display:none!important}
@@ -80,7 +87,9 @@ def main()->None:
         ("desktop-r9-project-vault",1440,900,"r9-vault"),
         ("mobile-r9-review-gates",390,844,"r9-vault"),
         ("desktop-r10-vault-backup",1440,900,"r10-backup"),
-        ("mobile-r10-backup-actions",390,844,"r10-backup")
+        ("mobile-r10-backup-actions",390,844,"r10-backup"),
+        ("desktop-r11-encrypted-backup",1440,900,"r11-crypto"),
+        ("mobile-r11-encrypted-backup",390,844,"r11-crypto")
     ]
     reports=[]
     with tempfile.TemporaryDirectory(prefix="marcosa-r5-visual-") as temp:
@@ -91,7 +100,7 @@ def main()->None:
         r8_base=(here/"creator.html").read_text(encoding="utf-8")
         for label,width,height,mode in cases:
             js,styles=hook(mode)
-            page=r8_base if mode in ("r8-workspace","r9-vault","r10-backup") else base
+            page=r8_base if mode in ("r8-workspace","r9-vault","r10-backup","r11-crypto") else base
             custom=page.replace("</head>",styles+"</head>").replace("</body>",js+"</body>")
             (here/"capture.html").write_text(custom,encoding="utf-8")
             png=OUTPUT/(label+".png")
@@ -116,7 +125,7 @@ def main()->None:
             reports.append({"case":label,"status":"captured","width":w,"height":h,"bytes":len(raw)})
     (OUTPUT/"summary.json").write_text(json.dumps(reports,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print("R5 visual captures:",reports)
-    if len([x for x in reports if x["status"]=="captured"])<11:
+    if len([x for x in reports if x["status"]=="captured"])<15:
         raise SystemExit("R5 critical browser snapshots missing")
 
 if __name__=="__main__":
