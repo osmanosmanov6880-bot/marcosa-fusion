@@ -136,6 +136,8 @@ async function main(){
    const worldAudit=await cdp.evalJS("(()=>({title:document.getElementById('world-detail-title').textContent,visible:!document.getElementById('world-detail').hidden,width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}))()");
    if(!worldAudit.visible||!worldAudit.title.includes('r30host')||worldAudit.width>worldAudit.viewport+2)
     throw Error('R30_GUEST_WORLD_DETAIL_BROKEN_'+size.name+' '+JSON.stringify(worldAudit));
+   await cdp.evalJS("(()=>{document.getElementById('world-detail').scrollIntoView({behavior:'instant',block:'start'});return true;})()");
+   await pause(140);
    await screenshot('world-detail');
    await cdp.evalJS("document.getElementById('world-close').click()");
 
@@ -170,6 +172,8 @@ async function main(){
    if((size.mobile&&audit.centerTop>=audit.accessTop)||audit.width>audit.viewport+2||!audit.personal||audit.worlds<1||audit.posts<1||audit.remoteImages!==0)
     throw Error('AUTHENTICATED_LAYOUT_BROKEN '+size.name+' '+JSON.stringify(audit));
    await screenshot('authenticated');
+   await cdp.evalJS("(()=>{document.getElementById('sponsor-owner').scrollIntoView({behavior:'instant',block:'center'});return true;})()");
+   await pause(140);
    await screenshot('community-sponsor');
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length)throw Error('EXTERNAL_NETWORK_ACCESS '+external.slice(0,5).join(' | '));
