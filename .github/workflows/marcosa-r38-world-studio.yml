@@ -1,0 +1,41 @@
+name: "MARCOSA | R38 owner World Builder"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r38-world-studio.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r38-world-studio.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  world-owner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate actual Node/DOM/browser source
+        run: |
+          set -euo pipefail
+          node --check server-lab/server.mjs
+          node --check server-lab/public/app.js
+          node --check server-lab/test/browser-cdp.mjs
+          node --check server-lab/test/r38.world_owner_studio.test.mjs
+      - name: Verify real two-user World editor and immutable ownership
+        run: |
+          set -euo pipefail
+          node --test server-lab/test/r38.world_owner_studio.test.mjs
+      - name: Confirm no published backend or credentials
+        run: |
+          set -euo pipefail
+          ! grep -q 'server-lab/' tools/build_webroot.py
+          ! grep -q 'server-lab/' .github/workflows/marcosa-public-pages.yml
+          test ! -d server-lab/node_modules
