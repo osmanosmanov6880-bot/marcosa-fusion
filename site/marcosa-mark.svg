@@ -1,32 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
-<title id="title">MARCOSA — Orbital M</title>
-<desc id="desc">Трёхмерная золотая монограмма M с металлической фаской, вращающейся орбитой и звездой.</desc>
-<defs>
-<radialGradient id="night" cx=".38" cy=".26" r=".85"><stop stop-color="#223145"/><stop offset=".55" stop-color="#0a1424"/><stop offset="1" stop-color="#02070e"/></radialGradient>
-<linearGradient id="metal" x1="0" y1=".08" x2="1" y2=".93"><stop offset="0" stop-color="#fff7e3"/><stop offset=".18" stop-color="#f2d4a6"/><stop offset=".34" stop-color="#b47a41"/><stop offset=".49" stop-color="#ffefd4"/><stop offset=".72" stop-color="#c28e57"/><stop offset=".95" stop-color="#78502d"/></linearGradient>
-<linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff9e7"/><stop offset=".4" stop-color="#f5d1a2"/><stop offset=".7" stop-color="#9b602f"/><stop offset="1" stop-color="#ffe4b7"/></linearGradient>
-<linearGradient id="orbit" x1="0" y1=".4" x2="1" y2=".6"><stop stop-color="#c58b4e" stop-opacity=".03"/><stop offset=".17" stop-color="#f9dfaf"/><stop offset=".28" stop-color="#fff0d0"/><stop offset=".48" stop-color="#d09b5b"/><stop offset=".76" stop-color="#ffe0a4"/><stop offset="1" stop-color="#9d603c" stop-opacity=".1"/></linearGradient>
-<radialGradient id="star"><stop stop-color="#fff"/><stop offset=".12" stop-color="#fff4d3"/><stop offset=".6" stop-color="#f4c586" stop-opacity=".6"/><stop offset="1" stop-color="#ffb574" stop-opacity="0"/></radialGradient>
-<filter id="gold-glow" x="-.6" y="-.6" width="2.2" height="2.2"><feGaussianBlur stdDeviation="8"/></filter>
-<filter id="subtle-shadow" x="-.4" y="-.4" width="2" height="2"><feDropShadow dx="0" dy="15" stdDeviation="13" flood-color="#000" flood-opacity=".95"/></filter>
-</defs>
-<rect x="5" y="5" width="502" height="502" rx="106" fill="url(#night)" stroke="#977652" stroke-opacity=".43" stroke-width="3"/>
-<path d="M24 338 Q256 495 488 338" fill="none" stroke="#8cbbef" stroke-opacity=".16" stroke-width="3"/>
-<circle cx="257" cy="247" r="202" stroke="#dcaf6f" stroke-opacity=".17" stroke-width="3" fill="none"/>
-<ellipse cx="258" cy="261" rx="226" ry="89" transform="rotate(-21 258 261)" fill="none" stroke="#f3bf77" stroke-width="24" opacity=".4" filter="url(#gold-glow)"/>
-<ellipse cx="258" cy="261" rx="226" ry="89" transform="rotate(-21 258 261)" fill="none" stroke="url(#orbit)" stroke-width="6"/>
-<ellipse cx="258" cy="261" rx="210" ry="77" transform="rotate(-21 258 261)" fill="none" stroke="#fbe5b5" stroke-opacity=".25" stroke-width="2"/>
-<g filter="url(#subtle-shadow)">
-<path d="M128 367 V139 L256 269 L384 139 V367 H349 V220 L257 307 L164 220 V367 Z" fill="#362112" stroke="#160c08" stroke-width="9" stroke-linejoin="bevel"/>
-<path d="M129 364 V141 L256 269 L383 141 V364 H354 V210 L257 299 L158 210 V364 Z" fill="url(#metal)" stroke="url(#edge)" stroke-width="4"/>
-<path d="M129 141 L160 178 L160 363 L129 363 Z M353 179 L383 141 L383 364 L353 363 Z" fill="#57371f" opacity=".44"/>
-<path d="M151 160 L255 270 L368 159" fill="none" stroke="#fff4d8" stroke-width="8" stroke-linecap="round" opacity=".73"/>
-<path d="M161 210 L257 299 L353 210" fill="none" stroke="#ffe2b1" stroke-opacity=".5" stroke-width="3"/>
-<path d="M130 364 H162 M351 364 H382" stroke="#fff3d4" stroke-width="4" opacity=".65"/>
-</g>
-<ellipse cx="258" cy="261" rx="226" ry="89" transform="rotate(-21 258 261)" fill="none" stroke="url(#orbit)" stroke-width="2.2"/>
-<circle cx="293" cy="66" r="51" fill="url(#star)"/>
-<path d="M293 16 L298 59 L339 66 L298 72 L293 114 L287 72 L248 66 L287 60 Z" fill="#fff0c7"/>
-<circle cx="403" cy="140" r="4.5" fill="#f5d6a7"/><circle cx="93" cy="333" r="3" fill="#d2d9f7"/>
-<path d="M81 431 H433" stroke="#d1b27e" stroke-opacity=".18" stroke-width="3"/>
+ <title id="title">MARCOSA — Orbital M</title>
+ <desc id="desc">Сдержанная монограмма MARCOSA цвета матового шампанского на глубоком графите.</desc>
+ <defs>
+  <linearGradient id="champagne" x1="0" y1="0" x2="1" y2="1">
+   <stop offset="0" stop-color="#e5d3b5"/>
+   <stop offset=".56" stop-color="#bda587"/>
+   <stop offset="1" stop-color="#e0c8a7"/>
+  </linearGradient>
+  <filter id="gold-glow" x="-.2" y="-.2" width="1.4" height="1.4">
+   <feGaussianBlur stdDeviation="0.5"/>
+  </filter>
+  <filter id="subtle-shadow" x="-.25" y="-.25" width="1.5" height="1.5">
+   <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#141714" flood-opacity=".18"/>
+  </filter>
+ </defs>
+ <rect width="512" height="512" rx="90" fill="#272d27"/>
+ <rect x="12" y="12" width="488" height="488" rx="80" fill="none" stroke="#c5b195" stroke-opacity=".38" stroke-width="2"/>
+ <ellipse cx="256" cy="257" rx="204" ry="204" fill="none" stroke="#e3d3b7" stroke-opacity=".10" stroke-width="1.8"/>
+ <path d="M118 370 V136 L257 278 L394 136 V370 H353 V226 L257 323 L159 226 V370 Z" fill="url(#champagne)" filter="url(#subtle-shadow)"/>
+ <path d="M139 176 L256 294 L374 175" fill="none" stroke="#fff5e3" stroke-opacity=".42" stroke-width="3" stroke-linejoin="round"/>
+ <path d="M117 403 H395" stroke="#b7a182" stroke-opacity=".37" stroke-width="2"/>
+ <path d="M256 101 V120" stroke="#e4d3b5" stroke-opacity=".7" stroke-width="2"/>
 </svg>
