@@ -516,7 +516,7 @@ html[data-m-world="film-network"] .fn-hero h1{font:400 clamp(52px,5.2vw,87px)/1.
  html[data-m-world="social"] .so-hero{min-height:560px!important}
  html[data-m-world="social"] .so-hero-copy{padding:35px 21px 37px!important}
  html[data-m-world="social"] .so-hero h1{
-  font-size:clamp(50px,10.5vw,64px)!important;margin:15px 0 15px!important}
+  font-size:clamp(52px,10.5vw,64px)!important;margin:15px 0 15px!important}
  html[data-m-world="social"] .so-hero-copy>p:not(.so-overline):not(.so-honesty){
   font-size:14.5px!important;line-height:1.48!important;margin-bottom:18px!important}
  html[data-m-world="social"] .so-hero-actions{
