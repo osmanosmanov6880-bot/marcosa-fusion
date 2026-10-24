@@ -11,3 +11,13 @@
 .cp-cards article a{margin-bottom:10px;margin-right:5px}
 @media(max-width:720px){.cp-film-tabs{grid-template-columns:1fr}.cp-film-tabs button{min-height:54px}.cp-cards article .cp-source-play{display:flex;width:100%}}
 @media(prefers-reduced-motion:reduce){.cp-film-tabs button{transition:none}}
+
+/* R19: six-film collection with independent archive-source premieres. */
+.cp-r19-cards{grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.cp-r19-cards article{border-top-color:#d86c82;background:linear-gradient(130deg,#182c48,#0e1b31 76%,#211629)}
+.cp-r19-cards h3{font-size:clamp(26px,2.5vw,37px);line-height:1.13}
+.cp-r19-cards article p{min-height:130px}
+.cp-r19-cards .cp-source-play{margin-right:8px}
+@media(max-width:1100px){.cp-r19-cards{grid-template-columns:1fr 1fr}.cp-r19-cards article:last-child{grid-column:span 2}.cp-r19-cards article p{min-height:0}}
+@media(max-width:720px){.cp-r19-cards{grid-template-columns:1fr}.cp-r19-cards article:last-child{grid-column:auto}.cp-r19-cards article{padding:22px}}
+@media(min-width:721px) and (max-width:1050px){.cp-film-tabs{grid-template-columns:repeat(2,minmax(0,1fr))}}

@@ -84,7 +84,7 @@ function atlasCheck(){
  if(!card)throw Error('MISSING_REAL_SOURCE_CARD');
  const link=card.querySelector('a.sh-play');
  if(!link||!link.href.endsWith('/cinema-pilot.html'))throw Error('BROKEN_PLAYABLE_SOURCE_ROUTE');
- if(document.querySelectorAll('#sh-grid a.sh-play').length!==3)throw Error('EXPECTED_THREE_REAL_PLAYABLE_FILMS');
+ if(document.querySelectorAll('#sh-grid a.sh-play').length!==6)throw Error('EXPECTED_SIX_REAL_PLAYABLE_FILMS');
  return {status:'PASS_R16_ATLAS_TO_REAL_CINEMA',links:1};
 }
 function theaterCheck(){

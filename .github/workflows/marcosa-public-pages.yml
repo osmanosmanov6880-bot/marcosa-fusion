@@ -9,6 +9,9 @@ on:
       - "tools/build_webroot.py"
       - "tools/build_cinema_r18.py"
       - "tools/r18_multicinema_cdp.cjs"
+      - "tools/r19_three_archives_cdp.cjs"
+      - "tools/r5_browser_smoke.py"
+      - "inventory/playable_cinema_r19.json"
       - ".github/workflows/marcosa-public-pages.yml"
   pull_request:
     branches: [main]
@@ -18,6 +21,9 @@ on:
       - "tools/build_webroot.py"
       - "tools/build_cinema_r18.py"
       - "tools/r18_multicinema_cdp.cjs"
+      - "tools/r19_three_archives_cdp.cjs"
+      - "tools/r5_browser_smoke.py"
+      - "inventory/playable_cinema_r19.json"
       - ".github/workflows/marcosa-public-pages.yml"
   workflow_dispatch:
 
@@ -82,11 +88,12 @@ jobs:
           node tools/cinema_release_gate_r17.cjs
           node --check tools/r16_cinema_cdp.cjs
           node --check tools/r18_multicinema_cdp.cjs
+          node --check tools/r19_three_archives_cdp.cjs
           node --check tools/r14_film_cdp.cjs
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -118,6 +125,9 @@ jobs:
           test -s dist/film-internet-v-humanity.html
           test -s dist/film-protocol-zero.html
           test -s dist/film-adverse-judge.html
+          test -s dist/film-signal-worlds.html
+          test -s dist/film-opspilot.html
+          test -s dist/film-intentgraph.html
           test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
@@ -126,6 +136,7 @@ jobs:
           node tools/r14_film_cdp.cjs
           node tools/r16_cinema_cdp.cjs
           node tools/r18_multicinema_cdp.cjs
+          node tools/r19_three_archives_cdp.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -176,6 +187,14 @@ jobs:
         with:
           name: r18-three-interactive-films-qa
           path: qa-r18/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R19 three original archive cinemas QA desktop/mobile
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r19-signal-opspilot-intentgraph-qa
+          path: qa-r19/
           retention-days: 7
           if-no-files-found: error
       - name: Upload static Pages artifact

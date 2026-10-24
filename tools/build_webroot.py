@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are twenty-nine independently reviewed public files in site/.
+Its inputs are thirty-two independently reviewed public files in site/.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -83,6 +83,27 @@ def build() -> dict:
         playable = (SOURCE / ('film-' + slug + '.html')).read_text(encoding='utf-8')
         if not all(x in playable for x in ('data:image/webp;base64,', expected, '</html>')):
             raise RuntimeError('R18 standalone cinema is incomplete: ' + slug)
+    # R19 archive-derived cinematic snapshots: exact byte identity is mandatory.
+    r19 = json.loads((ROOT / 'inventory/playable_cinema_r19.json').read_text(encoding='utf-8'))
+    if r19.get('release') != 'R19' or len(r19.get('films', [])) != 3:
+        raise RuntimeError('R19 source provenance manifest invalid')
+    for item in r19['films']:
+        rel = item['file']
+        name = Path(rel).name
+        if Path(rel).parent.as_posix() != 'site' or name not in PUBLIC_FILES:
+            raise RuntimeError('R19 unknown public cinema route: ' + str(rel))
+        film = SOURCE / name
+        raw = film.read_bytes()
+        if hashlib.sha256(raw).hexdigest() != item['sha256'] or len(raw) != item['bytes']:
+            raise RuntimeError('R19 cinema source snapshot mismatch: ' + name)
+        text = raw.decode('utf-8')
+        if text.count('data:image/webp;base64,') < item['embedded_webp']:
+            raise RuntimeError('R19 original image resources missing: ' + name)
+        if '<script src=' in text or '<link rel="stylesheet"' in text:
+            raise RuntimeError('R19 unexpected remote dependencies: ' + name)
+    for slug in ('signal-worlds', 'opspilot', 'intentgraph'):
+        if 'data-cp-film="' + slug + '"' not in theater:
+            raise RuntimeError('R19 cinema selector missing: ' + slug)
     if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
         raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
@@ -90,7 +111,7 @@ def build() -> dict:
     try:
         for name in PUBLIC_FILES:
             raw = (SOURCE / name).read_bytes()
-            cap = 4_000_000 if name in ("film-protocol-zero.html", "film-adverse-judge.html") else 512_000
+            cap = 4_000_000 if name in ("film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html") else 512_000
             if len(raw) > cap:
                 raise RuntimeError(f"Unexpected oversized source: {name}")
             (tmp / name).write_bytes(raw)

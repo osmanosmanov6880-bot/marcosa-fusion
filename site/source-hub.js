@@ -31,6 +31,13 @@
    throw Error('UNVERIFIED_SOURCE_URL');
   return url;
  }
+ // Only the three source-verified owner-supplied cinema archives were repackaged
+ // into independently audited, static R19 HTML files. No ZIP or business backend is published.
+ const R19_PLAYABLE=Object.freeze({
+  'SIGNAL_WORLDS_v1.0.0_SOURCE(1).zip':'signal-worlds',
+  'OpsPilot_Spectrum_v2.2_Cinema_v1.1_UNIFIED(1).zip':'opspilot',
+  'IntentGraph_Cosmic_ONE_v4.5_FULL_SOURCE(1).zip':'intentgraph'
+ });
  const snapshot=Object.freeze(RECORDS.map(item=>Object.freeze(item)));
  function mount(doc){
   if(!doc.getElementById('sh-app'))return null;
@@ -76,7 +83,16 @@
      card.append(element('p','','Проверен ZIP исходников: '+item.files+' файлов. Имя архива: '+item.archive));
      if(item.cinema_paths.length)card.append(element('p','','Движок: '+item.cinema_paths.slice(0,2).join(', ')));
      card.append(element('p','','SHA-256 '+item.sha256.slice(0,16)+'…'));
-     card.append(element('span','sh-local','ПЕРЕДАНО ВЛАДЕЛЬЦЕМ · НЕ РАЗМЕЩЕНО НА САЙТЕ'));
+     const slug=R19_PLAYABLE[item.archive];
+     if(slug){
+      card.append(element('span','sh-local','R19 · ТОЛЬКО КИНО-ИСТОЧНИК ОПУБЛИКОВАН'));
+      const play=element('a','sh-link sh-play','ИГРАТЬ В ИСХОДНЫЙ КИНО-ДВИЖОК ↗');
+      play.href='./cinema-pilot.html#'+slug;
+      play.setAttribute('aria-label','Запустить '+item.title+' в MARCOSA CINEMA');
+      card.append(play);
+     }else{
+      card.append(element('span','sh-local','ПЕРЕДАНО ВЛАДЕЛЬЦЕМ · НЕ РАЗМЕЩЕНО НА САЙТЕ'));
+     }
     }
     host.append(card);
    }
