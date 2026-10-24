@@ -17,7 +17,7 @@ from r22_extract_cinematic_assets import place as place_cinematic_assets
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -137,6 +137,32 @@ def build() -> dict:
         raise RuntimeError('R21 Social Core privacy boundary changed')
     if 'href="./social.html"' not in html:
         raise RuntimeError('R21 Social Core missing from home discovery')
+    # R23: Social First edition with real editorial navigation and non-fictional local features.
+    quiet = (SOURCE / 'marcosa-quiet.css').read_text(encoding='utf-8')
+    quiet_js = (SOURCE / 'marcosa-quiet.js').read_text(encoding='utf-8')
+    if not all(t in html for t in (
+        'id="q23-home"', 'id="q23-title"', 'id="q23-search-input"',
+        'id="q23-directory"', 'href="./social.html#so-feed"',
+        'href="./social.html#so-draft"', 'src="./marcosa-quiet.js"'
+    )):
+        raise RuntimeError('R23 social-first home is not connected')
+    if not all(t in quiet for t in (
+        '--q-paper:#f3f0e9', '--q-serif:', '.q23-hero',
+        'data-m-world="social"', 'prefers-reduced-motion:reduce'
+    )):
+        raise RuntimeError('R23 quiet luxury stylesheet is incomplete')
+    if 'search.addEventListener' not in quiet_js or 'fetch(' in quiet_js:
+        raise RuntimeError('R23 editorial search missing or network-unsafe')
+    social_html = (SOURCE / 'social.html').read_text(encoding='utf-8')
+    if not all(t in social_html for t in (
+        'data-so-filter="saved"', 'id="so-personal-note"',
+        'id="so-personal-note-body"'
+    )):
+        raise RuntimeError('R23 Social Core UI does not expose saved feed/private note')
+    for page in ('index.html','social.html','cinema-pilot.html','creator.html',
+                 'source-hub.html','stories.html','film-network.html'):
+        if 'href="./marcosa-quiet.css"' not in (SOURCE / page).read_text(encoding='utf-8'):
+            raise RuntimeError('R23 theme not applied to '+page)
     # R22: the cinematic home is an actual navigable interface, not a flat poster.
     required_r22 = (
         'id="m22-experience"', 'class="m22-gateway-sidebar"',
