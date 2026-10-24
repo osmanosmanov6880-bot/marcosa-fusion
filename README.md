@@ -180,3 +180,17 @@ The author can now turn the two-choice / four-ending Creator Engine draft into *
 This is an author-owned **local file export**, not a verified MARCOSA publication or licensed distribution of third-party content. The independent security and review gates remain outside the static prototype.
 
 Documentation: [R12 offline playable story architecture](docs/OFFLINE_PLAYABLE_STORY_R12_RU.md), [unit tests](tests/standalone.test.cjs), [real offline browser test](tools/r12_offline_cdp.cjs).
+
+
+## R13 — Voluntary offline reader feedback and author playtest dashboard
+
+MARCOSA's offline R12 game now has an **optional ending rating** (1–5 stars), visible only when a reader reaches one of its four possible endings. The player explicitly downloads a tiny JSON feedback file and decides independently whether to send it to the author. The game never sends feedback over the network.
+
+- Feedback schema marcosa-playtest-feedback/v1 permits only four fields: the schema, the SHA-256 fingerprint of that specific story revision, its two-decision route (00/01/10/11), and an integer rating 1–5. No name, IP address, email, timestamp, persistent ID, or free text.
+- The Creator's new **Offline Playtest** section accepts manually received JSON files (max 2 KiB each, 100 per batch / 300 per tab) and shows counts, overall average and per-ending averages.
+- The fingerprint prevents mixing ratings from different story versions. One invalid or mismatched report rejects the entire upload batch; editing the story clears prior displayed results.
+- Summary JSON can be downloaded explicitly. Nothing is persisted to the cloud, IndexedDB, localStorage or analytics.
+- **These are unverified report files, not confirmed unique readers, demand or actual audience analytics.** Duplicate or fabricated files cannot be reliably detected without identities.
+- Tests cover real browser file:// downloads for all four endings, local report import and mismatch protections in desktop/mobile Chrome, data validation, CSP and the 16-file static release.
+
+See [R13 implementation, privacy limits, security and acceptance](docs/OFFLINE_PLAYTEST_FEEDBACK_R13_RU.md) and [automated regression tests](tests/playtest.test.cjs). No payment, Contabo deployment or Supabase account integration is implied.
