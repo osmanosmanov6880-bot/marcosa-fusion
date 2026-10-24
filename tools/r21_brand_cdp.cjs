@@ -167,7 +167,7 @@ async function main(){
    for(const [file,world] of pages){
     cdp.requests.length=0;cdp.errors.length=0;
     await cdp.call('Page.navigate',{url:base+file});
-    await cdp.wait("document.readyState==='complete'&&!!window.MarcosaBrand&&!!document.querySelector('.m-world-bar img')?.naturalWidth",world);
+    await cdp.wait("document.readyState==='complete'&&!!window.MarcosaBrand&&document.documentElement.dataset.mWorld==="+JSON.stringify(world)+"&&!!document.querySelector('.m-world-bar img')?.naturalWidth",world);
     await pause(80);
     const summary=await cdp.evalJS('('+inspectBrand.toString()+')('+JSON.stringify(world)+')');
     if(['gateway','social','cinema','creator','atlas'].includes(world)){
