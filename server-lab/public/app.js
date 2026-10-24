@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],cursor:null,reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],cursor:null,reportPost:null,reportComment:null,inboxUnreadIds:[]};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -23,6 +23,45 @@ async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
 }
+
+const EVENT_TEXT={
+ world_follow:'Подписался на твой World',
+ new_comment:'Ответил на твою опубликованную историю',
+ sponsor_requested:'Предложил тестовое размещение',
+ sponsor_accepted:'Владелец World согласился на проверку предложения',
+ sponsor_rejected:'Владелец World отклонил предложение',
+ sponsor_approved:'Модератор разрешил неоплаченный пилот'
+};
+async function loadNotifications(){
+ if(!state.me)return;
+ const data=await api('/me/notifications');
+ const wrap=$('notification-list');clear(wrap);
+ $('notification-badge').textContent=String(data.unread);
+ state.inboxUnreadIds=data.items.filter(x=>x.read_at===null).map(x=>x.id);
+ $('notification-read').disabled=!state.inboxUnreadIds.length;
+ for(const item of data.items){
+  const row=node('div','','notification-entry'+(item.read_at===null?' unread':''));
+  row.append(node('strong','@'+item.actor));
+  row.append(node('p',EVENT_TEXT[item.kind]||'Новое событие'));
+  const date=new Date(item.created_at);
+  if(Number.isFinite(date.getTime()))row.append(node('small',date.toLocaleDateString('ru-RU')));
+  wrap.append(row);
+ }
+ if(!data.items.length)wrap.append(node('p','Пока нет событий. Они появятся от других реальных пользователей.','muted'));
+}
+async function loadInsights(){
+ if(!state.me)return;
+ const data=await api('/me/insights'),wrap=$('creator-insights-list');clear(wrap);
+ const total=data.totals;
+ wrap.append(node('p',total.published+' опубликовано · '+total.drafts+' черновиков · '+total.followers+' подписок · '+total.replies+' ответов','insights-total'));
+ for(const world of data.worlds){
+  const block=node('div','','insight-entry');
+  block.append(node('strong',world.title));
+  block.append(node('small',world.published+' публикаций · '+world.followers+' подписчиков · '+world.replies+' ответов · '+world.uniqueResponders+' участников обсуждений'));
+  wrap.append(block);
+ }
+}
+
 async function session(){
  try{
   const result=await api('/auth/me');
@@ -38,7 +77,7 @@ async function session(){
  $('sponsor-owner').hidden=!state.me;
  $('sponsor-moderation').hidden=!state.me||state.me.role!=='moderator';
  $('sponsor-inbox').hidden=!state.me;
- if(!state.me){clear($('my-sponsors'));clear($('received-sponsors'));clear($('sponsor-review-list'));}
+ if(!state.me){clear($('my-sponsors'));clear($('received-sponsors'));clear($('sponsor-review-list'));clear($('notification-list'));clear($('creator-insights-list'));state.inboxUnreadIds=[];$('notification-badge').textContent='0';}
  if(state.me){
   $('profile-line').textContent='@'+state.me.username+' · '+state.me.role+' · закрытое испытание';
   const container=$('my-worlds'),choose=$('post-world');
@@ -48,7 +87,7 @@ async function session(){
    const option=node('option',world.title);option.value=world.id;choose.append(option);
 
   }
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),loadNotifications(),loadInsights()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
  }
 }
@@ -351,6 +390,12 @@ $('discover-form').addEventListener('submit',event=>{
 $('discover-clear').addEventListener('click',()=>{
  $('discover-form').reset();clear($('discover-results'));$('discover-results').hidden=true;
 });
+$('notification-refresh').addEventListener('click',()=>run(()=>loadNotifications(),'События обновлены'));
+$('notification-read').addEventListener('click',()=>run(async()=>{
+ if(!state.inboxUnreadIds.length)return;
+ await api('/me/notifications/read','POST',{ids:state.inboxUnreadIds});
+ await loadNotifications();
+},'Загруженные события прочитаны'));
 $('login-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   const data=values(form);
