@@ -57,6 +57,16 @@
    <p id="profile-line" class="profile-line"></p>
    <h3>Мои миры</h3>
    <div id="my-worlds" class="compact-list"></div>
+   <details id="world-settings-panel" class="invite-panel world-settings">
+    <summary>Редактировать оформление моего мира</summary>
+    <p class="muted">Публичный адрес и владелец сохраняются. Название и описание обновляются на сервере и сразу видны посетителям.</p>
+    <form id="world-settings-form" class="form-block">
+     <label>Выбери мир<select id="world-settings-select" name="slug" required></select></label>
+     <label>Название мира<input name="title" maxlength="70" minlength="3" required></label>
+     <label>Описание<textarea name="description" maxlength="400" rows="4"></textarea></label>
+     <button class="gold" type="submit">Сохранить изменения</button>
+    </form>
+   </details>
    <details id="creator-insights" class="invite-panel creator-insights">
     <summary>Статистика моих миров</summary>
     <div id="creator-insights-list" class="compact-list" aria-live="polite"></div>
