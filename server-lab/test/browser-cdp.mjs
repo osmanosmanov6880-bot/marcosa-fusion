@@ -129,6 +129,16 @@ async function main(){
     writeFileSync(join(SHOTS,size.name+'-'+kind+'.png'),Buffer.from(result.data,'base64'));
    };
    await screenshot('guest');
+   // Guest must be able to open a real World without creating an account.
+   await cdp.wait("document.querySelector('.world-open')!==null",'r30-public-world-link');
+   await cdp.evalJS("document.querySelector('.world-open').click()");
+   await cdp.wait("document.getElementById('world-detail')?.hidden===false",'r30-open-world');
+   const worldAudit=await cdp.evalJS("(()=>({title:document.getElementById('world-detail-title').textContent,visible:!document.getElementById('world-detail').hidden,width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth}))()");
+   if(!worldAudit.visible||!worldAudit.title.includes('r30host')||worldAudit.width>worldAudit.viewport+2)
+    throw Error('R30_GUEST_WORLD_DETAIL_BROKEN_'+size.name+' '+JSON.stringify(worldAudit));
+   await screenshot('world-detail');
+   await cdp.evalJS("document.getElementById('world-close').click()");
+
    const identity='r28'+size.name;
    const code="(()=>{const f=document.getElementById('register-form');f.closest('details').open=true;f.elements.inviteCode.value='r28-browser-invite-that-is-long';f.elements.username.value='"+identity+"';f.elements.email.value='"+identity+"@example.net';f.elements.password.value='long-safe-password-2026';f.requestSubmit();return true;})()";
    await cdp.evalJS(code);
@@ -166,7 +176,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R30 BROWSER QA COMPLETE: 9 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
+  console.log('R30 BROWSER QA COMPLETE: 12 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
  }finally{
   cdp?.close();
   if(chrome){
