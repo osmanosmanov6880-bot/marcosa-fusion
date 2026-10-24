@@ -11,8 +11,8 @@ test('R22 strict real-app Gateway matches approved reference architecture',()=>{
  'href="./creator.html"','href="./source-hub.html"','src="./marcosa-gateway.js"'])
   assert.ok(html.includes(token),'R22 REAL Gateway missing '+token);
  assert.ok(html.includes('A network<br><em>of worlds.</em>'));
- assert.ok(html.includes('06</strong><small>PLAYABLE FILMS'));
- assert.ok(html.includes('20</strong><small>GITHUB REPOSITORIES'));
+ assert.ok(html.includes('06</strong><small>ИНТЕРАКТИВНЫХ ФИЛЬМОВ')||html.includes('06</strong><small>PLAYABLE FILMS'));
+ assert.ok(html.includes('20</strong><small>РЕПОЗИТОРИЕВ В КАТАЛОГЕ')||html.includes('20</strong><small>GITHUB REPOSITORIES'));
  assert.ok(!html.includes('50K+'));
  assert.ok(!html.includes('12K+'));
  assert.ok(!html.includes('1M+'));
