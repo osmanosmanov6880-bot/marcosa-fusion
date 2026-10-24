@@ -89,14 +89,14 @@ async function main(){
   if(seed.status!==201)throw Error('R30_SEED_OWNER_FAILED '+seed.status);
 
   chrome=spawn(browser(),[
-   '--headless=new','--no-sandbox','--disable-dev-shm-usage',
+   '--headless=new','--no-sandbox','--disable-dev-shm-usage','--disable-gpu','--disable-features=MediaRouter,CalculateNativeWinOcclusion',
    '--disable-background-networking','--no-first-run','--no-default-browser-check',
    '--remote-allow-origins=*','--remote-debugging-port=0','--user-data-dir='+join(work,'profile'),
    'about:blank'
-  ],{stdio:['ignore','ignore','pipe']});
+  ],{stdio:['ignore','ignore','pipe'],env:{...process.env,DBUS_SESSION_BUS_ADDRESS:'',NO_AT_BRIDGE:'1'}});
   let stderr='';chrome.stderr.on('data',chunk=>{stderr=(stderr+String(chunk)).slice(-1000);});
   let port=0;
-  for(let i=0;i<160;i++){
+  for(let i=0;i<375;i++){
    const path=join(work,'profile','DevToolsActivePort');
    if(existsSync(path)){port=Number(readFileSync(path,'utf8').split(/\r?\n/)[0]);if(port)break;}
    if(chrome.exitCode!==null)throw Error('CHROME_EXITED '+stderr);
