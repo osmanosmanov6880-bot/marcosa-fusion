@@ -134,3 +134,28 @@ dialog form{display:grid;gap:17px}
 @media(prefers-reduced-motion:reduce){
  .world-card{transition:none!important;transform:none!important}
 }
+
+/* R30 World pages: a person's meaningful home, not an abstract landing poster. */
+.world-open{display:inline-flex;align-items:center;justify-content:center;min-height:40px;
+ margin-top:9px;padding:9px 13px;border:1px solid #d9b78e8b;border-radius:7px;
+ color:#f6ddaf;text-decoration:none;font:750 11px/1.4 var(--sans);letter-spacing:.02em}
+.world-open:hover{background:#3c363e;border-color:#f4d7ad}
+.world-open:focus-visible{outline:3px solid #f2d7ad;outline-offset:3px}
+.world-detail{margin:15px 0 33px;padding:clamp(20px,3vw,35px);
+ border-color:#efca9c7b;background:linear-gradient(127deg,#1c2939,#0b1625)}
+.world-detail[hidden]{display:none!important}
+.world-detail>h2{font-size:clamp(48px,4.5vw,70px);line-height:1.03;margin:16px 0 15px;color:#f6ebdf}
+.world-detail>h3{font-size:32px;line-height:1.1;margin:20px 0 16px}
+.world-detail>.muted{max-width:660px;color:#d7d8da;font-size:15px;line-height:1.6}
+.world-detail .world-detail-meta{border-bottom:1px solid #d6bb9c5a;
+ padding:10px 0 22px;color:#d7b68f;font:750 12px/1.55 var(--sans);letter-spacing:.035em}
+.world-detail #world-close{margin-bottom:20px}
+.world-detail #world-detail-sponsor{margin:12px 0 17px}
+.world-detail .post{background:linear-gradient(130deg,#19283b,#0b1628)}
+@media(max-width:720px){
+ .world-detail{margin:11px 0 22px;padding:19px 15px}
+ .world-detail>h2{font-size:clamp(42px,10.6vw,62px)}
+ .world-detail>.muted{font-size:14px}
+ .world-detail .world-detail-meta{font-size:11px}
+ .world-open{width:100%;min-height:44px}
+}
