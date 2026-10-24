@@ -165,6 +165,55 @@ async function myPosts(){
  for(const post of result.items)wrap.append(postCard(post,true));
  if(!result.items.length)wrap.append(node('p','Черновиков пока нет.'));
 }
+async function sponsors(){
+ const result=await api('/sponsors/approved');
+ const panel=$('sponsor-showcase');clear(panel);
+ if(!result.items.length){
+  panel.append(node('p','Одобренных пилотных заявок нет. Показы рекламы и оплаты не ведутся.','muted'));
+  return;
+ }
+ for(const proposal of result.items){
+  const card=node('article','','sponsor-item');
+  card.append(node('span',proposal.disclosure,'pilot-disclosure'));
+  card.append(node('strong',proposal.brand_name));
+  card.append(node('p',proposal.headline,'sponsor-headline'));
+  card.append(node('small','Тема: '+proposal.world+' · без реальных платежей'));
+  const link=node('a','Открыть сайт бренда ↗','sponsor-link');
+  link.href=proposal.landing_url;
+  link.target='_blank';link.rel='noopener noreferrer';
+  card.append(link);panel.append(card);
+ }
+}
+async function mySponsors(){
+ if(!state.me)return;
+ const data=await api('/me/sponsors'),list=$('my-sponsors');clear(list);
+ for(const x of data.items){
+  const row=node('div','','sponsor-status');
+  row.append(node('strong',x.brand_name+' · '+x.world),node('span','Статус: '+x.status));
+  list.append(row);
+ }
+ if(!data.items.length)list.append(node('p','Заявок пока нет.','muted'));
+}
+async function reviewSponsors(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const data=await api('/mod/sponsors'),panel=$('sponsor-review-list');clear(panel);
+ for(const proposal of data.items){
+  const card=node('article','','report sponsor-review');
+  card.append(node('strong',proposal.brand_name+' · '+proposal.world),node('p',proposal.headline));
+  const destination=node('p',proposal.landing_url,'muted');card.append(destination);
+  card.append(node('small','Заявитель: @'+proposal.applicant+' · не проверена юридическая принадлежность бренда'));
+  for(const [choice,title] of [['approved','Одобрить только тест'],['rejected','Отклонить']]){
+   const button=node('button',title,'ghost small');button.type='button';
+   button.addEventListener('click',()=>run(async()=>{
+    await api('/mod/sponsors/'+proposal.id+'/review','POST',{decision:choice});
+    await Promise.all([reviewSponsors(),sponsors()]);
+   },choice==='approved'?'Тестовое размещение рассмотрено':'Заявка отклонена'));
+   card.append(button);
+  }
+  panel.append(card);
+ }
+ if(!data.items.length)panel.append(node('p','Нет ожидающих заявок.','muted'));
+}
 async function reports(){
  if(!state.me||state.me.role!=='moderator')return;
  const result=await api('/mod/reports'),wrap=$('report-list');clear(wrap);
@@ -178,6 +227,21 @@ async function reports(){
   },'Публикация скрыта'));row.append(hide);wrap.append(row);
  }
  if(!result.items.length)wrap.append(node('p','Новых жалоб нет.'));
+ const commentData=await api('/mod/comment-reports');
+ const commentPanel=$('comment-report-list');clear(commentPanel);
+ for(const item of commentData.items){
+  const row=node('article','','report');
+  row.append(node('strong','Комментарий #'+item.comment_id+' · '+item.reason));
+  row.append(node('p',item.body));
+  const hide=node('button','Скрыть оскорбительный комментарий','ghost small');
+  hide.type='button';hide.addEventListener('click',()=>run(async()=>{
+   await api('/mod/comments/'+item.comment_id+'/hide','POST',{});
+   await Promise.all([reports(),feed(true)]);
+  },'Комментарий скрыт'));
+  row.append(hide);commentPanel.append(row);
+ }
+ if(!commentData.items.length)commentPanel.append(node('p','Нет новых жалоб на комментарии.','muted'));
+
 }
 $('login-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
@@ -227,6 +291,13 @@ $('delete-form').addEventListener('submit',event=>{
   await api('/account','DELETE',values(form));
   form.reset();await session();await worlds();await feed(true);
  },'Все данные локального аккаунта удалены');
+});
+$('sponsor-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  await api('/sponsors/proposals','POST',values(form));
+  form.reset();await mySponsors();
+ },'Заявка получена: только ручная проверка, без платежей и размещений');
 });
 $('account-export').addEventListener('click',()=>run(async()=>{
  const data=await api('/account/export');
