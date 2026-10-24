@@ -60,3 +60,5 @@ dialog form{display:grid;gap:17px}
  .stateline{margin:9px 0 17px;padding:8px 11px}
  .workspace{gap:14px}
 }
+
+.export-button{display:block;width:100%;margin:23px 0 5px;font-size:11px}
