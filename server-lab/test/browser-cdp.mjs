@@ -147,6 +147,15 @@ async function main(){
    await cdp.wait("document.getElementById('notice').textContent.includes('Локальный профиль создан')",'account-created');
    await cdp.evalJS("(()=>{const f=document.getElementById('login-form');f.elements.email.value='"+identity+"@example.net';f.elements.password.value='long-safe-password-2026';f.requestSubmit();return true;})()");
    await cdp.wait("document.getElementById('identity').textContent==='@"+identity+"'",'signed-in');
+   // R38: actual owner edits the first personal World, then a fresh public
+   // request must reflect the new presentation on desktop and both phones.
+   const worldTitle='Atelier R38 '+size.name;
+   await cdp.evalJS("(()=>{const f=document.getElementById('world-settings-form');f.closest('details').open=true;f.elements.title.value='"+worldTitle+"';f.elements.description.value='An authentic creator World, updated on the server';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('my-worlds')?.textContent.includes('"+worldTitle+"')",'r38-world-editor-saved');
+   await cdp.wait("Array.from(document.querySelectorAll('.world-card h3')).some(x=>x.textContent.includes('"+worldTitle+"'))",'r38-world-publicly-updated');
+   await cdp.evalJS("document.getElementById('world-settings-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(120);
+   await screenshot('world-owner-editor');
    const statement='Мой мир — фактическая публикация R28 '+size.name;
    await cdp.evalJS("(()=>{const f=document.getElementById('post-form');f.elements.body.value='"+statement+"';f.requestSubmit(f.querySelector('button[value=published]'));return true;})()");
    await cdp.wait("document.getElementById('feed-list').textContent.includes('"+statement+"')",'published');
@@ -198,7 +207,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R33 BROWSER QA COMPLETE: 15 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
+  console.log('R38 BROWSER QA COMPLETE: 18 Chrome screenshots including real owner-edited Worlds and social flows');
  }finally{
   cdp?.close();
   if(chrome){
