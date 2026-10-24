@@ -18,16 +18,23 @@
 </section>
 <section class="cp-screen" aria-labelledby="cp-feature-title">
 <div class="cp-screen-head"><div><p class="cp-brow">01 / REAL INTERACTIVE CINEMA</p><h2 id="cp-feature-title">THE INTERNET v. HUMANITY</h2><p>Выбери один из шести фильмов. Оригинальные сюжеты сохранены; после финала можно добровольно перейти в MARCOSA.</p></div><span class="cp-stamp">PLAYABLE<br>STANDALONE</span></div>
-<div class="cp-film-tabs" role="group" aria-label="Выбери фильм"><button type="button" data-cp-film="internet-v-humanity" aria-pressed="true"><span>01</span> THE INTERNET v. HUMANITY</button><button type="button" data-cp-film="protocol-zero" aria-pressed="false"><span>02</span> PROTOCOL ZERO</button><button type="button" data-cp-film="adverse-judge" aria-pressed="false"><span>03</span> ADVERSE JUDGE</button><button type="button" data-cp-film="signal-worlds" aria-pressed="false"><span>04</span> SIGNAL WORLDS</button><button type="button" data-cp-film="opspilot" aria-pressed="false"><span>05</span> OpsPilot Spectrum</button><button type="button" data-cp-film="intentgraph" aria-pressed="false"><span>06</span> IntentGraph Cosmic</button></div>
-<div class="cp-control-bar">
+<div class="cp-film-tabs" role="group" aria-label="Выбери фильм, на телефоне прокручивай список горизонтально"><button type="button" data-cp-film="internet-v-humanity" aria-pressed="true"><span>01</span> THE INTERNET v. HUMANITY</button><button type="button" data-cp-film="protocol-zero" aria-pressed="false"><span>02</span> PROTOCOL ZERO</button><button type="button" data-cp-film="adverse-judge" aria-pressed="false"><span>03</span> ADVERSE JUDGE</button><button type="button" data-cp-film="signal-worlds" aria-pressed="false"><span>04</span> SIGNAL WORLDS</button><button type="button" data-cp-film="opspilot" aria-pressed="false"><span>05</span> OpsPilot Spectrum</button><button type="button" data-cp-film="intentgraph" aria-pressed="false"><span>06</span> IntentGraph Cosmic</button></div>
+<div class="cp-film-nav" aria-label="Управление выбором фильма">
+  <button type="button" id="cp-previous" aria-label="Предыдущий фильм">← ПРЕДЫДУЩИЙ</button>
+  <span id="cp-film-counter" role="status" aria-live="off" aria-atomic="true">01 / 06</span>
+  <button type="button" id="cp-next" aria-label="Следующий фильм">СЛЕДУЮЩИЙ →</button>
+</div>
+<p class="cp-film-hint" id="cp-film-hint">Цифровой суд · интерактивный пролог</p>
+<div class="cp-control-bar" id="cp-control-bar">
 <button type="button" id="cp-play" class="cp-play"><span aria-hidden="true">▶</span> ЗАПУСТИТЬ ИСТОРИЮ</button>
 <button type="button" id="cp-restart" disabled>НАЧАТЬ ЗАНОВО</button>
+<button type="button" id="cp-stop" disabled aria-label="Закрыть запущенный фильм">ЗАКРЫТЬ ФИЛЬМ ✕</button>
 <button type="button" id="cp-fullscreen" disabled>НА ВЕСЬ ЭКРАН</button>
 <a id="cp-standalone-link" href="./film-internet-v-humanity.html" target="_blank" rel="noopener noreferrer">ОТКРЫТЬ ОТДЕЛЬНО ↗</a></div>
 <p class="cp-status" role="status" aria-live="polite" id="cp-status">Игра ещё не запущена. Нажми «Запустить историю».</p>
 <div class="cp-stage" id="cp-stage"><div class="cp-stage-placeholder" id="cp-placeholder" aria-hidden="true"><span>INTERACTIVE COURTROOM</span><strong>THE INTERNET<br>v. HUMANITY</strong><small>Войди в историю. Решение останется за тобой.</small></div>
 <iframe id="cp-film-frame" title="Интерактивный пролог THE INTERNET v. HUMANITY" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" allow="fullscreen" allowfullscreen loading="lazy" referrerpolicy="no-referrer" hidden></iframe></div>
-<p class="cp-caveat">Это независимые браузерные художественные фильмы, не полномасштабные коммерческие AAA-игры. Плеер изолирован от данных MARCOSA; история и решения никуда автоматически не передаются. Для собственного локального сохранения прогресса и скачивания брифа используйте «Открыть отдельно».</p>
+<p class="cp-caveat">Это независимые браузерные художественные фильмы, не полномасштабные коммерческие AAA-игры. Плеер изолирован от данных MARCOSA; история и решения никуда автоматически не передаются. Фильм можно остановить кнопкой «Закрыть фильм». Для локального сохранения прогресса и скачивания брифа выбери «Открыть отдельно».</p>
 <a class="cp-source" id="cp-source-origin" href="https://github.com/osmanosmanov6880-bot/internet-v-humanity/tree/4c492d30656d16a908f0dbd851a703f815b2d34e" target="_blank" rel="noopener noreferrer">ПОСМОТРЕТЬ ОРИГИНАЛЬНЫЙ ИСХОДНИК И КОММИТ ↗</a>
 </section>
 <section class="cp-library" aria-labelledby="cp-library-title"><p class="cp-brow">02 / VERIFIED OTHER CODE</p><h2 id="cp-library-title">PROTOCOL ZERO и ADVERSE JUDGE</h2><p>Оба фильма собираются из зафиксированных исходных GitHub-коммитов. Все 38 WebP-кадров встроены непосредственно в HTML; сервер приложений для просмотра не нужен.</p>
@@ -60,4 +67,4 @@
 <p class="cp-caveat">Правило выпуска R17: публикация допускается только после успешной сборки двух автономных HTML, браузерных проверок на компьютере и телефоне и подтверждения отсутствия незапрошенных сетевых обращений. Серверные модули отдельных продуктов не объединяются.</p>
 </section>
 <section class="cp-footer-note"><p class="cp-brow">03 / ACTUAL PRODUCTION BOUNDARY</p><p>Публичный кинозал находится на GitHub Pages и не меняет действующий Contabo-сервер, домены владельца, платежи, договоры и личные данные. Статус 43 доменов остаётся неподтверждённым.</p></section>
-</main><footer>MARCOSA CINEMA R19 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
+</main><footer>MARCOSA CINEMA R20 · USER-SUPPLIED / OWNER-CONNECTED SOURCE · NO AD TRACKING · NO AUTOMATIC NAVIGATION</footer></div></body></html>
