@@ -2,7 +2,7 @@
 """Deterministic, allowlisted build of the public MARCOSA R2 Network OS preview.
 
 This does NOT reproduce the authenticated MARCOSA social application.
-Its inputs are thirty-two independently reviewed public files in site/.
+Its inputs are independently reviewed public files in site/ (R21 branding included).
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -104,6 +104,38 @@ def build() -> dict:
     for slug in ('signal-worlds', 'opspilot', 'intentgraph'):
         if 'data-cp-film="' + slug + '"' not in theater:
             raise RuntimeError('R19 cinema selector missing: ' + slug)
+    # R21: one Orbital M brand, distinct route themes, explicit functional social preview.
+    brand = (SOURCE / 'marcosa-brand.css').read_text(encoding='utf-8')
+    brand_js = (SOURCE / 'marcosa-brand.js').read_text(encoding='utf-8')
+    mark = (SOURCE / 'marcosa-mark.svg').read_text(encoding='utf-8')
+    social = (SOURCE / 'social.html').read_text(encoding='utf-8')
+    social_js = (SOURCE / 'social-core.js').read_text(encoding='utf-8')
+    if not all(x in brand for x in ('m-transition', '.m-world-bar', 'data-m-world="cinema"', 'data-m-world="atlas"')):
+        raise RuntimeError('R21 distinct brand design system missing')
+    if 'marcosa-mark.svg' not in brand_js or 'root.location.assign' not in brand_js:
+        raise RuntimeError('R21 actual brand transitions missing')
+    if not all(x in mark for x in ('<svg ', '<path ', '<ellipse ')):
+        raise RuntimeError('R21 Orbital M vector invalid')
+    for name, identity in (('index.html', 'gateway'), ('stories.html', 'stories'),
+                           ('creator.html', 'creator'), ('source-hub.html', 'atlas'),
+                           ('cinema-pilot.html', 'cinema'), ('film-network.html', 'film-network'),
+                           ('social.html', 'social')):
+        route = (SOURCE / name).read_text(encoding='utf-8')
+        if not all(x in route for x in (
+            'data-m-world="' + identity + '"',
+            'href="./marcosa-brand.css"',
+            'src="./marcosa-brand.js"',
+        )):
+            raise RuntimeError('R21 brand not wired into ' + name)
+    if not all(x in social for x in (
+        'id="so-feed"', 'id="so-search"', 'id="so-draft-text"', 'id="so-save-draft"',
+        'id="so-clear-draft"', 'src="./social-core.js"',
+    )):
+        raise RuntimeError('R21 functional Social Core interface missing')
+    if 'localStorage' not in social_js or 'fetch(' in social_js:
+        raise RuntimeError('R21 Social Core privacy boundary changed')
+    if 'href="./social.html"' not in html:
+        raise RuntimeError('R21 Social Core missing from home discovery')
     if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
         raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}

@@ -59,7 +59,7 @@ test('R4 WebGL2 shaders use material BRDF and quarter-res three-pass bloom',()=>
 test('R4 desktop and mobile UI document physical device acceptance and fallback',()=>{
   const html=fs.readFileSync(path.join(__dirname,'../site/index.html'),'utf8');
   const css=fs.readFileSync(path.join(__dirname,'../site/immersive.css'),'utf8');
-  assert.match(html,/MARCOSA R[45]/); // R5 reuses the validated R4 WebGL materials pipeline
+  assert.match(html,/MARCOSA (?:R[45]|— A Network of Worlds)/); // R21 rebrands the page; the original R4 rendering pipeline remains
   assert.match(html,/GPU \+ FRAME PROFILING/);
   assert.match(html,/Targets are acceptance|figures are acceptance targets/i);
   assert.match(html,/id="mi-benchmark"/);

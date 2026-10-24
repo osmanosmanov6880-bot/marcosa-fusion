@@ -10,6 +10,7 @@ on:
       - "tools/build_cinema_r18.py"
       - "tools/r18_multicinema_cdp.cjs"
       - "tools/r19_three_archives_cdp.cjs"
+      - "tools/r21_brand_cdp.cjs"
       - "tools/r5_browser_smoke.py"
       - "inventory/playable_cinema_r19.json"
       - ".github/workflows/marcosa-public-pages.yml"
@@ -22,6 +23,7 @@ on:
       - "tools/build_cinema_r18.py"
       - "tools/r18_multicinema_cdp.cjs"
       - "tools/r19_three_archives_cdp.cjs"
+      - "tools/r21_brand_cdp.cjs"
       - "tools/r5_browser_smoke.py"
       - "inventory/playable_cinema_r19.json"
       - ".github/workflows/marcosa-public-pages.yml"
@@ -84,6 +86,9 @@ jobs:
           node --check site/film-continuity.js
           node --check site/source-hub.js
           node --check site/cinema-pilot.js
+          node --check site/marcosa-brand.js
+          node --check site/social-core.js
+          node --check tools/r21_brand_cdp.cjs
           node --check tools/cinema_release_gate_r17.cjs
           node tools/cinema_release_gate_r17.cjs
           node --check tools/r16_cinema_cdp.cjs
@@ -93,7 +98,7 @@ jobs:
           node --check site/creator-playtest.js
           node --check tools/r9_cdp_smoke.cjs
           node --check tools/r12_offline_cdp.cjs
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/playtest.test.cjs
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/cinema_gate_r17.test.cjs tests/cinema_r18.test.cjs tests/cinema_r19.test.cjs tests/brand_r21.test.cjs tests/playtest.test.cjs
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
           python tools/build_webroot.py
@@ -128,6 +133,12 @@ jobs:
           test -s dist/film-signal-worlds.html
           test -s dist/film-opspilot.html
           test -s dist/film-intentgraph.html
+          test -s dist/social.html
+          test -s dist/social-core.css
+          test -s dist/social-core.js
+          test -s dist/marcosa-mark.svg
+          test -s dist/marcosa-brand.css
+          test -s dist/marcosa-brand.js
           test -s dist/creator-playtest.js
           python tools/r4_browser_smoke.py
           python tools/r5_browser_smoke.py
@@ -137,6 +148,7 @@ jobs:
           node tools/r16_cinema_cdp.cjs
           node tools/r18_multicinema_cdp.cjs
           node tools/r19_three_archives_cdp.cjs
+          node tools/r21_brand_cdp.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -195,6 +207,14 @@ jobs:
         with:
           name: r19-signal-opspilot-intentgraph-qa
           path: qa-r19/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R21 brand and Social Core desktop/mobile screenshots
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r21-marcosa-brand-worlds-qa
+          path: qa-r21/
           retention-days: 7
           if-no-files-found: error
       - name: Upload static Pages artifact
