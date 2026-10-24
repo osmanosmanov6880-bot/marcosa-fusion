@@ -33,7 +33,7 @@ def extract(source: Path) -> dict[str, bytes]:
             raise RuntimeError("R22 symlink source forbidden: " + file)
         if file not in bundles:
             html = (source / file).read_text(encoding="utf-8")
-            expr = r"window\\." + re.escape(global_name) + r"=(\\{.*?\\});"
+            expr = r"window\." + re.escape(global_name) + r"=(\{.*?\});"
             match = re.search(expr, html, flags=re.S)
             if not match:
                 raise RuntimeError("R22 source image map missing: " + global_name)
