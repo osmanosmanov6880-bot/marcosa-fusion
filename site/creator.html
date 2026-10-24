@@ -4,20 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060b19">
-  <meta name="description" content="MARCOSA R11 Creator Engine — original branching stories, local revision history, human review handoff, and no automatic publication.">
-  <title>MARCOSA — Creator Engine R11 · Local Project Vault</title>
+  <meta name="description" content="MARCOSA R12 Creator Engine — original branching stories, local revision history, human review handoff, and no automatic publication.">
+  <title>MARCOSA — Creator Engine R12 · Local Project Vault</title>
   <link rel="stylesheet" href="./creator.css">
   <script src="./creator.js" defer></script>
   <script src="./creator-vault.js" defer></script>
   <script src="./creator-backup.js" defer></script>
   <script src="./creator-crypto.js" defer></script>
+  <script src="./creator-standalone.js" defer></script>
 </head>
 <body class="mc-body">
 <div class="mc-shell">
   <header class="mc-header">
     <a class="mc-brand" href="./index.html" aria-label="MARCOSA — главная">
       <span class="mc-monogram" aria-hidden="true">M</span>
-      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R11</small></span>
+      <span class="mc-brand-text">MARCOSA<small>CREATOR ENGINE / R12</small></span>
     </a>
     <div class="mc-top-actions">
       <nav class="mc-language" aria-label="Интерфейс / Interface language">
@@ -33,10 +34,10 @@
   <main>
     <section class="mc-hero" aria-labelledby="mc-main-title">
       <div class="mc-hero-content">
-        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R11</span></p>
+        <p class="mc-kicker"><span class="mc-kicker-orbit" aria-hidden="true"></span><span data-mc-text="eyebrow">MARCOSA / CREATOR ENGINE · R12</span></p>
         <h1 id="mc-main-title" data-mc-text="heading">Твоя история. Четыре разных финала.</h1>
         <p class="mc-hero-description" data-mc-text="intro">Напиши историю с четырьмя финалами. Сохраняй версии в локальном архиве, сравнивай изменения и готовь JSON для независимой проверки.</p>
-        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span><span>R11 / PROJECT VAULT</span></div>
+        <div class="mc-hero-badges"><span>02 / DECISIONS</span><span>04 / OUTCOMES</span><span>01 / ORIGINAL WORLD</span><span>R12 / PROJECT VAULT</span></div>
         <p class="mc-hero-disclaimer"><span class="mc-crimson-pip" aria-hidden="true"></span><span data-mc-text="prototype">ЛОКАЛЬНЫЙ ПРОТОТИП · НЕ ПУБЛИКУЕТСЯ</span></p>
       </div>
       <div class="mc-hero-visual" aria-hidden="true">
@@ -122,7 +123,7 @@
     <section class="mc-vault-section" id="mc-vault" aria-labelledby="mc-vault-heading">
       <header class="mc-vault-heading">
         <div>
-          <p class="mc-panel-eyebrow">03 / AUTHOR WORKSPACE · R11</p>
+          <p class="mc-panel-eyebrow">03 / AUTHOR WORKSPACE · R12</p>
           <h2 id="mc-vault-heading" data-mcv-text="section">ЛОКАЛЬНЫЙ АРХИВ ПРОЕКТОВ</h2>
           <p data-mcv-text="intro">Создавай несколько историй, сохраняй версии вручную, сравнивай изменения и передавай JSON на независимую проверку. Данные остаются в этом браузере.</p>
         </div>
@@ -190,7 +191,7 @@
         <section class="mc-vault-card mc-backup-card" id="mc-backup" aria-labelledby="mc-backup-heading">
           <div class="mc-vault-card-head">
             <div>
-              <p class="mc-panel-eyebrow">BACKUP / OFFLINE RECOVERY · R11</p>
+              <p class="mc-panel-eyebrow">BACKUP / OFFLINE RECOVERY · R12</p>
               <h3 id="mc-backup-heading" data-mcb-text="title">РЕЗЕРВНАЯ КОПИЯ АРХИВА</h3>
             </div>
             <span class="mc-vault-hint">LOCAL JSON · ≤ 2 MiB</span>
@@ -214,7 +215,7 @@
         <section class="mc-vault-card mc-crypto-card" id="mc-crypto" aria-labelledby="mc-crypto-heading">
           <div class="mc-vault-card-head">
             <div>
-              <p class="mc-panel-eyebrow">PRIVATE / AES-256-GCM · R11</p>
+              <p class="mc-panel-eyebrow">PRIVATE / AES-256-GCM · R12</p>
               <h3 id="mc-crypto-heading" data-mcc-text="title">ЗАЩИЩЁННЫЙ АРХИВ</h3>
             </div>
             <span class="mc-crypto-security"><span aria-hidden="true">◇</span> PBKDF2 · 600K</span>
@@ -249,10 +250,54 @@
             <p data-mcc-text="warned">Если забудешь пароль, файл восстановить невозможно. Сам локальный архив в браузере НЕ зашифрован. Старый экспорт JSON без пароля по-прежнему доступен выше.</p>
           </div>
         </section>
+
+        <section class="mc-vault-card mc-standalone-card" id="mc-standalone" aria-labelledby="mc-standalone-heading">
+          <div class="mc-standalone-layout">
+            <div class="mc-standalone-controls">
+              <div class="mc-vault-card-head">
+                <div>
+                  <p class="mc-panel-eyebrow">PLAYABLE / OFFLINE HTML · R12</p>
+                  <h3 id="mc-standalone-heading" data-mcs-text="title">СОЗДАТЬ СВОЮ МИНИ-ИГРУ</h3>
+                </div>
+                <span class="mc-standalone-pill">STANDALONE FILE</span>
+              </div>
+              <p class="mc-review-lead" data-mcs-text="intro">Преврати написанную историю в самостоятельный интерактивный HTML-файл. Получатель сможет открыть его офлайн и пройти все четыре финала — без сайта, установки и регистрации.</p>
+              <label class="mc-vault-field mc-standalone-theme-label" for="mc-standalone-theme">
+                <span data-mcs-text="theme">ОФОРМЛЕНИЕ ФАЙЛА</span>
+                <select id="mc-standalone-theme" aria-label="Тема самостоятельной истории">
+                  <option value="cosmos" data-mcs-text="cosmos">Звёздная ночь</option>
+                  <option value="ember" data-mcs-text="ember">Алый горизонт</option>
+                  <option value="aurora" data-mcs-text="aurora">Северное сияние</option>
+                </select>
+              </label>
+              <div class="mc-standalone-conditions" id="mc-standalone-conditions">
+                <label class="mc-vault-check"><input type="checkbox" id="mc-standalone-rights"><span data-mcs-text="rights">Подтверждаю, что имею права на сюжет и весь текст.</span></label>
+                <label class="mc-vault-check"><input type="checkbox" id="mc-standalone-sponsor"><span data-mcs-text="sponsor">Я проверил маркировку рекламного или спонсорского содержания.</span></label>
+                <label class="mc-vault-check"><input type="checkbox" id="mc-standalone-privacy"><span data-mcs-text="privacy">В истории нет секретных сведений или чужих персональных данных.</span></label>
+              </div>
+              <div class="mc-standalone-buttons">
+                <button type="button" id="mc-standalone-preview" class="mc-btn mc-btn-outline" data-mcs-text="preview">ПРОВЕРИТЬ АВТОНОМНУЮ ИСТОРИЮ</button>
+                <button type="button" id="mc-standalone-download" class="mc-btn mc-btn-primary" data-mcs-text="download">СКАЧАТЬ ИНТЕРАКТИВНЫЙ HTML</button>
+              </div>
+              <p id="mc-standalone-feedback" class="mc-vault-status" role="status" aria-live="polite"></p>
+              <p class="mc-vault-caveat" data-mcs-text="help">Предпросмотр работает без публикации. Для скачивания необходимо подтвердить три пункта. После загрузки HTML можно переслать файл или разместить его на своём сайте.</p>
+              <div class="mc-vault-caution">
+                <span aria-hidden="true">◇</span>
+                <p data-mcs-text="security">Никакой внешней загрузки, аналитики и подключения к MARCOSA. Файл не содержит паролей или данных из локального архива. Права на текст не проверены независимо.</p>
+              </div>
+            </div>
+            <div class="mc-standalone-screen">
+              <div class="mc-standalone-screen-head"><span>LIVE / SANDBOX</span><span aria-hidden="true">● ● ●</span></div>
+              <p id="mc-standalone-empty" data-mcs-text="noPreview" class="mc-standalone-placeholder">Нажми «Проверить автономную историю», чтобы здесь появился настоящий плеер.</p>
+              <iframe id="mc-standalone-player" title="MARCOSA standalone offline story sandbox"
+                      sandbox="allow-scripts" referrerpolicy="no-referrer" loading="lazy" hidden></iframe>
+            </div>
+          </div>
+        </section>
       </div>
     </section>
   </main>
-  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R11</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
+  <footer class="mc-footer"><span>MARCOSA / CREATOR ENGINE R12</span><span data-mc-text="footer">ЧЕРНОВИК · ФАЙЛ ОСТАЁТСЯ У ТЕБЯ · 0 ПЛАТЕЖЕЙ · 0 ТРЕКЕРОВ</span></footer>
 </div>
 </body>
 </html>
