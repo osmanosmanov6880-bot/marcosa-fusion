@@ -57,6 +57,21 @@
    <p id="profile-line" class="profile-line"></p>
    <h3>Мои миры</h3>
    <div id="my-worlds" class="compact-list"></div>
+   <details class="invite-panel creator-insights" id="creator-insights">
+    <summary>Статистика моих миров</summary>
+    <div id="creator-insights-list" class="compact-list" aria-live="polite"></div>
+    <p class="muted">Только реальные публикации, подписки и комментарии этого сервера. Без оценок охвата и рекламных доходов.</p>
+   </details>
+   <details class="invite-panel inbox-panel" id="notification-panel">
+    <summary>События в моих мирах <span id="notification-badge" class="notification-count" aria-label="Непрочитанных событий">0</span></summary>
+    <div id="notification-list" class="compact-list" aria-live="polite"></div>
+    <div class="inbox-actions">
+     <button id="notification-refresh" type="button" class="ghost small">Обновить события</button>
+     <button id="notification-read" type="button" class="ghost small" disabled>Отметить загруженные прочитанными</button>
+    </div>
+    <p class="muted">События сохраняются в локальной базе. Новые сообщения появляются после обновления.</p>
+   </details>
+
    <details class="invite-panel">
     <summary>Создать дополнительный мир</summary>
     <form id="world-form" class="form-block">
