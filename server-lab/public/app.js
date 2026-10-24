@@ -56,8 +56,8 @@ async function session(){
    const option=node('option',world.title);option.value=world.id;choose.append(option);
 
   }
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true)]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals()]);
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
 }
 async function worlds(){
@@ -221,6 +221,65 @@ function postCard(post,own=false){
   card.append(thread);
  }
  return card;
+}
+async function appeals(){
+ if(!state.me)return;
+ const data=await api('/me/moderation');
+ const target=$('appeal-list'),history=$('appeal-history');clear(target);clear(history);
+ for(const hidden of data.hidden){
+  const entry=node('article','','appeal-item');
+  entry.append(node('strong',(hidden.kind==='post'?'Запись':'Комментарий')+' #'+hidden.id));
+  entry.append(node('p',hidden.body,'appeal-copy'));
+  const latest=data.appeals.find(x=>hidden.kind==='post'?x.post_id===hidden.id:x.comment_id===hidden.id);
+  if(latest?.status==='open'){
+   entry.append(node('span','Апелляция в очереди независимой проверки','muted'));
+  }else{
+   const form=node('form','','appeal-form');
+   const label=node('label','Почему материал следует восстановить?');
+   const reason=node('textarea');reason.name='reason';reason.required=true;reason.minLength=12;reason.maxLength=1000;reason.rows=3;
+   label.append(reason);
+   const submit=node('button','Отправить апелляцию','ghost small');submit.type='submit';
+   form.append(label,submit);
+   form.addEventListener('submit',event=>{
+    event.preventDefault();const text=reason.value;
+    run(async()=>{await api('/appeals','POST',{kind:hidden.kind,subjectId:hidden.id,reason:text});await appeals();},'Апелляция отправлена');
+   });
+   entry.append(form);
+  }
+  target.append(entry);
+ }
+ if(!data.hidden.length)target.append(node('p','Скрытых материалов нет.','muted'));
+ for(const item of data.appeals){
+  const status={open:'На рассмотрении',upheld:'Решение о скрытии подтверждено',restored:'Материал восстановлен'}[item.status]||'Неизвестно';
+  const entry=node('div','','appeal-record');
+  entry.append(node('strong',status),node('p',item.reason),node('small',new Date(item.created_at).toLocaleString('ru-RU')));
+  history.append(entry);
+ }
+ if(!data.appeals.length)history.append(node('p','Обращений ещё не было.','muted'));
+}
+async function reviewAppeals(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const [queue,log]=await Promise.all([api('/mod/appeals'),api('/mod/moderation-audit')]);
+ const list=$('appeal-review-list'),audit=$('moderation-audit');clear(list);clear(audit);
+ for(const appeal of queue.items){
+  const item=node('article','','appeal-item');
+  item.append(node('strong','@'+appeal.appellant+' · '+(appeal.post_id?'Запись':'Комментарий')+' #'+(appeal.post_id||appeal.comment_id)));
+  item.append(node('p',appeal.subject_body,'appeal-copy'),node('p','Обоснование: '+appeal.reason));
+  for(const [decision,label] of [['restored','Восстановить'],['upheld','Оставить скрытым']]){
+   const btn=node('button',label,'ghost small');btn.type='button';
+   btn.addEventListener('click',()=>run(async()=>{
+    await api('/mod/appeals/'+appeal.id+'/resolve','POST',{decision});
+    await Promise.all([reviewAppeals(),reports(),feed(true)]);
+   },'Независимое решение сохранено'));
+   item.append(btn);
+  }
+  list.append(item);
+ }
+ if(!queue.items.length)list.append(node('p','Ожидающих обращений нет.','muted'));
+ for(const row of log.items.slice(0,20)){
+  audit.append(node('p','@'+row.moderator+' · '+row.action+' · '+(row.post_id?'запись #'+row.post_id:'комментарий #'+row.comment_id),'audit-row'));
+ }
+ if(!log.items.length)audit.append(node('p','В журнале пока нет решений.','muted'));
 }
 async function activity(reset=true){
  if(!state.me)return;
@@ -461,7 +520,7 @@ $('activity-read').addEventListener('click',()=>run(async()=>{await api('/me/act
 $('activity-more').addEventListener('click',()=>run(()=>activity(false)));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
-$('reload-reports').addEventListener('click',()=>run(()=>reports()));
+$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals()]);}));
 session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
