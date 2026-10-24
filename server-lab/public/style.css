@@ -159,3 +159,8 @@ dialog form{display:grid;gap:17px}
  .world-detail .world-detail-meta{font-size:11px}
  .world-open{width:100%;min-height:44px}
 }
+
+.discover-form{margin:0 0 20px;padding:17px;border:1px solid #c7aa8255;border-radius:10px;background:#152239}
+.discover-form label{display:block;margin-bottom:10px;color:#e8d7bd;font-size:13px}
+.discover-line{display:flex;gap:8px;flex-wrap:wrap}.discover-line input{flex:1 1 170px}.discover-results{display:grid;gap:10px;margin:0 0 22px;border:1px solid #d8bfa348;border-radius:10px;padding:16px}.discover-results h3{font-size:24px;margin:0}.discover-hit{text-align:left}.discover-results .post{min-width:0}
+@media(max-width:380px){.discover-line button{flex:1 1 100px}}
