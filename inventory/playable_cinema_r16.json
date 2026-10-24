@@ -1,0 +1,46 @@
+{
+  "schema": "marcosa-playable-source-snapshot/v1",
+  "snapshot_date": "2026-10-24",
+  "release_scope": "public_GitHub_Pages_preview_only",
+  "playable": [
+    {
+      "slug": "internet-v-humanity",
+      "title": "THE INTERNET v. HUMANITY",
+      "original_repository": "osmanosmanov6880-bot/internet-v-humanity",
+      "source_commit": "4c492d30656d16a908f0dbd851a703f815b2d34e",
+      "original_path": "index.html",
+      "git_blob_sha1": "f18380a086f2196cf0faab1a9c6568ebef854e9e",
+      "distributed_public_file": "site/film-internet-v-humanity.html",
+      "source_identical": true,
+      "kind": "standalone_interactive_prologue",
+      "tested_finishes": [
+        "end_human",
+        "end_algorithm"
+      ],
+      "additional_branch": "intro->archive->evidence->court",
+      "externally_embedded_scripts": 0,
+      "remote_fetch_called": false,
+      "viewer_autotransfers": false,
+      "original_localStorage_behavior": "persists on standalone page; sandboxed embedded viewer uses opaque origin, so storage attempts are caught and disabled"
+    }
+  ],
+  "github_source_only": [
+    {
+      "name": "PROTOCOL ZERO",
+      "repository": "osmanosmanov6880-bot/protocol-zero",
+      "main_commit": "0f1841c0e56e47f7413bea9948e66200409e7a7a",
+      "playable_on_marcosa": false,
+      "reason": "original cinematic scene assets not packaged into verified public release"
+    },
+    {
+      "name": "ADVERSE JUDGE",
+      "repository": "osmanosmanov6880-bot/adverse-judge",
+      "main_commit": "f48a00510984a3da2d5527cd01ef8a51f102881e",
+      "playable_on_marcosa": false,
+      "reason": "original cinematic scene assets and live route not packaged into verified public release"
+    }
+  ],
+  "verified_43_domains": 0,
+  "content_rights_review_pending": true,
+  "production_marcosa_server_unchanged": true
+}
