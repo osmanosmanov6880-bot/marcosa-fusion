@@ -100,6 +100,12 @@ function inspectBrand(expected){
  if(!document.querySelector('.m-transition'))throw Error('MISSING_LOADING_ANIMATION');
  const css=getComputedStyle(document.documentElement);
  if(!css.getPropertyValue('--m-accent').trim())throw Error('MISSING_WORLD_ACCENT');
+ if(window.innerWidth<=720){
+   const usable=Array.from(nav.querySelectorAll('.m-world-label')).filter(x=>getComputedStyle(x).display!=='none');
+   if(usable.length<5||usable[0].getBoundingClientRect().height<8)
+    throw Error('R24_MOBILE_NAV_HAS_ICONS_WITHOUT_TEXT');
+ }
+
  const art={gateway:'visual-city.webp',social:'visual-cascade.webp',cinema:'visual-hero.webp',
             creator:'visual-archive.webp',atlas:'visual-control.webp',
             stories:'visual-city.webp','film-network':'visual-earthrise.webp'}[expected];
@@ -149,6 +155,13 @@ function inspectBrand(expected){
     throw Error('R24_SOCIAL_NOT_DARK_NAVY');
    if(!getComputedStyle(art).backgroundImage.includes('visual-cascade.webp'))
     throw Error('R24_SOCIAL_ORIGINAL_VISUAL_MISSING');
+   if(window.innerWidth<=720){
+    const opacity=Number(getComputedStyle(art).opacity);
+    if(opacity<.50)throw Error('R24_MOBILE_SOCIAL_VISUAL_TOO_DIM');
+    const buttons=Array.from(document.querySelectorAll('.so-hero-actions a'));
+    if(buttons.length!==2||Math.abs(buttons[0].getBoundingClientRect().top-buttons[1].getBoundingClientRect().top)>5)
+      throw Error('R24_MOBILE_SOCIAL_ACTIONS_NOT_SIDE_BY_SIDE');
+   }
    if(window.innerWidth>=1121){
     const box=document.querySelector('.so-hero').getBoundingClientRect();
     const image=art.getBoundingClientRect();
