@@ -52,6 +52,12 @@ test('R31 real first-party activity and truthful creator analytics',async t=>{
    const guest=await api('/me/notifications');assert.equal(guest.status,401);
    const friend=await api('/me/notifications',{cookie:follower.cookie});
    assert.equal(friend.body.items.length,0);
+   const exported=await api('/account/export',{cookie:author.cookie});
+   assert.equal(exported.status,200);assert.equal(exported.body.notifications.length,3);
+   assert.ok(exported.body.notifications.every(n=>n.actor==='worldfriend'));
+   assert.ok(!JSON.stringify(exported.body).includes('password_hash'));
+   const otherExport=await api('/account/export',{cookie:follower.cookie});
+   assert.deepEqual(otherExport.body.notifications,[]);
   });
   await t.test('creator insights are measured from SQLite, not made-up advertising reach',async()=>{
    const owner=await api('/me/insights',{cookie:author.cookie});
