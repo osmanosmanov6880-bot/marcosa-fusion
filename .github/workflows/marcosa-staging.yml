@@ -43,6 +43,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+      - name: Install pinned image-grade dependency
+        run: python -m pip install --disable-pip-version-check --only-binary=:all: "Pillow==12.0.0"
       - name: Verify Python and JS source
         shell: bash
         run: |
@@ -60,12 +62,15 @@ jobs:
           node --check site/source-hub.js
           node --check site/cinema-pilot.js
           node --check site/creator-playtest.js
+          node --check site/marcosa-director.js
           node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/playtest.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |
           set -euo pipefail
           python tools/build_webroot.py
+          test -s dist/marcosa-director.css
+          test -s dist/visual-city-director.webp
           test -s dist/index.html
           if find dist -type l -print -quit | grep -q .; then
             echo "::error::Symlinks forbidden in deploy artifact"
