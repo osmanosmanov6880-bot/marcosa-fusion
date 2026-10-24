@@ -127,16 +127,34 @@ async function main(){
    const statement='Мой мир — фактическая публикация R28 '+size.name;
    await cdp.evalJS("(()=>{const f=document.getElementById('post-form');f.elements.body.value='"+statement+"';f.requestSubmit(f.querySelector('button[value=published]'));return true;})()");
    await cdp.wait("document.getElementById('feed-list').textContent.includes('"+statement+"')",'published');
+   // R30: actual thread, follow, and unpaid sponsor workflow in real Chrome.
+   const discussionOpened=await cdp.evalJS("(()=>{const d=document.querySelector('#feed-list details.discussion');if(!d)return false;d.open=true;return true;})()");
+   if(!discussionOpened)throw Error('R30_COMMENT_PANEL_MISSING_'+size.name);
+   await cdp.wait("document.querySelector('#feed-list .comment-form textarea')!==null",'r30-comment-form');
+   await cdp.evalJS("(()=>{const f=document.querySelector('#feed-list .comment-form');f.elements.body.value='R30 real browser discussion "+size.name+"';f.requestSubmit();return true;})()");
+   await cdp.wait("document.querySelector('#feed-list .comment-copy')?.textContent.includes('R30 real browser discussion "+size.name+"')",'r30-comment-saved');
+   if(size.mobile){
+    await cdp.wait("document.querySelector('.world-follow')!==null",'r30-follow-button');
+    await cdp.evalJS("document.querySelector('.world-follow').click()");
+    await cdp.wait("document.querySelector('.following')!==null",'r30-follow-applied');
+   }
+   const sponsorSubmitted=await cdp.evalJS("(()=>{const pane=document.getElementById('sponsor-owner');pane.open=true;const f=document.getElementById('sponsor-form');f.elements.brandName.value='R30 Testing Studio';f.elements.headline.value='Test creator story sponsorship without payments';f.elements.landingUrl.value='https://studio.example.org/creator';f.requestSubmit();return true;})()");
+   if(!sponsorSubmitted)throw Error('R30_SPONSOR_FORM_MISSING_'+size.name);
+   await cdp.wait("document.getElementById('my-sponsors')?.textContent.includes('pending')",'r30-unpaid-sponsor-submission');
+   const verified=await cdp.evalJS("(()=>({comment:document.querySelector('#feed-list .comment-copy')?.textContent,proposal:document.getElementById('my-sponsors')?.textContent,paymentUI:document.body.textContent.includes('Купить показы')}))()");
+   if(verified.paymentUI||!verified.proposal.includes('pending'))
+    throw Error('R30_PILOT_NOT_HONEST '+size.name+' '+JSON.stringify(verified));
    const audit=await cdp.evalJS("(()=>({width:document.documentElement.scrollWidth,viewport:document.documentElement.clientWidth,personal:!document.getElementById('member-access').hidden,worlds:document.querySelectorAll('#world-list .world-card').length,posts:document.querySelectorAll('#feed-list .post').length,centerTop:document.querySelector('.center').getBoundingClientRect().top,accessTop:document.getElementById('access').getBoundingClientRect().top,remoteImages:document.querySelectorAll('#feed-list img').length}))()");
    if((size.mobile&&audit.centerTop>=audit.accessTop)||audit.width>audit.viewport+2||!audit.personal||audit.worlds<1||audit.posts<1||audit.remoteImages!==0)
     throw Error('AUTHENTICATED_LAYOUT_BROKEN '+size.name+' '+JSON.stringify(audit));
    await screenshot('authenticated');
+   await screenshot('community-sponsor');
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length)throw Error('EXTERNAL_NETWORK_ACCESS '+external.slice(0,5).join(' | '));
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
-   console.log('R28 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
+   console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R28 BROWSER QA COMPLETE: 6 original Chrome screenshots, real signup, login and publishing');
+  console.log('R30 BROWSER QA COMPLETE: 9 original Chrome screenshots, signup/login/posting, comments, follows and sponsor queue');
  }finally{
   cdp?.close();
   if(chrome){
