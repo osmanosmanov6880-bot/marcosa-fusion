@@ -114,26 +114,26 @@ async function reports(){
  if(!result.items.length)wrap.append(node('p','Новых жалоб нет.'));
 }
 $('login-form').addEventListener('submit',event=>{
- event.preventDefault();run(async()=>{
-  const data=values(event.currentTarget);
+ event.preventDefault();const form=event.currentTarget;run(async()=>{
+  const data=values(form);
   await api('/auth/login','POST',data);
-  event.currentTarget.reset();await session();await feed(true);
+  form.reset();await session();await feed(true);
  },'Вход выполнен');
 });
 $('register-form').addEventListener('submit',event=>{
- event.preventDefault();run(async()=>{
-  const data=values(event.currentTarget);await api('/auth/register','POST',data);
+ event.preventDefault();const form=event.currentTarget;run(async()=>{
+  const data=values(form);await api('/auth/register','POST',data);
   $('login-form').elements.email.value=data.email;
-  event.currentTarget.reset();await worlds();
+  form.reset();await worlds();
  },'Локальный профиль создан. Теперь войдите.');
 });
 $('logout').addEventListener('click',()=>run(async()=>{
  await api('/auth/logout','POST',{});await session();await feed(true);
 },'Вы вышли.'));
 $('world-form').addEventListener('submit',event=>{
- event.preventDefault();run(async()=>{
-  await api('/worlds','POST',values(event.currentTarget));
-  event.currentTarget.reset();await session();await worlds();
+ event.preventDefault();const form=event.currentTarget;run(async()=>{
+  await api('/worlds','POST',values(form));
+  form.reset();await session();await worlds();
  },'Новый мир создан');
 });
 $('post-form').addEventListener('submit',event=>{
@@ -146,16 +146,16 @@ $('post-form').addEventListener('submit',event=>{
  },data.status==='published'?'Запись опубликована':'Черновик сохранён');
 });
 $('report-form').addEventListener('submit',event=>{
- event.preventDefault();run(async()=>{
-  await api('/reports','POST',{...values(event.currentTarget),postId:state.reportPost});
-  $('report-dialog').close();event.currentTarget.reset();state.reportPost=null;
+ event.preventDefault();const form=event.currentTarget;run(async()=>{
+  await api('/reports','POST',{...values(form),postId:state.reportPost});
+  $('report-dialog').close();form.reset();state.reportPost=null;
  },'Жалоба отправлена модератору');
 });
 $('report-cancel').addEventListener('click',()=>$('report-dialog').close());
 $('delete-form').addEventListener('submit',event=>{
- event.preventDefault();run(async()=>{
-  await api('/account','DELETE',values(event.currentTarget));
-  event.currentTarget.reset();await session();await worlds();await feed(true);
+ event.preventDefault();const form=event.currentTarget;run(async()=>{
+  await api('/account','DELETE',values(form));
+  form.reset();await session();await worlds();await feed(true);
  },'Все данные локального аккаунта удалены');
 });
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
