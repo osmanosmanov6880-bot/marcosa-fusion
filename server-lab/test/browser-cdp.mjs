@@ -100,6 +100,7 @@ async function main(){
    {name:'compact',width:360,height:740,mobile:true}
   ];
   for(const size of sizes){
+   console.log('R28 BROWSER SCREEN:',size.name);
    cdp.errors.length=0;cdp.requests.length=0;
    await cdp.call('Emulation.setDeviceMetricsOverride',{
     width:size.width,height:size.height,deviceScaleFactor:1,mobile:size.mobile
@@ -134,9 +135,21 @@ async function main(){
   }
   console.log('R28 BROWSER QA COMPLETE: 6 original Chrome screenshots, real signup, login and publishing');
  }finally{
-  cdp?.close();chrome?.kill('SIGKILL');
+  cdp?.close();
+  if(chrome){
+   const exited=new Promise(resolve=>{
+    if(chrome.exitCode!==null||chrome.signalCode!==null)return resolve();
+    chrome.once('exit',resolve);
+    setTimeout(resolve,2500);
+   });
+   chrome.kill('SIGKILL');
+   await exited;
+  }
   await lab.close().catch(()=>{});
-  rmSync(work,{recursive:true,force:true});
+  // Cleanup must never mask the original browser failure or visual diagnostic.
+  try{rmSync(work,{recursive:true,force:true,maxRetries:15,retryDelay:130});}
+  catch(error){console.warn('R28 TEMP CLEANUP WARNING',error.message);}
+
  }
 }
 main().catch(error=>{console.error('R28 BROWSER FAILURE',error?.stack||error);process.exitCode=1;});
