@@ -21,7 +21,7 @@ html[data-m-world="social"] .so-hero{
  box-shadow:0 20px 58px #0009!important;overflow:hidden!important}
 html[data-m-world="social"] .so-hero-copy{
  align-self:center!important;max-width:850px!important;
- padding:29px clamp(24px,3.3vw,56px) 27px!important}
+ padding:16px clamp(24px,3.3vw,56px) 15px!important}
 html[data-m-world="social"] .so-hero-copy .so-overline{
  display:flex;align-items:center;gap:11px!important;
  font:750 11px/1.45 var(--d25-ui)!important;letter-spacing:.135em!important;
