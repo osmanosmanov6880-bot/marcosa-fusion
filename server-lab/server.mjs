@@ -277,6 +277,17 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const items=db.prepare("SELECT r.id,r.reason,r.comment_id,c.body,r.created_at FROM comment_reports r JOIN comments c ON c.id=r.comment_id WHERE r.status='open' AND c.status='published' ORDER BY r.id ASC LIMIT 100").all();
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/me/insights'){
+    const owner=requireUser(req);
+    // These are actual SQLite counts for this author's Worlds; not paid impressions.
+    const worlds=db.prepare("SELECT w.slug,w.title, (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS published, (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='draft') AS drafts, (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers, (SELECT count(*) FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.world_id=w.id AND p.status='published' AND c.status='published') AS replies, (SELECT count(DISTINCT c.author_id) FROM comments c JOIN posts p ON p.id=c.post_id WHERE p.world_id=w.id AND p.status='published' AND c.status='published' AND c.author_id<>w.owner_id) AS uniqueResponders FROM worlds w WHERE w.owner_id=? ORDER BY w.created_at DESC").all(owner.id);
+    const totals=worlds.reduce((acc,w)=>{
+     for(const key of ['published','drafts','followers','replies'])acc[key]+=w[key];
+     return acc;
+    },{published:0,drafts:0,followers:0,replies:0});
+    send(res,200,{mode:'verified-local-records',worlds,totals,paidViews:null,advertisingRevenue:null});
+    return;
+   }
    if(method==='GET'&&route==='/api/me/activity'){
     const user=requireUser(req);
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
