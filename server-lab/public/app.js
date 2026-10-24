@@ -29,6 +29,7 @@ async function session(){
   state.me=result.user;state.worlds=result.worlds;
  }catch{state.me=null;state.worlds=[];}
  $('identity').textContent=state.me?'@'+state.me.username:'Гость';
+ document.body.dataset.mSession=state.me?'member':'guest';
  $('logout').hidden=!state.me;
  $('guest-access').hidden=Boolean(state.me);
  $('member-access').hidden=!state.me;
