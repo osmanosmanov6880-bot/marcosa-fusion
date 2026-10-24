@@ -130,6 +130,12 @@ function inspectBrand(expected){
     throw Error('R23_SOCIAL_EDITORIAL_TYPOGRAPHY_MISSING');
    if(getComputedStyle(shell).backgroundColor!=='rgb(241, 238, 231)')
     throw Error('R23_SOCIAL_BG_NOT_QUIET_LUXURY');
+   if(window.innerWidth>=901){
+    const container=document.querySelector('.so-hero').getBoundingClientRect();
+    const art=document.querySelector('.so-art').getBoundingClientRect();
+    if(art.left<container.left+container.width*.47||art.width<container.width*.30)
+     throw Error('R23_SOCIAL_ART_SHOULD_FILL_RIGHT_COLUMN');
+   }
  }
  const type=getComputedStyle(document.body).fontFamily;
  if(!type.includes('Aptos')&&!type.includes('Segoe'))throw Error('R23_APP_BODY_NOT_READABLE');
