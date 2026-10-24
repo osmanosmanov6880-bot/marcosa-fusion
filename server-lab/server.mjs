@@ -146,7 +146,7 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
  const isLoopback=ip=>['127.0.0.1','::1','::ffff:127.0.0.1'].includes(String(ip||''));
  function hostGuard(req){
   const host=String(req.headers.host||'');
-  const match=/^(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::([1-9][0-9]{0,4}))?$/i.exec(host);
+  const match=/^(?:localhost|127\.0\.0\.1|\[::1\])(?::([1-9][0-9]{0,4}))?$/i.exec(host);
   check(Boolean(match),421,'Неподтверждённый локальный Host');
   const actualPort=server.address()?.port;
   check(!match[1]||Number(match[1])===actualPort,421,'Неверный порт локального сервера');
