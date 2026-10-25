@@ -99,7 +99,7 @@ export async function runSocialSmoke({releaseSha}={}) {
       assert.equal(me.status,200);
       assert.equal(me.data.user.username,username);
       assert.equal(me.data.worlds.length,1);
-      account[username]={cookie,worldId:me.data.worlds[0].id};
+      account[username]={cookie,worldId:me.data.worlds[0].id,worldSlug:me.data.worlds[0].slug};
     }
     assert.notEqual(account.r119alpha.worldId,account.r119beta.worldId);
     const draft=await request('/api/posts',{method:'POST',
@@ -123,6 +123,17 @@ export async function runSocialSmoke({releaseSha}={}) {
       json:{worldId:account.r119alpha.worldId,body:'Ephemeral R119 publication',status:'published'},
     });
     assert.equal(published.status,201);
+    // Complete a genuine social loop on the VPS: second identity follows and
+    // comments on the first author's public World, without owner escalation.
+    const follow=await request('/api/worlds/'+account.r119alpha.worldSlug+'/follow',{
+      method:'POST',cookie:account.r119beta.cookie,json:{},
+    });
+    assert.equal(follow.status,201);
+    const comment=await request('/api/posts/'+published.data.id+'/comments',{
+      method:'POST',cookie:account.r119beta.cookie,
+      json:{body:'Genuine synthetic cross-account social conversation'},
+    });
+    assert.equal(comment.status,201);
     const feed=await request('/api/posts');
     assert.equal(feed.status,200);
     assert.ok(feed.data.items.some(item=>item.id===published.data.id));
@@ -158,7 +169,8 @@ export async function runSocialSmoke({releaseSha}={}) {
       releaseSha,scope:'disposable_loopback_sqlite_only',
       labAccountsSynthetic:2,accountDataPersisted:false,
       publicNetworkListener:false,verifiedListener:'127.0.0.1',
-      actualHttpTests:true,crossTenantWriteRejected:true,
+      actualHttpTests:true,twoAccountFollowAndCommentVerified:true,
+      crossTenantWriteRejected:true,
       guestPrivateExportRejected:true,wrongHostRejected:true,
       hostileOriginRejected:true,ownerOnlyExport:true,
       accountDeletionAndSessionRevocation:true,
