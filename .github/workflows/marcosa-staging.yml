@@ -15,6 +15,8 @@ on:
       - "tools/**"
       - "scripts/activate-staging.sh"
       - "ops/staging-release-attestation.mjs"
+      - "ops/staging-deploy-contract.mjs"
+      - "ops/staging-live-readback.mjs"
       - ".github/workflows/marcosa-staging.yml"
 
 permissions:
@@ -134,11 +136,11 @@ jobs:
           if-no-files-found: error
 
   deploy_staging:
-    # R83: push to main is build-only. SSH publishing is explicit human-requested STAGING only.
+    # R91: owner-requested continuous STAGING delivery from trusted main, never PR or production.
     needs: build
     # Staging is permitted from trusted main only. Remote marker + non-root
     # user + host pin enforce the actual release boundary, not repo visibility.
-    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: marcosa-staging
@@ -147,10 +149,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Verify explicit main-branch isolated STAGING intent before touching SSH keys
+      - name: Verify trusted main push or explicitly confirmed manual isolated STAGING intent
         shell: bash
         env:
-          APPROVAL: ${{ inputs.confirmation }}
+          APPROVAL: ${{ inputs.confirmation || '' }}
         run: |
           set -euo pipefail
           node --input-type=module -e '
@@ -185,7 +187,22 @@ jobs:
           set -euo pipefail
           bash scripts/diagnose-staging-ssh.sh
 
+      - name: Require independently approved public STAGING HTTPS target before upload
+        shell: bash
+        env:
+          STAGING_ORIGIN: ${{ vars.MARCOSA_STAGING_ORIGIN }}
+          STAGING_PUBLIC_HOST: ${{ vars.MARCOSA_STAGING_PUBLIC_HOST }}
+        run: |
+          set -euo pipefail
+          : "${STAGING_ORIGIN:?Set approved public STAGING HTTPS origin in environment variables}"
+          : "${STAGING_PUBLIC_HOST:?Set independently approved STAGING public host in environment variables}"
+          node --input-type=module -e '
+            import {requireStagingOrigin} from "./ops/staging-live-readback.mjs";
+            requireStagingOrigin(process.env.STAGING_ORIGIN,process.env.STAGING_PUBLIC_HOST);
+            console.log("R91 STAGING HTTPS origin format accepted; public reachability checked AFTER deploy");
+          '
       - name: Upload and atomically activate STAGING release
+        id: ssh_activation
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
@@ -277,3 +294,42 @@ jobs:
             exit 1
           fi
           echo "::notice title=Isolated staging complete::Files are active under marcosa-deploy only. A public domain or production Nginx has NOT been changed."
+      - name: Independently verify hosted STAGING HTTPS bytes against trusted GitHub build artifact
+        id: hosted_readback
+        shell: bash
+        env:
+          STAGING_ORIGIN: ${{ vars.MARCOSA_STAGING_ORIGIN }}
+          STAGING_PUBLIC_HOST: ${{ vars.MARCOSA_STAGING_PUBLIC_HOST }}
+        run: |
+          set -euo pipefail
+          # Expected digest comes from the TRUSTED Actions artifact, NOT the web server.
+          EXPECTED_MANIFEST_SHA256="$(node -p 'JSON.parse(require("node:fs").readFileSync("staging-expected-"+process.env.GITHUB_SHA+".json","utf8")).buildManifestSha256')"
+          [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]] || { echo "::error::Trusted build manifest digest missing"; exit 2; }
+          node ops/staging-live-readback.mjs \
+            --origin "$STAGING_ORIGIN" --host "$STAGING_PUBLIC_HOST" \
+            --sha "$GITHUB_SHA" --manifest-sha256 "$EXPECTED_MANIFEST_SHA256"
+          echo "::notice title=R91 hosted STAGING verified::Actual public HTTPS bytes match reviewed source and GitHub build manifest. NOT production."
+      - name: Roll back isolated STAGING when external HTTPS readback fails
+        if: failure() && steps.ssh_activation.outcome == 'success'
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          umask 077
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/marcosa_deploy"
+          printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/marcosa_deploy" "$HOME/.ssh/known_hosts"
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" \
+            --port "$DEPLOY_PORT" --known-hosts "$HOME/.ssh/known_hosts" \
+            --expected "$DEPLOY_HOST_FINGERPRINT"
+          SSH_ARGS=(-i "$HOME/.ssh/marcosa_deploy" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/rollback-staging.sh
+          echo "::warning::STAGING rollback executed after failed public readback. Production was untouched."

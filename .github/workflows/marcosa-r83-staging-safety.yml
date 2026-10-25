@@ -37,7 +37,7 @@ jobs:
           node --check ops/verify-staging-host-key.mjs
           node --check ops/test/staging-deploy-contract.test.mjs
           bash -n scripts/diagnose-staging-ssh.sh
-      - name: Prove staging manual-only SSH contract without real secrets or network
+      - name: Prove trusted-main automatic STAGING and explicit manual SSH contract without secrets or network
         shell: bash
         run: |
           set -euo pipefail
