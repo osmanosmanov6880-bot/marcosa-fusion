@@ -68,6 +68,18 @@
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>
+   <details id="world-cover-panel" class="invite-panel world-cover-panel">
+    <summary>Обложка мира — твоя визуальная история</summary>
+    <p class="muted">Загрузи собственную фотографию в PNG. Принимаются RGB/RGBA без анимации до 1600 px и 768 KiB. Сервер удаляет метаданные, затем показывает обложку всем посетителям твоего мира. Права на изображение должны принадлежать тебе.</p>
+    <form id="world-cover-form" class="form-block">
+     <label>Выбери свой мир<select id="world-cover-select" name="slug" required></select></label>
+     <label>Файл PNG<input id="world-cover-file" name="cover" type="file" accept="image/png" required></label>
+     <button type="submit" class="gold">Сохранить обложку мира</button>
+    </form>
+    <img id="world-cover-preview" class="world-cover-preview" alt="Сохранённая публичная обложка выбранного мира" loading="lazy" hidden>
+    <button id="world-cover-delete" type="button" class="ghost small">Удалить обложку выбранного мира</button>
+    <p id="world-cover-status" class="muted" role="status" aria-live="polite">Обложка хранится только в локальной испытательной базе.</p>
+   </details>
    <details id="onboarding-panel" class="invite-panel onboarding-panel" open>
     <summary>Первые пять шагов в MARCOSA</summary>
     <p class="muted">Прогресс считается по настоящим действиям твоего аккаунта, а не по выдуманным просмотрам.</p>
@@ -168,6 +180,7 @@
   <section id="world-detail" class="panel world-detail" aria-labelledby="world-detail-title" hidden>
    <button id="world-close" class="ghost small" type="button">← Все миры</button>
    <span class="eyebrow">MARCOSA / YOUR PLACE, YOUR PEOPLE</span>
+   <img id="world-detail-cover" class="world-detail-cover" alt="Изображение обложки публичного мира" loading="lazy" hidden>
    <h2 id="world-detail-title">World</h2>
    <p id="world-detail-description" class="muted"></p>
    <p id="world-detail-meta" class="world-detail-meta"></p>
