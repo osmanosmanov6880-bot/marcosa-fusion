@@ -32,6 +32,7 @@ test('R57: unreviewed media is private; independent moderator approves and rejec
  async function req(path,{method='GET',cookie,data,mime='application/json',origin=base}={}){
   const headers={};if(cookie)headers.Cookie=cookie;
   if(method!=='GET'){headers.Origin=origin;headers['Content-Type']=mime;}
+  if(method==='POST'&&path.endsWith('/cover')&&mime==='image/png')headers['X-Marcosa-Rights-Attestation']='rights-v1';
   const body=data===undefined?undefined:Buffer.isBuffer(data)?data:JSON.stringify(data);
   const r=await fetch(base+'/api'+path,{method,headers,...(body===undefined?{}:{body})});
   const isPng=(r.headers.get('content-type')||'').includes('image/png');
