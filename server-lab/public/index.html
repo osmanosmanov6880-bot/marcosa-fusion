@@ -78,6 +78,13 @@
     </form>
     <img id="world-cover-preview" class="world-cover-preview" alt="Сохранённая публичная обложка выбранного мира" loading="lazy" hidden>
     <button id="world-cover-delete" type="button" class="ghost small">Удалить обложку выбранного мира</button>
+    <form id="world-cover-appeal-form" class="form-block" hidden>
+     <label>Попросить независимый пересмотр отклонённой обложки
+      <textarea name="reason" rows="3" minlength="12" maxlength="1000" required placeholder="Объясни права на изображение и причину пересмотра"></textarea>
+     </label>
+     <button class="ghost" type="submit">Подать апелляцию по обложке</button>
+    </form>
+    <div id="world-cover-appeals-list" class="compact-list" aria-live="polite"></div>
     <p id="world-cover-status" class="muted" role="status" aria-live="polite">Обложка хранится только в локальной испытательной базе.</p>
    </details>
    <details id="onboarding-panel" class="invite-panel onboarding-panel" open>
@@ -245,6 +252,12 @@
      <div id="mod-cover-audit" class="compact-list" aria-live="polite"></div>
     </details>
     <button type="button" id="mod-cover-refresh" class="ghost small">Обновить очередь изображений</button>
+   </details>
+   <details id="mod-cover-appeals-panel" class="invite-panel mod-cover-panel">
+    <summary>Апелляции на решения об изображениях</summary>
+    <p class="muted">Рассмотреть может только другой независимый модератор. Принятая апелляция возвращает PNG в очередь, но не публикует его автоматически.</p>
+    <div id="mod-cover-appeals-list" class="compact-list" aria-live="polite"></div>
+    <button id="mod-cover-appeals-refresh" type="button" class="ghost small">Обновить обращения</button>
    </details>
    <button id="reload-reports" class="ghost" type="button">Обновить модерацию</button>
   </div>
