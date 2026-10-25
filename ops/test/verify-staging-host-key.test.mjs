@@ -28,6 +28,8 @@ test('R70 offline staging ED25519 pin: exact hostname and port, provider proof c
  assert.throws(()=>verifyStagingHostPin({hostname:host,port:22,knownHosts:record,expected:fingerprint}),/No ED25519 host pin/);
  assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:record,expected:pub(4).fingerprint}),/fingerprint mismatch/);
  assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:record+'\n'+record,expected:fingerprint}),/Ambiguous host key/);
+ assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:'@revoked ['+host+']:'+port+' ssh-ed25519 '+key+'\n'+record,expected:fingerprint}),/Revoked/);
+ assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:'@cert-authority ['+host+']:'+port+' ssh-ed25519 '+key+'\n'+record,expected:fingerprint}),/unsupported/);
  assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:'['+host+']:'+port+' ssh-rsa '+key,expected:fingerprint}),/algorithm/);
  assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:'*.example ssh-ed25519 '+key,expected:fingerprint}),/No ED25519 host pin/);
  assert.throws(()=>verifyStagingHostPin({hostname:host,port,knownHosts:record,expected:'SHA256:unsafe'}),/Expected independently verified/);
