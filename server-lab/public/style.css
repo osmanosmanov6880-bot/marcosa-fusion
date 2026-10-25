@@ -433,3 +433,14 @@ dialog form{display:grid;gap:17px}
  .form-validation-summary{border-color:#fff;background:#201821;color:#fff}
  .form-block [aria-invalid="true"],form [aria-invalid="true"]{border-color:#fff!important}
 }
+/* R89: actionable on-demand local SQLite readiness, not a decorative SLA. */
+.readiness-result{
+ margin:11px 0;padding:15px 17px;border:1px solid #c9b78caa;
+ border-radius:9px;background:#182c37;color:#f1e3cb;
+ font:650 13px/1.65 var(--sans);overflow-wrap:anywhere;
+}
+.readiness-result[data-ready="false"]{
+ background:#39231f;border:2px solid #f3c58d;color:#fff3e7;
+}
+@media(max-width:720px){.readiness-result{padding:15px;font-size:14px}}
+@media(prefers-contrast:more){.readiness-result{border-color:#fff!important;color:#fff}}
