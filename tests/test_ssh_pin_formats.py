@@ -51,48 +51,58 @@ class StagingPinTests(unittest.TestCase):
             DEPLOY_PORT="22",
             DEPLOY_KEY=self.key.read_text(encoding="utf-8"),
             MOCK_HOST_LINE=self.full,
+            DEPLOY_HOST_FINGERPRINT=self.fingerprint,
         )
 
-    def run_probe(self,known_hosts):
+    def run_probe(self,known_hosts,expected=None):
         return subprocess.run(
             ["bash",str(DIAGNOSTIC)],
-            env={**self.env,"KNOWN_HOSTS":known_hosts},
+            env={**self.env,"KNOWN_HOSTS":known_hosts,
+                 "DEPLOY_HOST_FINGERPRINT":self.fingerprint if expected is None else expected},
             capture_output=True,text=True,timeout=15
         )
 
     def test_full_known_hosts_line(self):
         out=self.run_probe(self.full)
         self.assertEqual(out.returncode,0,out.stderr)
-        self.assertIn("HOST_PIN_FORMAT=full_known_hosts",out.stdout)
+        self.assertIn("HOST_PIN_FORMAT=verified_host_port_known_hosts",out.stdout)
         self.assertIn("MARCOSA_DEPLOY_PREFLIGHT=PASS",out.stdout)
 
-    def test_raw_host_public_key_is_bound_to_target_host(self):
+    def test_raw_host_public_key_is_rejected_instead_of_binding_it_without_provenance(self):
         out=self.run_probe(self.public)
-        self.assertEqual(out.returncode,0,out.stderr)
-        self.assertIn("HOST_PIN_FORMAT=host_public_key",out.stdout)
-
-    def test_verified_sha256_fingerprint_is_compared_to_actual_host_key(self):
-        out=self.run_probe(self.fingerprint)
-        self.assertEqual(out.returncode,0,out.stderr)
-        self.assertIn("HOST_PIN_FORMAT=pinned_sha256_fingerprint",out.stdout)
-
-    def test_mismatched_fingerprint_never_reaches_ssh_auth(self):
-        bad=self.fingerprint[:-1]+("A" if self.fingerprint[-1]!="A" else "B")
-        out=self.run_probe(bad)
         self.assertNotEqual(out.returncode,0)
-        self.assertIn("HOST_KEY_MISMATCH",out.stderr)
+        self.assertIn("STAGING_HOST_PIN",out.stderr)
+        self.assertNotIn("REMOTE_AUTH=PASS",out.stdout)
+
+    def test_fingerprint_only_is_rejected_instead_of_using_first_contact_scan(self):
+        out=self.run_probe(self.fingerprint)
+        self.assertNotEqual(out.returncode,0)
+        self.assertIn("STAGING_HOST_PIN",out.stderr)
+        self.assertNotIn("REMOTE_AUTH=PASS",out.stdout)
+
+    def test_mismatched_independent_fingerprint_never_reaches_ssh_auth(self):
+        bad=self.fingerprint[:-1]+("A" if self.fingerprint[-1]!="A" else "B")
+        out=self.run_probe(self.full,expected=bad)
+        self.assertNotEqual(out.returncode,0)
+        self.assertIn("STAGING_HOST_PIN",out.stderr)
+        self.assertNotIn("REMOTE_AUTH=PASS",out.stdout)
+
+    def test_missing_independent_fingerprint_denies_staging(self):
+        out=self.run_probe(self.full,expected="")
+        self.assertNotEqual(out.returncode,0)
+        self.assertIn("DEPLOY_HOST_FINGERPRINT",out.stderr)
         self.assertNotIn("REMOTE_AUTH=PASS",out.stdout)
 
     def test_known_hosts_bound_to_other_machine_rejected(self):
         out=self.run_probe("another.example.test "+self.public)
         self.assertNotEqual(out.returncode,0)
-        self.assertIn("HOST_NOT_PINNED",out.stderr)
+        self.assertIn("STAGING_HOST_PIN",out.stderr)
 
     def test_unrecognized_secret_is_not_logged(self):
         unexpected="this-is-not-a-host-pin--sample"
         out=self.run_probe(unexpected)
         self.assertNotEqual(out.returncode,0)
-        self.assertIn("INVALID_KNOWN_HOSTS",out.stderr)
+        self.assertIn("STAGING_HOST_PIN",out.stderr)
         self.assertNotIn(unexpected,out.stdout+out.stderr)
 
 if __name__=="__main__":
