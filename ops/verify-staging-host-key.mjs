@@ -43,6 +43,11 @@ export function verifyStagingHostPin({hostname,port=22,knownHosts,expected}){
   const trimmed=line.trim();
   if(!trimmed||trimmed.startsWith('#'))continue;
   const parts=trimmed.split(/\s+/);
+  // OpenSSH known_hosts markers can invalidate an otherwise matching pin.
+  if(parts[0]==='@revoked'||parts[0]==='@cert-authority'){
+   demand(parts[1]!==matchHost,'Revoked or unsupported certified host key marker');
+   continue;
+  }
   if(parts[0]!==matchHost)continue;
   demand(!match,'Ambiguous host key: multiple pinned entries for the same host and port');
   demand(parts.length>=3&&parts[1]==='ssh-ed25519','Wrong or unsupported host key algorithm');
