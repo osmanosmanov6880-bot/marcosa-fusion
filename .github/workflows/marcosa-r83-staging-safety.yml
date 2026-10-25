@@ -5,6 +5,8 @@ on:
     paths:
       - "ops/staging-deploy-contract.mjs"
       - "ops/verify-staging-host-key.mjs"
+      - "ops/load-pinned-staging-host.sh"
+      - "ops/ssh/marcosa-staging-known-hosts"
       - "ops/test/staging-deploy-contract.test.mjs"
       - "scripts/diagnose-staging-ssh.sh"
       - ".github/workflows/marcosa-staging.yml"
@@ -16,6 +18,8 @@ on:
     paths:
       - "ops/staging-deploy-contract.mjs"
       - "ops/verify-staging-host-key.mjs"
+      - "ops/load-pinned-staging-host.sh"
+      - "ops/ssh/marcosa-staging-known-hosts"
       - "ops/test/staging-deploy-contract.test.mjs"
       - "scripts/diagnose-staging-ssh.sh"
       - ".github/workflows/marcosa-staging.yml"

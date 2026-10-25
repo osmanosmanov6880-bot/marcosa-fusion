@@ -41,7 +41,7 @@ test('R92: staging, SSH preflight and manual rollback use only the approved depl
   const workflow=readFileSync('.github/workflows/'+name,'utf8');
   assert.match(workflow,/secrets\.DEPLOY_SSH_KEY/);
   assert.doesNotMatch(workflow,/secrets\.MARCOSA_SSH_KEY/);
-  assert.match(workflow,/MARCOSA_STAGING_HOST_FINGERPRINT/);
+  assert.match(workflow,/source ops\/load-pinned-staging-host\.sh/);
   assert.match(workflow,/SHA256:b6e0zrGwnTCu5yo9IZstiPw\+5EGfahHgVpI3TWeccA0/);
   assert.match(workflow,/169\.58\.48\.38/);
  }
@@ -51,6 +51,17 @@ test('R92: staging, SSH preflight and manual rollback use only the approved depl
  assert.match(preflight,/StrictHostKeyChecking=yes/);
  const rollback=readFileSync('.github/workflows/marcosa-staging-rollback.yml','utf8');
  assert.match(rollback,/verify-staging-host-key.mjs/);
+});
+test('R96: committed MARCOSA host pin matches independently trusted ED25519 fingerprint',()=>{
+ const pin=readFileSync('ops/ssh/marcosa-staging-known-hosts','utf8');
+ const fp='SHA256:3VwLDjaMbBL/0AkWPjvaJo0gF1wRk/6g+ZJze+5toZA';
+ const verified=verifyStagingHostPin({hostname:'169.58.48.38',port:22,knownHosts:pin,expected:fp});
+ assert.equal(verified.localMatch,true);
+ assert.equal(verified.networkContacted,false);
+ assert.throws(()=>verifyStagingHostPin({hostname:'169.58.44.114',port:22,knownHosts:pin,expected:fp}),Error);
+ const loader=readFileSync('ops/load-pinned-staging-host.sh','utf8');
+ assert.match(loader,/verifyStagingHostPin/);
+ assert.doesNotMatch(loader,/ssh-keyscan\s+-/);
 });
 test('R83: provider-supplied full known_hosts is fingerprint-verified on the exact port; first contact cannot establish trust',()=>{
  const type=Buffer.from('ssh-ed25519'),point=Buffer.alloc(32,19),len=n=>{
@@ -88,7 +99,7 @@ test('R91: workflow auto-delivers trusted main after build and checks pinned SSH
  assert.match(workflow,/environment: marcosa-staging/);
  assert.equal(workflow.split('node ops\/verify-staging-host-key.mjs').length,3,
   'The uploader must verify exactly once and preflight verifies independently');
- assert.equal(workflow.split('MARCOSA_STAGING_HOST_FINGERPRINT').length-1,3);
+ assert.equal(workflow.split('source ops/load-pinned-staging-host.sh').length-1,3);
  assert.match(diagnostic,/node ops\/verify-staging-host-key.mjs/);
  assert.doesNotMatch(diagnostic,/\bssh-keyscan\s+-/);
  assert.match(workflow,/StrictHostKeyChecking=yes/);

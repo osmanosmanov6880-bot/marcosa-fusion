@@ -23,3 +23,13 @@
 - Проверка production и переключение `marcosa.club` требуют отдельной авторизации и смоук-тестов. Вплоть до этого `productionAuthorized=false`.
 
 **Запрещено:** копировать закрытый SSH-ключ или приватные сертификаты в репозиторий, пересылать их в чат, отключать StrictHostKeyChecking, выполнять `rsync --delete` в `/opt/marcosa/current`, удалять старый working webroot или использовать root для GitHub CI.
+
+## R96 — подтверждённый публичный SSH host key без Secrets
+
+Из read-only GitHub Actions №40230935394 получена полная строка публичного ключа, причём сначала SHA256 проверен против отпечатка из Contabo-консоли владельца. Для защиты от ошибок OCR значения закреплены в git:
+
+- `ops/ssh/marcosa-staging-known-hosts`: полная, точная строка для `169.58.48.38`.
+- `ops/load-pinned-staging-host.sh`: проверка полного host:port, ED25519 и независимо закреплённого SHA256 `3VwLDjaMbBL/0AkWPjvaJo0gF1wRk/6g+ZJze+5toZA` без доступа к сети/TOFU.
+- В трёх SSH workflows перед подключением вызывается loader; неверные старые secrets `MARCOSA_SSH_KNOWN_HOSTS` и `MARCOSA_STAGING_HOST_FINGERPRINT` больше не используются для SSH-подключения. Это **только публичный ключ сервера**, а не приватный ключ пользователя. `DEPLOY_SSH_KEY` остаётся закрытым секретом.
+
+STAGING marker, incoming/releases и независимо опубликованный STAGING HTTPS остаются обязательными. Если их нет, деплой закономерно остановится на следующей проверке. Нельзя говорить, что публичный production уже обновлён.

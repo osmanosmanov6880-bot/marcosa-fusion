@@ -24,18 +24,21 @@ jobs:
     environment: marcosa-staging
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Confirm SSH identity and staging marker (read only)
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
-          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
           EXPECTED_STAGING_HOST: 169.58.48.38
         run: |
+          set -euo pipefail
+          source ops/load-pinned-staging-host.sh
           bash scripts/diagnose-staging-ssh.sh
       - name: Verify intent and perform a staging-only rollback
         shell: bash
@@ -44,13 +47,12 @@ jobs:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
-          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
           EXPECTED_STAGING_HOST: 169.58.48.38
         run: |
           set -euo pipefail
+          source ops/load-pinned-staging-host.sh
           [[ "$REQUEST" == "ROLLBACK-STAGING" ]] || exit 2
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           [[ "$DEPLOY_HOST" == "$EXPECTED_STAGING_HOST" ]] || { echo "::error::Wrong rollback target"; exit 2; }
