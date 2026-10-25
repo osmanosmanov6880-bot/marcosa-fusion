@@ -1,0 +1,72 @@
+name: "MARCOSA | R114 dual-channel SAME-SHA release evidence"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | Publish public Network OS preview"
+      - "MARCOSA | Build, test and deploy STAGING"
+    types: [completed]
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ops/release_evidence_r114.mjs"
+      - "tests/release_evidence_r114.test.mjs"
+      - ".github/workflows/marcosa-r114-release-evidence.yml"
+permissions:
+  actions: read
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Assert exact SHA and independent public/staging job evidence
+        run: |
+          set -euo pipefail
+          node --check ops/release_evidence_r114.mjs
+          node --test tests/release_evidence_r114.test.mjs
+  release-evidence:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      (github.event_name == 'workflow_dispatch' ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: READ ONLY query current main and both same-commit workflow job lists
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node ops/release_evidence_r114.mjs
+          node --input-type=module <<'NODE'
+          import {strict as assert} from 'node:assert';
+          import {readFileSync} from 'node:fs';
+          const result=JSON.parse(readFileSync('marcosa-r114-release-evidence.json','utf8'));
+          assert.equal(result.format,'MARCOSA-R114-DUAL-RELEASE-EVIDENCE-v1');
+          assert.equal(result.productionAuthorized,false);
+          assert.equal(result.productionCutoverVerified,false);
+          assert.equal(result.privateAccountsOrDatabaseVerified,false);
+          assert.ok(['PASS','PENDING','FAIL','SUPERSEDED'].includes(result.status));
+          console.log('R114_EVIDENCE_CONTRACT=PASS');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r114-release-evidence
+          path: marcosa-r114-release-evidence.json
+          retention-days: 14
+          if-no-files-found: error
