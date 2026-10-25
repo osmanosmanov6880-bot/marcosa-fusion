@@ -45,7 +45,7 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
   copy=createApp({databasePath:restored});
   await new Promise(ok=>copy.server.listen(0,'127.0.0.1',ok));
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM users').get().n,3);
-  assert.ok(copy.db.prepare('SELECT png FROM world_covers').get().png.equals(blob));
+  assert.ok(Buffer.from(copy.db.prepare('SELECT png FROM world_covers').get().png).equals(blob));
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM beta_retention_days').get().n,1);
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM world_cover_reports').get().n,1);
   assert.deepEqual(copy.db.prepare('PRAGMA foreign_key_check').all(),[]);
