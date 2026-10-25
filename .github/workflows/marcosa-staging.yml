@@ -119,6 +119,7 @@ jobs:
           node --check ops/staging-release-attestation.mjs
           node ops/staging-release-attestation.mjs             --sha "$GITHUB_SHA"             --manifest dist/build-manifest.json             --output dist/staging-release.json
           test -s dist/staging-release.json
+          cp dist/staging-release.json "staging-expected-${GITHUB_SHA}.json"
           tar -czf marcosa-site.tar.gz -C dist .
           test "$(stat -c '%s' marcosa-site.tar.gz)" -lt 200000000
           sha256sum marcosa-site.tar.gz > marcosa-site.tar.gz.sha256
@@ -128,6 +129,7 @@ jobs:
           path: |
             marcosa-site.tar.gz
             marcosa-site.tar.gz.sha256
+            staging-expected-${{ github.sha }}.json
           retention-days: 7
           if-no-files-found: error
 

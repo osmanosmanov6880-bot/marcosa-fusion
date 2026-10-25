@@ -21,6 +21,10 @@ on:
         description: "Full 40-character SHA of approved, already deployed static STAGING commit"
         required: true
         type: string
+      manifest_sha256:
+        description: "Independently sourced buildManifestSha256 from GitHub Actions staging build artifact"
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -49,6 +53,7 @@ jobs:
       STAGING_ORIGIN: ${{ vars.MARCOSA_STAGING_ORIGIN }}
       STAGING_PUBLIC_HOST: ${{ vars.MARCOSA_STAGING_PUBLIC_HOST }}
       RELEASE_SHA: ${{ inputs.release_sha }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,11 +66,12 @@ jobs:
           test -n "${STAGING_ORIGIN:-}" || { echo "::error::STAGING origin missing; no site verified"; exit 2; }
           test -n "${STAGING_PUBLIC_HOST:-}" || { echo "::error::Approved STAGING hostname missing"; exit 2; }
           [[ "${RELEASE_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Exact 40-character SHA required"; exit 2; }
+          [[ "${MANIFEST_SHA256:-}" =~ ^[a-f0-9]{64}$ ]] || { echo "::error::Independent manifest SHA256 required"; exit 2; }
       - name: Independently read back live hosted bytes over pinned HTTPS origin
         shell: bash
         run: |
           set -euo pipefail
           node ops/staging-live-readback.mjs \
-            --origin "$STAGING_ORIGIN" --host "$STAGING_PUBLIC_HOST" --sha "$RELEASE_SHA"
+            --origin "$STAGING_ORIGIN" --host "$STAGING_PUBLIC_HOST" --sha "$RELEASE_SHA" --manifest-sha256 "$MANIFEST_SHA256"
       - name: Explicitly forbid production authorization from readback success
         run: echo "Public static STAGING readback only; real Auth/RLS/Storage and production approval remain blocked"

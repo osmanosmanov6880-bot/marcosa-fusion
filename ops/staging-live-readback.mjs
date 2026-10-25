@@ -41,9 +41,10 @@ async function boundedResponse(res,path,limit,mime){
  demand(bytes>0,'Hosted file is empty: '+path);
  return Buffer.concat(chunks);
 }
-export async function verifyHostedStaging({origin,expectedHost,sourceSha,fetchFn=globalThis.fetch}={}){
+export async function verifyHostedStaging({origin,expectedHost,sourceSha,expectedManifestSha256,fetchFn=globalThis.fetch}={}){
  const base=requireStagingOrigin(origin,expectedHost);
  demand(typeof sourceSha==='string'&&HEX40.test(sourceSha),'Exact reviewed source SHA required');
+ demand(typeof expectedManifestSha256==='string'&&HEX64.test(expectedManifestSha256),'Independent trusted build-manifest SHA256 required');
  demand(typeof fetchFn==='function','HTTPS transport missing');
  async function get(path,cap,mimes){
   const url=base+'/'+path+'?marcosa_release='+sourceSha;
@@ -66,8 +67,9 @@ export async function verifyHostedStaging({origin,expectedHost,sourceSha,fetchFn
   att.releaseKind==='public_static_preview_only'&&
   att.productionAuthorized===false&&att.generatedBy==='verified-gha-build-v1',
   'Source SHA, static release type or provenance does not match reviewed commit');
+ demand(att.buildManifestSha256===expectedManifestSha256,'Hosted attestation does not match trusted build-manifest SHA256');
  const manifestBytes=await get('build-manifest.json',2097152,['application/json','text/json']);
- demand(sha256(manifestBytes)===att.buildManifestSha256,
+ demand(sha256(manifestBytes)===expectedManifestSha256,
   'Hosted build-manifest bytes mismatch the source-attested digest');
  let manifest;try{manifest=JSON.parse(manifestBytes.toString('utf8'));}catch{throw Error('Malformed build-manifest JSON');}
  demand(manifest?.release_kind==='public_static_preview_only'&&
@@ -89,7 +91,7 @@ export async function verifyHostedStaging({origin,expectedHost,sourceSha,fetchFn
  }
  return {verified:true,mode:'public HTTPS static STAGING readback only',
   approvedOrigin:base,reviewedSourceSha:sourceSha,
-  matchingBuildManifest:true,filesMatched:matched,
+  matchingBuildManifest:true,reviewedBuildManifestSha256:expectedManifestSha256,filesMatched:matched,
   productionAuthorized:false,providerHostKeyVerified:false,
   caveat:'A matching public HTTPS response does not independently prove hosting ownership, private Auth/Storage, DNS control, user data safety or authorization to launch.'};
 }
@@ -97,16 +99,16 @@ function parseArgs(argv){
  const a={};
  while(argv.length){
   const k=argv.shift(),v=argv.shift();
-  demand(['--origin','--host','--sha'].includes(k)&&v&&!v.startsWith('--')&&!Object.hasOwn(a,k),'Usage: --origin HTTPS_STAGING --host REVIEWED_HOST --sha EXACT40');
+  demand(['--origin','--host','--sha','--manifest-sha256'].includes(k)&&v&&!v.startsWith('--')&&!Object.hasOwn(a,k),'Usage: --origin HTTPS_STAGING --host REVIEWED_HOST --sha EXACT40');
   a[k]=v;
  }
- demand(Object.keys(a).length===3,'Usage: --origin HTTPS_STAGING --host REVIEWED_HOST --sha EXACT40');
+ demand(Object.keys(a).length===4,'Usage: --origin HTTPS_STAGING --host REVIEWED_HOST --sha EXACT40');
  return a;
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  try{
   const args=parseArgs(process.argv.slice(2));
-  const result=await verifyHostedStaging({origin:args['--origin'],expectedHost:args['--host'],sourceSha:args['--sha']});
+  const result=await verifyHostedStaging({origin:args['--origin'],expectedHost:args['--host'],sourceSha:args['--sha'],expectedManifestSha256:args['--manifest-sha256']});
   console.log(JSON.stringify(result,null,2));
  }catch(error){
   console.error(JSON.stringify({verified:false,productionAuthorized:false,error:String(error.message||error)}));

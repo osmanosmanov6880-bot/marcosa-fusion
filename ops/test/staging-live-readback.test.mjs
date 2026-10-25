@@ -31,7 +31,7 @@ function fixture(){
 }
 async function verify(f,params={}){
  return verifyHostedStaging({origin:ORIGIN,expectedHost:HOST,
-  sourceSha:SHA,fetchFn:f.fetchFn,...params});
+  sourceSha:SHA,expectedManifestSha256:sha256(f.man),fetchFn:f.fetchFn,...params});
 }
 test('R90 deterministic content-addressed staging attestation never grants production',()=>{
  const f=fixture();
@@ -51,6 +51,7 @@ test('R90 real-mode HTTPS byte readback checks the publicly served payload not a
  assert.equal(proof.verified,true);
  assert.equal(proof.reviewedSourceSha,SHA);
  assert.equal(proof.filesMatched.length,3);
+ assert.equal(proof.reviewedBuildManifestSha256,sha256(f.man));
  assert.equal(proof.productionAuthorized,false);
  assert.equal(proof.providerHostKeyVerified,false);
  assert.equal(f.calls.length,5);
@@ -69,6 +70,16 @@ test('R90 refuse unsafe DNS host, off-host origin, ambiguous or insecure URL',()
  for(const u of denied)assert.throws(()=>requireStagingOrigin(u,HOST),undefined,u);
  assert.equal(requireStagingOrigin(ORIGIN,HOST),ORIGIN);
  assert.throws(()=>requireStagingOrigin(ORIGIN,'attacker.example.com'),/hostname differs/);
+});
+test('R90 refuses fully forged matching hosted evidence without trusted CI manifest digest',async()=>{
+ const f=fixture(),index=Buffer.from('Forged HTML');
+ const man=Buffer.from(JSON.stringify({release_kind:'public_static_preview_only',files:{
+  'index.html':sha256(index),'network.js':sha256(f.map.get('network.js')),
+  'network.css':sha256(f.map.get('network.css'))}}));
+ f.map.set('index.html',index);f.map.set('build-manifest.json',man);
+ f.map.set('staging-release.json',Buffer.from(JSON.stringify(makeStagingAttestation({sourceSha:SHA,manifestBytes:man}))));
+ await assert.rejects(()=>verify(f),/trusted build-manifest SHA256/);
+ await assert.rejects(()=>verify(f,{expectedManifestSha256:undefined}),/Independent trusted/);
 });
 test('R90 refuse stale commit attestation and swapped build manifest despite all files being present',async()=>{
  let f=fixture();

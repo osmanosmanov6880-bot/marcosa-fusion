@@ -25,7 +25,8 @@ node ops/staging-release-attestation.mjs \
 node ops/staging-live-readback.mjs \
   --origin "https://YOUR-APPROVED-STAGING-HOST" \
   --host "YOUR-APPROVED-STAGING-HOST" \
-  --sha "EXACT40_REVIEWED_AND_DEPLOYED_SHA"
+  --sha "EXACT40_REVIEWED_AND_DEPLOYED_SHA" \
+  --manifest-sha256 "EXPECTED64_FROM_TRUSTED_GITHUB_BUILD_ARTIFACT"
 \`\`\`
 
 Что проверяется действительно **по HTTP-ответам**, а не по логу деплоя:
@@ -60,3 +61,7 @@ node ops/staging-live-readback.mjs \
 Для мирового production по-прежнему требуется R48/R80 с \`productionAuthorized=false\` до отдельного письменного go/no-go по Issue #55. Не нужно присылать в чат SSH-ключи, токены, пароли или реальные пользовательские данные.
 
 **Статус внедрения:** код/CI в GitHub, реальная приёмка внешнего STAGING **не проведена**, пока отсутствует проверенный адрес/доступ.
+
+## R90: независимая привязка к CI
+
+Публичный сервер способен подменить все пять файлов и заявленный SHA согласованно. Поэтому оператор должен получить `buildManifestSha256` **из GitHub Actions артефакта конкретной проверенной сборки**, а не из опубликованного по HTTPS JSON. Доверенный build job сохраняет `staging-expected-<GITHUB_SHA>.json` вне webroot в артефакт `marcosa-site-<GITHUB_SHA>`. Только его digest допустимо вставлять в обязательное поле `manifest_sha256` при ручном запуске R90 readback. При отсутствии независимого digest — BLOCKED; успешный HTTPS сам по себе не разрешает production.
