@@ -13,6 +13,7 @@ on:
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
       - "docs/MARCOSA_R72_PRIVATE_APPROVED_MEDIA_REPORTS_REFERENCE.sql"
+      - "docs/MARCOSA_R75_PRIVATE_RIGHTS_PG_DELIVERY_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -28,6 +29,7 @@ on:
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
       - "docs/MARCOSA_R72_PRIVATE_APPROVED_MEDIA_REPORTS_REFERENCE.sql"
+      - "docs/MARCOSA_R75_PRIVATE_RIGHTS_PG_DELIVERY_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -148,6 +150,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/100_private_cover_reports.sql
+      - name: Apply R75 private rights history with strict delivery eligibility
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R75_PRIVATE_RIGHTS_PG_DELIVERY_REFERENCE.sql
+      - name: Confirm rights SHA, independent reviewer, replacement and deletion in disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/110_private_rights_delivery.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
