@@ -199,7 +199,7 @@ test('R76 twelve isolated real-HTTP accounts, multi-user writes and persistent p
   assert.equal(proof.reportedD7,null);
   assert.equal(proof.actualIndependentBetaParticipants,0);
   writeFileSync(join(folder,'proof.json'),JSON.stringify(proof,null,2));
-  assert.deepEqual(JSON.parse(readFileSync(join(folder,'proof.json','utf8')),proof);
+  assert.deepEqual(JSON.parse(readFileSync(join(folder,'proof.json'),'utf8')),proof);
  }finally{
   if(lab)await lab.close().catch(()=>{});
   rmSync(folder,{recursive:true,force:true,maxRetries:15,retryDelay:100});
