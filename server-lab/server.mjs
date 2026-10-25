@@ -528,6 +528,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
      const result=db.prepare('DELETE FROM user_blocks WHERE blocker_id=? AND blocked_id=?').run(user.id,target.id);
      send(res,200,{username:target.username,blocked:false,changed:Boolean(result.changes)});return;
     }
+    const already=db.prepare('SELECT 1 FROM user_blocks WHERE blocker_id=? AND blocked_id=?').get(user.id,target.id);
+    if(!already){
+     const total=db.prepare('SELECT count(*) AS n FROM user_blocks WHERE blocker_id=?').get(user.id).n;
+     check(total<100,409,'Достигнут лимит 100 блокировок');
+    }
     const result=atomic(()=>{
      const inserted=db.prepare('INSERT OR IGNORE INTO user_blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)')
       .run(user.id,target.id,now());
