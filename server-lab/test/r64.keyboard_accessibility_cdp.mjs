@@ -153,11 +153,21 @@ async function main(){
    const closeState=await cdp.evalJS("({hidden:document.getElementById('world-detail')?.hidden,focused:document.activeElement?.id||document.activeElement?.className||document.activeElement?.tagName,hash:location.hash,opener:!!document.querySelector('#world-list a.world-open[href=\"#world-u-a11yowner\"]')})");
    console.log('R66 CLOSED DEEPLINK FOCUS',size.name,JSON.stringify(closeState));
    await cdp.wait("document.getElementById('world-detail')?.hidden===true&&document.activeElement===(Array.from(document.querySelectorAll('#world-list a.world-open')).find(a=>a.getAttribute('href')==='#world-u-a11yowner')||document.getElementById('worlds'))",'R64-close-button-focus-return');
+   // R68: actually load the server-rendered World page on each viewport.
+   await cdp.call('Page.navigate',{url:base+'/w/u-a11yowner'});
+   await cdp.wait("document.readyState==='complete'&&document.getElementById('world-detail')?.hidden===false&&document.activeElement?.id==='world-detail-title'",'R68-SSR-open-and-focus');
+   const seo=await cdp.evalJS("(()=>({title:document.title,url:document.querySelector('meta[property=\"og:url\"]')?.content,robots:document.querySelector('meta[name=\"robots\"]')?.content,description:document.querySelector('meta[property=\"og:description\"]')?.content}))()");
+   if(!seo.title.includes('MARCOSA')||!seo.url?.endsWith('/w/u-a11yowner')||seo.robots!=='noindex,nofollow'||!seo.description)
+    throw Error('R68_REAL_SSR_METADATA_'+size.name+' '+JSON.stringify(seo));
+   await shot('server-rendered-world');
+   await cdp.evalJS("document.getElementById('world-close').focus()");
+   await key('Enter',true);
+   await cdp.wait("location.pathname==='/'&&document.getElementById('world-detail')?.hidden===true&&(document.activeElement?.classList.contains('world-open')||document.activeElement?.id==='worlds')",'R68-close-return-to-catalog');
    const outside=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(outside.length||cdp.errors.length)throw Error('R64_BROWSER_SECURITY_'+size.name+' '+JSON.stringify({outside,errors:cdp.errors}));
    console.log('R64 CHROME ACCESSIBILITY PASS',size.name,'skip/World open/Escape/close/deep-link/reduced-motion');
   }
-  console.log('R64 COMPLETE: 3 real Chromium viewports, 6 screenshots, keyboard navigation and focus return');
+  console.log('R68 COMPLETE: 3 real Chromium viewports, 9 screenshots, including SSR noindex World links, keyboard navigation and focus return');
  }finally{
   cdp?.close();
   if(chrome){
