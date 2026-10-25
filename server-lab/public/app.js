@@ -23,6 +23,42 @@ async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
 }
+async function onboarding(){
+ if(!state.me)return;
+ const result=await api('/me/onboarding'),list=$('onboarding-steps');clear(list);
+ $('onboarding-progress').value=result.completed;
+ $('onboarding-counter').textContent=result.completed+' из '+result.total+' шагов';
+ for(const step of result.steps){
+  const li=node('li',(step.complete?'✓ ':'○ ')+step.title,step.complete?'onboarding-complete':'onboarding-pending');
+  list.append(li);
+ }
+}
+function clearIssuedInvite(){
+ $('issued-invite-code').textContent='';
+ $('issued-invite-result').hidden=true;
+}
+async function pilotInvites(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const result=await api('/mod/invites'),list=$('invite-list');clear(list);
+ for(const ticket of result.items){
+  const row=node('div','','invite-row');
+  const stateName=ticket.usedAt?'Использован':ticket.revokedAt?'Отозван':
+   ticket.expiresAt<=Date.now()?'Истёк':'Ожидает регистрации';
+  row.append(node('strong',ticket.label||'Приглашение без метки'),
+   node('small',stateName+' · до '+new Date(ticket.expiresAt).toLocaleString('ru-RU')));
+  if(ticket.usedBy)row.append(node('small','Зарегистрировался @'+ticket.usedBy));
+  if(!ticket.usedAt&&!ticket.revokedAt&&ticket.expiresAt>Date.now()){
+   const revoke=node('button','Отозвать','ghost small');revoke.type='button';
+   revoke.addEventListener('click',()=>run(async()=>{
+    await api('/mod/invites/'+ticket.id+'/revoke','POST',{});
+    await pilotInvites();
+   },'Одноразовое приглашение отозвано'));
+   row.append(revoke);
+  }
+  list.append(row);
+ }
+ if(!result.items.length)list.append(node('p','Одноразовых приглашений ещё не было.','muted'));
+}
 async function loadSavedIds(){
  if(!state.me)return;
  const result=await api('/me/saved/ids');
@@ -95,6 +131,9 @@ async function session(){
   $('security-sessions').textContent='Активные сессии: —';
   $('security-expiry').textContent='Срок текущего входа: —';
   $('security-revoke-form').reset();$('security-password-form').reset();
+  clearIssuedInvite();clear($('invite-list'));
+  clear($('onboarding-steps'));$('onboarding-progress').value=0;
+  $('onboarding-counter').textContent='0 из 5 шагов';
   clear($('blocked-users-list'));
   clear($('saved-list'));$('saved-more').hidden=true;
   state.savedCursor=null;state.savedIds=new Set();
@@ -125,8 +164,9 @@ async function session(){
   }
   if(state.worlds.length)syncWorldSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true)]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true),onboarding()]);
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites()]);
+  else {clearIssuedInvite();clear($('invite-list'));}
  }
 }
 async function worlds(){
@@ -158,7 +198,7 @@ async function worlds(){
    btn.type='button';btn.setAttribute('aria-pressed',String(following));
    btn.addEventListener('click',()=>run(async()=>{
     await api('/worlds/'+encodeURIComponent(world.slug)+'/follow',following?'DELETE':'POST',{});
-    await worlds();
+    await Promise.all([worlds(),onboarding()]);
    },following?'Подписка отменена':'Подписка сохранена'));
    card.append(btn);
    const block=node('button','Заблокировать @'+world.owner,'ghost small block-user');
@@ -262,7 +302,7 @@ async function discussion(postId,region){
   event.preventDefault();const entry=event.currentTarget;
   run(async()=>{
    await api('/posts/'+postId+'/comments','POST',{body:entry.elements.body.value});
-   await discussion(postId,region);
+   await Promise.all([discussion(postId,region),onboarding()]);
   },'Ответ опубликован');
  });
 }
@@ -300,7 +340,7 @@ function postCard(post,own=false){
    if(wasSaved)state.savedIds.delete(postId);else state.savedIds.add(postId);
    toggle.textContent=wasSaved?'Сохранить':'Сохранено ✓';
    toggle.setAttribute('aria-pressed',String(!wasSaved));
-   await saved(true);
+   await Promise.all([saved(true),onboarding()]);
   },state.savedIds.has(postId)?'Сохранение обновлено':'Публикация добавлена в твою коллекцию'));
   actions.append(toggle);
  }
@@ -567,7 +607,7 @@ $('post-form').addEventListener('submit',event=>{
  data.status=submit?.value==='published'?'published':'draft';
  run(async()=>{
   await api('/posts','POST',data);form.elements.body.value='';
-  await Promise.all([myPosts(),feed(true)]);
+  await Promise.all([myPosts(),feed(true),onboarding()]);
  },data.status==='published'?'Запись опубликована':'Черновик сохранён');
 });
 $('report-form').addEventListener('submit',event=>{
@@ -640,7 +680,20 @@ $('activity-read').addEventListener('click',()=>run(async()=>{await api('/me/act
 $('activity-more').addEventListener('click',()=>run(()=>activity(false)));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
-$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals()]);}));
+$('issue-invite-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  clearIssuedInvite();
+  const data=values(form);data.expiresHours=Number(data.expiresHours);
+  const result=await api('/mod/invites','POST',data);
+  $('issued-invite-code').textContent=result.code;
+  $('issued-invite-result').hidden=false;
+  await pilotInvites();
+ },'Одноразовый код создан. Он показан только сейчас.');
+});
+$('invite-clear').addEventListener('click',clearIssuedInvite);
+$('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
+$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites()]);}));
 session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
