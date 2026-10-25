@@ -71,7 +71,7 @@ test('R89: moderator-only readiness distinguishes process liveness, SQLite FK co
   assert.equal(x.data.writeReady,false);
   assert.equal(x.headers.get('retry-after'),'60');
   assert.equal((await request('/health')).status,200,'Process liveness is distinct');
-  assert.doesNotMatch(JSON.stringify(x.data),/creator89|moderator89|example.net|r89-world-does-not-exist|sqlite3|\\/tmp\\//);
+   assert.equal(['creator89','moderator89','example.net','r89-world-does-not-exist','sqlite3','/tmp/'].some(secret=>JSON.stringify(x.data).includes(secret)),false,'Readiness must never leak identities or internal DB paths');
   lab.db.prepare('DELETE FROM world_follows WHERE world_id=?').run('r89-world-does-not-exist');
   x=await request('/mod/readiness',{cookie:mod.cookie});
   assert.equal(x.status,200);
