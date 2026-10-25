@@ -238,3 +238,14 @@ dialog form{display:grid;gap:17px}
 .security-panel form button{min-height:44px;white-space:normal}
 #security-refresh{width:100%}
 @media(max-width:720px){.security-panel{padding:19px 0}.security-panel form button{width:100%}}
+
+/* R40: calm, accessible account-block controls; no aggressive popups. */
+.blocks-panel{margin:18px 0;padding:15px 0;border-top:1px solid var(--line)}
+.blocks-panel summary{font-size:14px;line-height:1.55}
+.blocks-panel>.muted{line-height:1.6;font-size:12px;margin-top:12px}
+.blocked-user{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid #ccb38b38}
+.blocked-user strong{color:#eedbbd;font-size:12px;overflow-wrap:anywhere}
+.blocked-user button{flex-shrink:0}
+#blocks-refresh{width:100%;min-height:40px;margin-top:10px}
+.world-card .block-user{display:block;margin-top:8px;min-height:36px;white-space:normal}
+@media(max-width:720px){.blocks-panel{padding:17px 0}.blocked-user{flex-wrap:wrap}.blocked-user button{min-height:42px}}
