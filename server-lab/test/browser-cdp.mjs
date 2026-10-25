@@ -156,6 +156,18 @@ async function main(){
    await cdp.evalJS("document.getElementById('world-settings-panel').scrollIntoView({behavior:'instant',block:'center'})");
    await pause(120);
    await screenshot('world-owner-editor');
+   // R42: actual owner changes visibility. A second, cookie-free request
+   // must not discover this private World or its published content.
+   await cdp.evalJS("(()=>{const f=document.getElementById('world-settings-form');f.elements.visibility.value='private';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('my-worlds')?.textContent.includes('ПРИВАТНЫЙ')",'r42-owner-private');
+   const privacyAudit=await cdp.evalJS("(async()=>{const worlds=await(await fetch('/api/worlds',{credentials:'omit'})).json();return{ownerHidden:!worlds.items.some(w=>w.slug==='u-"+identity+"'),ownerVisible:document.getElementById('my-worlds').textContent.includes('ПРИВАТНЫЙ')}})()");
+   if(!privacyAudit.ownerHidden||!privacyAudit.ownerVisible)
+    throw Error('R42_PUBLIC_WORLD_LEAK_'+size.name+' '+JSON.stringify(privacyAudit));
+   await cdp.evalJS("document.getElementById('world-settings-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(120);
+   await screenshot('world-private');
+   await cdp.evalJS("(()=>{const f=document.getElementById('world-settings-form');f.elements.visibility.value='public';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('my-worlds')?.textContent.includes('ПУБЛИЧНЫЙ')",'r42-owner-reopened');
    const statement='Мой мир — фактическая публикация R28 '+size.name;
    await cdp.evalJS("(()=>{const f=document.getElementById('post-form');f.elements.body.value='"+statement+"';f.requestSubmit(f.querySelector('button[value=published]'));return true;})()");
    await cdp.wait("document.getElementById('feed-list').textContent.includes('"+statement+"')",'published');
@@ -222,7 +234,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R39 BROWSER QA COMPLETE: 21 Chrome screenshots, real World Studio and security rotation on desktop/phones');
+  console.log('R42 BROWSER QA COMPLETE: 24 Chrome frames including genuine private/public World access on all screens');
  }finally{
   cdp?.close();
   if(chrome){
