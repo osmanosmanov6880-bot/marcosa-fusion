@@ -249,3 +249,9 @@ dialog form{display:grid;gap:17px}
 #blocks-refresh{width:100%;min-height:40px;margin-top:10px}
 .world-card .block-user{display:block;margin-top:8px;min-height:36px;white-space:normal}
 @media(max-width:720px){.blocks-panel{padding:17px 0}.blocked-user{flex-wrap:wrap}.blocked-user button{min-height:42px}}
+
+/* R42: owner-only World privacy with a deliberate quiet-luxury warning. */
+.privacy-warning{font-size:11px;line-height:1.65;padding:12px;border-left:2px solid #ba9a69;background:#16263c;border-radius:4px;color:#d4d2d0}
+.world-settings select[name="visibility"]{min-height:44px}
+.world-own{overflow-wrap:anywhere}
+@media(max-width:720px){.privacy-warning{font-size:12px;padding:14px}}
