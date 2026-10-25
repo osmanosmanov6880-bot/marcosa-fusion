@@ -8,6 +8,9 @@ on:
       - "ops/test/local-read-load.test.mjs"
       - "ops/local-backup-restore.mjs"
       - "ops/test/local-backup-restore.test.mjs"
+      - "ops/encrypted-local-archive.mjs"
+      - "ops/encrypted-recovery-drill.mjs"
+      - "ops/test/encrypted-local-archive.test.mjs"
       - ".github/workflows/marcosa-r49-local-load.yml"
   push:
     branches: [main]
@@ -17,6 +20,9 @@ on:
       - "ops/test/local-read-load.test.mjs"
       - "ops/local-backup-restore.mjs"
       - "ops/test/local-backup-restore.test.mjs"
+      - "ops/encrypted-local-archive.mjs"
+      - "ops/encrypted-recovery-drill.mjs"
+      - "ops/test/encrypted-local-archive.test.mjs"
       - ".github/workflows/marcosa-r49-local-load.yml"
   workflow_dispatch:
 permissions:
@@ -42,6 +48,13 @@ jobs:
           node --check ops/local-backup-restore.mjs
           node --check ops/test/local-backup-restore.test.mjs
           node --test ops/test/local-backup-restore.test.mjs
+      - name: R73 real AES-256-GCM encrypted backup and independent authenticated restore
+        run: |
+          set -euo pipefail
+          node --check ops/encrypted-local-archive.mjs
+          node --check ops/encrypted-recovery-drill.mjs
+          node --check ops/test/encrypted-local-archive.test.mjs
+          node --test ops/test/encrypted-local-archive.test.mjs
       - name: Generate actual 480-request concurrent SQLite/HTTP QA
         env:
           MARCOSA_LOAD_READS: "480"
