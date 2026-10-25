@@ -10,7 +10,7 @@ test('R119 actual Node+SQLite HTTP API, strict 127.0.0.1, synthetic only',async(
   assert.equal(result.releaseSha,sha);
   assert.equal(result.labAccountsSynthetic,2);
   assert.equal(result.verifiedListener,'127.0.0.1');
-  for(const property of ['actualHttpTests','crossTenantWriteRejected',
+  for(const property of ['actualHttpTests','twoAccountFollowAndCommentVerified','crossTenantWriteRejected',
     'guestPrivateExportRejected','wrongHostRejected','hostileOriginRejected',
     'ownerOnlyExport','accountDeletionAndSessionRevocation',
     'sqliteForeignKeysValid','sqliteQuickCheckValid']){
