@@ -99,6 +99,7 @@ const CATALOG=Object.freeze({
  "cover.warning":["Загрузи собственную фотографию в PNG. Принимаются RGB/RGBA без анимации до 1600 px и 768 KiB. Сервер удаляет метаданные. Обложка становится публичной только после независимого рассмотрения модератором; до этого она доступна только тебе и проверяющему. Права на изображение должны принадлежать тебе.","Upload your own PNG. Non-animated RGB/RGBA up to 1600 px and 768 KiB is accepted. The server strips metadata. The cover becomes public only after independent moderator approval; until then, only you and the reviewer can see it. You must own the rights to the image."],
  "cover.choose":["Выбери свой мир","Choose your World"],
  "cover.file":["Файл PNG","PNG file"],
+ "cover.rights.confirm":["Я подтверждаю, что создал(а) изображение или имею законное разрешение на его использование, включая согласие изображённых людей при необходимости. Это заявление записывается для проверки, но не заменяет независимую проверку прав.","I confirm that I created this image or hold lawful permission to use it, including consent from depicted people when required. This statement is recorded for review but does not replace independent rights verification."],
  "cover.save":["Сохранить обложку мира","Save World cover"],
  "cover.delete":["Удалить обложку выбранного мира","Delete selected World cover"],
  "cover.appeal.heading":["Попросить независимый пересмотр отклонённой обложки","Request independent review of a rejected cover"],
