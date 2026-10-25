@@ -75,12 +75,23 @@ test('R59 independent cover appeals: private owner and moderator, no auto-publis
   assert.equal(r.status,400);
   r=await req('/mod/cover-appeals/'+appealId+'/resolve',{cookie:second.cookie,method:'POST',origin:'https://attacker.example.net',data:{decision:'reopened'}});
   assert.equal(r.status,403);
+  // The appeal is bound to the exact normalized image digest; direct storage
+  // tampering cannot authorize its replacement.
+  const persisted=lab.db.prepare('SELECT png FROM world_covers WHERE world_id=?').get(owner.world.id);
+  lab.db.prepare('UPDATE world_covers SET png=? WHERE world_id=?').run(png(6),owner.world.id);
+  r=await req('/mod/cover-appeals/'+appealId+'/resolve',{cookie:second.cookie,method:'POST',data:{decision:'reopened'}});
+  assert.equal(r.status,409,'digest mismatch must block stale appeal');
+  lab.db.prepare('UPDATE world_covers SET png=? WHERE world_id=?').run(persisted.png,owner.world.id);
   r=await req('/mod/cover-appeals/'+appealId+'/resolve',{cookie:second.cookie,method:'POST',data:{decision:'reopened'}});
   assert.equal(r.status,200);assert.equal(r.data.publicVisible,false);
   assert.equal(r.data.nextReviewRequired,true);
   assert.equal(lab.db.prepare('SELECT review_status FROM world_covers WHERE world_id=?').get(owner.world.id).review_status,'pending');
   r=await req(cover);assert.equal(r.status,404,'successful appeal must not auto-publish');
   r=await req('/mod/cover-appeals/'+appealId+'/resolve',{cookie:second.cookie,method:'POST',data:{decision:'upheld'}});assert.equal(r.status,404);
+  r=await req('/mod/cover-queue',{cookie:first.cookie});
+  assert.equal(r.status,200);assert.deepEqual(r.data.items,[],'original reviewer excluded from new queue');
+  r=await req('/mod'+cover,{cookie:first.cookie});
+  assert.equal(r.status,404,'original reviewer cannot preview reopened image');
   r=await req('/mod'+cover+'/review',{cookie:first.cookie,method:'POST',data:{decision:'approved'}});
   assert.equal(r.status,403,'original rejection reviewer cannot approve reopened image');
   r=await req('/mod'+cover+'/review',{cookie:second.cookie,method:'POST',data:{decision:'approved'}});
