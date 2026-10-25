@@ -12,6 +12,7 @@ on:
       - "docs/MARCOSA_R55_PRIVATE_MEDIA_MANIFEST_REFERENCE.sql"
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
+      - "docs/MARCOSA_R72_PRIVATE_APPROVED_MEDIA_REPORTS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -26,6 +27,7 @@ on:
       - "docs/MARCOSA_R55_PRIVATE_MEDIA_MANIFEST_REFERENCE.sql"
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
+      - "docs/MARCOSA_R72_PRIVATE_APPROVED_MEDIA_REPORTS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -138,6 +140,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/90_revocable_media_delivery.sql
+      - name: Apply R72 private reporting and atomic published-media takedown SQL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R72_PRIVATE_APPROVED_MEDIA_REPORTS_REFERENCE.sql
+      - name: Prove three-reporter privacy, role independence and one-shot takedown in disposable PG17
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/100_private_cover_reports.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
