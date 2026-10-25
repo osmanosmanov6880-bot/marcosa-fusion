@@ -134,7 +134,7 @@ export async function unsealSnapshot({archive,destination,passphrasePath}){
  const decipher=createDecipheriv('aes-256-gcm',key,header.subarray(24,36),{authTagLength:16});
  key.fill(0);
  decipher.setAAD(header);decipher.setAuthTag(tag);
- let temp=null,handle=null,manifest=null,needed=null,prefix=Buffer.alloc(0),bytes=0;
+ let temp=null,handle=null,manifest=null,needed=null,prefix=Buffer.alloc(0),bytes=0,authenticated=false;
  try{
   temp=tempPath(out);
   handle=openSync(temp,'r+');
@@ -156,6 +156,7 @@ export async function unsealSnapshot({archive,destination,passphrasePath}){
    }
    if(chunk.length){writeSync(handle,chunk);bytes+=chunk.length;}
   }
+  authenticated=true; // GCM stream reached EOF and authenticated its tag.
   closeSync(handle);handle=null;
   demand(manifest&&manifest.format===FORMAT&&
    /^[a-f0-9]{64}$/.test(manifest.sha256)&&Number.isSafeInteger(manifest.bytes)&&
@@ -166,7 +167,10 @@ export async function unsealSnapshot({archive,destination,passphrasePath}){
   outputLink(temp,out);temp=null;
   return{restored:out,format:ARCHIVE_FORMAT,sourceDigest:manifest.sha256,bytes,verification};
  }catch(error){
-  if(error.code==='ERR_OSSL_EVP_BAD_DECRYPT'||/authenticate data/i.test(error.message))
+  // AES-GCM plaintext is not trusted until final authentication succeeds.
+  // A wrong key produces random prefix bytes that can fail manifest parsing
+  // BEFORE the tag is checked. Do not leak those pre-auth parse details.
+  if(!authenticated||error.code==='ERR_OSSL_EVP_BAD_DECRYPT'||/authenticate data/i.test(error.message))
    throw Error('Authentication failed: incorrect passphrase or altered archive');
   throw error;
  }finally{
