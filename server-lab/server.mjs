@@ -348,7 +348,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(source,404,'Мир не найден');
     const viewer=who(req)?.id||'';
     check(!viewer||!isBlocked(viewer,source.owner_id),404,'Обложка недоступна');
-    const image=db.prepare('SELECT png FROM world_covers WHERE world_id=?').get(source.id);
+    const image=db.prepare("SELECT png FROM world_covers WHERE world_id=? AND review_status='approved'").get(source.id);
     check(image,404,'Обложка не найдена');
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
       'Content-Disposition':'inline','Cache-Control':'private, no-store',
@@ -366,11 +366,39 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     let safe;
     try{safe=sanitizePngCover(body);}
     catch{throw new HttpError(422,'Обложка должна быть PNG RGB/RGBA без анимации, до 1600 px и 768 KiB');}
-    db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at")
+    db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,'pending',NULL,NULL) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at,review_status='pending',reviewed_by=NULL,reviewed_at=NULL")
      .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
     send(res,200,{hasCover:true,width:safe.width,height:safe.height,bytes:safe.bytes,
-      type:'image/png',metadataRemoved:true,slug:coverRoute[1],production:false});
+      type:'image/png',metadataRemoved:true,reviewStatus:'pending',publicVisible:false,slug:coverRoute[1],production:false});
     return;
+   }
+   const privateCover=route.match(/^\/api\/me\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   if(method==='GET'&&privateCover){
+    const owner=requireUser(req);
+    const image=db.prepare('SELECT c.png FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND w.owner_id=?')
+     .get(privateCover[1],owner.id);
+    check(image,404,'Личная обложка не найдена');
+    res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
+     'Content-Disposition':'inline','Cache-Control':'private, no-store',
+     'X-Content-Type-Options':'nosniff','Cross-Origin-Resource-Policy':'same-origin'});
+    res.end(image.png);return;
+   }
+   if(method==='GET'&&route==='/api/mod/cover-queue'){
+    const moderator=requireUser(req);
+    check(moderator.role==='moderator',403,'Доступ только модератору');
+    const items=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all();
+    send(res,200,{items,scope:'moderator',localOnly:true});return;
+   }
+   const modCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   if(method==='GET'&&modCover){
+    const moderator=requireUser(req);
+    check(moderator.role==='moderator',403,'Доступ только модератору');
+    const item=db.prepare("SELECT c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(modCover[1]);
+    check(item&&item.owner_id!==moderator.id,404,'Материал не найден в независимой очереди');
+    res.writeHead(200,{'Content-Type':'image/png','Content-Length':item.png.length,
+     'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff',
+     'Cross-Origin-Resource-Policy':'same-origin'});
+    res.end(item.png);return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
@@ -670,6 +698,21 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      .run(user.id,Number(next.follows),Number(next.comments),Number(next.sponsorships),now());
     send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
      delivery:'local-inbox-only'});return;
+   }
+   const reviewCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover\/review$/);
+   if(method==='POST'&&reviewCover){
+    check(user.role==='moderator',403,'Только модератор рассматривает обложки');
+    check(Object.keys(body).length===1&&(body.decision==='approved'||body.decision==='rejected'),400,'Неверное решение');
+    const item=db.prepare("SELECT c.world_id,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(reviewCover[1]);
+    check(item,404,'Материал уже рассмотрен или удалён');
+    check(item.owner_id!==user.id,403,'Нельзя одобрять обложку собственного мира');
+    const decision=body.decision;
+    atomic(()=>{
+     const result=db.prepare("UPDATE world_covers SET review_status=?,reviewed_by=?,reviewed_at=? WHERE world_id=? AND review_status='pending'").run(decision,user.id,now(),item.world_id);
+     check(result.changes===1,409,'Решение уже принято');
+     db.prepare('INSERT INTO world_cover_review_audit(world_id,reviewed_by,decision,created_at) VALUES(?,?,?,?)').run(item.world_id,user.id,decision,now());
+    });
+    send(res,200,{slug:reviewCover[1],decision,publicVisible:decision==='approved',independentReview:true,production:false});return;
    }
    if(method==='DELETE'&&coverRoute){
     const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],user.id);
