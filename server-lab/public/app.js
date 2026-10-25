@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -22,6 +22,23 @@ const values=form=>Object.fromEntries(new FormData(form).entries());
 async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
+}
+async function loadSavedIds(){
+ if(!state.me)return;
+ const result=await api('/me/saved/ids');
+ state.savedIds=new Set(result.ids);
+}
+async function saved(reset=true){
+ if(!state.me)return;
+ const params=new URLSearchParams();
+ if(!reset&&state.savedCursor)params.set('cursor',state.savedCursor);
+ const result=await api('/me/saved?'+params.toString());
+ const list=$('saved-list');
+ if(reset)clear(list);
+ for(const post of result.items)list.append(postCard(post));
+ if(reset&&!result.items.length)list.append(node('p','В коллекции пока нет доступных публикаций.','muted'));
+ state.savedCursor=result.nextCursor;
+ $('saved-more').hidden=!state.savedCursor;
 }
 async function loadInsights(){
  if(!state.me)return;
@@ -79,6 +96,8 @@ async function session(){
   $('security-expiry').textContent='Срок текущего входа: —';
   $('security-revoke-form').reset();$('security-password-form').reset();
   clear($('blocked-users-list'));
+  clear($('saved-list'));$('saved-more').hidden=true;
+  state.savedCursor=null;state.savedIds=new Set();
   clear($('creator-insights-list'));
   state.feedScope='all';state.activityCursor=null;
   $('feed-all').setAttribute('aria-pressed','true');
@@ -105,7 +124,8 @@ async function session(){
    editOption.value=world.slug;settings.append(editOption);
   }
   if(state.worlds.length)syncWorldSettings();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks()]);
+  await loadSavedIds();
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true)]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
 }
@@ -269,6 +289,20 @@ function postCard(post,own=false){
   const report=node('button','Пожаловаться','ghost small');report.type='button';
   report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;$('report-dialog').showModal();});
   actions.append(report);
+ }
+ if(!own&&state.me){
+  const postId=Number(post.id);
+  const toggle=node('button',state.savedIds.has(postId)?'Сохранено ✓':'Сохранить','ghost small saved-toggle');
+  toggle.type='button';toggle.setAttribute('aria-pressed',String(state.savedIds.has(postId)));
+  toggle.addEventListener('click',()=>run(async()=>{
+   const wasSaved=state.savedIds.has(postId);
+   await api('/posts/'+postId+'/save',wasSaved?'DELETE':'POST',{});
+   if(wasSaved)state.savedIds.delete(postId);else state.savedIds.add(postId);
+   toggle.textContent=wasSaved?'Сохранить':'Сохранено ✓';
+   toggle.setAttribute('aria-pressed',String(!wasSaved));
+   await saved(true);
+  },state.savedIds.has(postId)?'Сохранение обновлено':'Публикация добавлена в твою коллекцию'));
+  actions.append(toggle);
  }
  card.append(actions);
  if(!own||post.status==='published'){
@@ -560,6 +594,7 @@ $('sponsor-form').addEventListener('submit',event=>{
   form.reset();await mySponsors();
  },'Заявка получена: только ручная проверка, без платежей и размещений');
 });
+$('saved-more').addEventListener('click',()=>run(()=>saved(false)));
 $('blocks-refresh').addEventListener('click',()=>run(loadBlocks,'Список блокировок обновлён'));
 $('security-refresh').addEventListener('click',()=>run(loadSecurity,'Состояние входов обновлено'));
 $('security-revoke-form').addEventListener('submit',event=>{
