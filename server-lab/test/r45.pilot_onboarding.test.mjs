@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,rmSync} from 'node:fs';
+import {mkdtempSync,rmSync,chmodSync} from 'node:fs';
+import {spawnSync} from 'node:child_process';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createApp} from '../server.mjs';
@@ -34,10 +35,14 @@ test('R45: persisted one-use pilot invites, moderator-only issuance, replay resi
   await start('legacy');
   let x=await req('/auth/register',{method:'POST',json:reg('operator45',bootstrap)});
   assert.equal(x.status,201);
-  app.db.prepare("UPDATE users SET role='moderator' WHERE username='operator45'").run();
   x=await req('/auth/register',{method:'POST',json:reg('reader45',bootstrap)});
   assert.equal(x.status,201);
   await app.close();app=null;
+  chmodSync(databasePath,0o600);
+  const boot=spawnSync(process.execPath,['server-lab/tools/bootstrap-moderator.mjs',databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
+  assert.equal(boot.status,0,'manual operator bootstrap should succeed: '+boot.stderr);
+  const repeat=spawnSync(process.execPath,['server-lab/tools/bootstrap-moderator.mjs',databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
+  assert.equal(repeat.status,1,'second bootstrap must fail closed');
 
   await start('single-use');
   const operator=await login('operator45'),reader=await login('reader45');
