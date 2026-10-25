@@ -279,11 +279,16 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const worldPage=route.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
    if(method==='GET'&&worldPage){
     const viewer=who(req)?.id||'';
-    const world=db.prepare("SELECT w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId,"
-     +" EXISTS(SELECT 1 FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
-     +" WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover"
+    const world=db.prepare("SELECT w.id,w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId"
      +" FROM worlds w JOIN users u ON u.id=w.owner_id WHERE w.slug=? LIMIT 1").get(worldPage[1]);
     check(world&&(!viewer||!isBlocked(viewer,world.ownerId)),404,'Мир не найден');
+    // Legacy approved PNG without a current owner SHA declaration is NOT
+    // eligible for preview; the same rule also governs actual byte delivery.
+    const preview=db.prepare("SELECT c.png,r.asset_sha256 FROM world_covers c"
+     +" JOIN world_cover_rights r ON r.world_id=c.world_id AND r.owner_id=?"
+     +" JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
+     +" WHERE c.world_id=? AND c.review_status='approved'").get(world.ownerId,world.id);
+    const hasCover=!!preview&&preview.asset_sha256===hash(Buffer.from(preview.png));
     const title=htmlAttr(world.title)+' · MARCOSA';
     const description=htmlAttr(world.description||'Мир автора @'+world.owner);
     const canonical=htmlAttr('http://'+verifiedHost+'/w/'+world.slug);
@@ -296,7 +301,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      '<meta property="og:description" content="'+description+'">',
      '<meta property="og:url" content="'+canonical+'">'
     ];
-    if(world.hasCover)meta.push('<meta property="og:image" content="'+htmlAttr('http://'+verifiedHost+'/api/worlds/'+world.slug+'/cover')+'">');
+    if(hasCover)meta.push('<meta property="og:image" content="'+htmlAttr('http://'+verifiedHost+'/api/worlds/'+world.slug+'/cover')+'">');
     const template=await readFile(new URL('./public/index.html',import.meta.url),'utf8');
     const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>')
      .replace('</head>',meta.join('\n')+'\n</head>');
@@ -391,8 +396,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(source,404,'Мир не найден');
     const viewer=who(req)?.id||'';
     check(!viewer||!isBlocked(viewer,source.owner_id),404,'Обложка недоступна');
-    const image=db.prepare("SELECT c.png FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator' WHERE c.world_id=? AND c.review_status='approved'").get(source.id);
-    check(image,404,'Обложка не найдена');
+    const image=db.prepare("SELECT c.png,r.asset_sha256 FROM world_covers c"
+     +" JOIN world_cover_rights r ON r.world_id=c.world_id AND r.owner_id=?"
+     +" JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
+     +" WHERE c.world_id=? AND c.review_status='approved'").get(source.owner_id,source.id);
+    check(image&&image.asset_sha256===hash(Buffer.from(image.png)),404,'Обложка не найдена');
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
       'Content-Disposition':'inline','Cache-Control':'private, no-store',
       'X-Content-Type-Options':'nosniff','Cross-Origin-Resource-Policy':'same-origin'});
