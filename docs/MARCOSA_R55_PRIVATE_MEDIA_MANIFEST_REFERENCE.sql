@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS marcosa_private.world_cover_assets(
  normalized boolean NOT NULL DEFAULT false,
  status text NOT NULL DEFAULT 'pending'
   CHECK(status IN ('pending','approved','quarantined','removed')),
- reviewed_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
+ reviewed_by uuid REFERENCES auth.users(id) ON DELETE RESTRICT,
  reviewed_at timestamptz,
  uploaded_at timestamptz NOT NULL DEFAULT now(),
  CHECK(width::bigint*height::bigint<=1500000),
