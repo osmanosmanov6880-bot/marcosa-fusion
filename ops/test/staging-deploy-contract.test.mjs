@@ -63,6 +63,30 @@ test('R96: committed MARCOSA host pin matches independently trusted ED25519 fing
  assert.match(loader,/verifyStagingHostPin/);
  assert.doesNotMatch(loader,/ssh-keyscan\s+-/);
 });
+test('R99: a successful same-run build automatically SSH-stages exact main SHA, hosted release remains separately gated',()=>{
+ const yml=readFileSync('.github/workflows/marcosa-staging.yml','utf8');
+ const uploader=readFileSync('ops/ssh-stage-verified.sh','utf8');
+ const activating=readFileSync('scripts/activate-staging.sh','utf8');
+ assert.match(yml,/deploy_ssh_filesystem:\s*\n[\s\S]*?needs: build/);
+ assert.match(yml,/name: marcosa-site-\$\{\{ github\.sha \}\}/);
+ assert.match(yml,/bash ops\/ssh-stage-verified\.sh/);
+ assert.match(yml,/needs: \[build, deploy_ssh_filesystem\]/);
+ assert.match(yml,/vars\.MARCOSA_STAGING_ORIGIN != ''/);
+ assert.match(yml,/vars\.MARCOSA_STAGING_PUBLIC_HOST != ''/);
+ assert.match(uploader,/GITHUB_REPOSITORY/);
+ assert.match(uploader,/GITHUB_REF/);
+ assert.match(uploader,/GITHUB_SHA/);
+ assert.match(uploader,/TRUSTED_SAME_RUN_BUILD=PASS/);
+ assert.match(uploader,/SSH_STAGING_ASSETS_VERIFIED=/);
+ assert.match(uploader,/source ops\/load-pinned-staging-host\.sh/);
+ assert.match(uploader,/StrictHostKeyChecking=yes/);
+ assert.match(uploader,/PUBLIC_HTTPS_VERIFIED=NO/);
+ assert.doesNotMatch(uploader,/rsync\s+--delete/);
+ assert.doesNotMatch(uploader,/ssh-keyscan\s+-/);
+ assert.match(activating,/STAGING already active: \$SHA/);
+ const legacy=readFileSync('.github/workflows/marcosa-r98-ssh-filesystem-stage.yml','utf8');
+ assert.doesNotMatch(legacy,/on:\s*\n\s*push:/);
+});
 test('R83: provider-supplied full known_hosts is fingerprint-verified on the exact port; first contact cannot establish trust',()=>{
  const type=Buffer.from('ssh-ed25519'),point=Buffer.alloc(32,19),len=n=>{
   const v=Buffer.alloc(4);v.writeUInt32BE(n);return v;

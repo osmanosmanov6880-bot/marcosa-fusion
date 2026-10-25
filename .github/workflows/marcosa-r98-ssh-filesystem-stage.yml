@@ -1,9 +1,5 @@
 name: "MARCOSA | R98 verified artifact to SSH-only VPS STAGING (not public)"
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/marcosa-r98-ssh-filesystem-stage.yml"
   workflow_dispatch:
     inputs:
       confirmation:
@@ -18,7 +14,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   ssh_stage:
-    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirmation == 'STAGE-VERIFIED-ARTIFACT')
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'STAGE-VERIFIED-ARTIFACT'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: marcosa-staging

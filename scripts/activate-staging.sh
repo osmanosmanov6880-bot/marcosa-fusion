@@ -108,6 +108,11 @@ elif [[ -e "$ROOT/previous" ]]; then
   echo "Refusing to replace a non-symlink previous" >&2; exit 3;
 fi
 
+# Idempotent retry: keep a genuinely older previous release intact.
+if [[ "$CURRENT" == "releases/$SHA" ]]; then
+  echo "STAGING already active: $SHA (verified release retained)"
+  exit 0
+fi
 if [[ -n "$CURRENT" ]]; then
   ln -s "$CURRENT" "$ROOT/.previous-next-$SHA"
   mv -Tf "$ROOT/.previous-next-$SHA" "$ROOT/previous"
