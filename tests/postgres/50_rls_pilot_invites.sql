@@ -76,7 +76,7 @@ RESET request.jwt.claim.sub;
 
 DO $$
 DECLARE first_use integer;
-DECLARE replay integer;
+        replay integer;
 BEGIN
  UPDATE marcosa_private.pilot_invites SET
   used_by='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', used_at=now()
