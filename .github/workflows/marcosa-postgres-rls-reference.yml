@@ -6,6 +6,7 @@ on:
       - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
       - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
+      - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -14,6 +15,7 @@ on:
       - "docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql"
       - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
+      - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -78,6 +80,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/30_rls_user_blocks.sql
+      - name: Apply R43 saved stories privacy contract to disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql
+      - name: Test three owner identities, denied writes and FK cascade for saved stories
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/40_rls_saved_posts.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
