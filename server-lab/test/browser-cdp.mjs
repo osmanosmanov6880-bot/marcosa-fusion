@@ -245,6 +245,25 @@ async function main(){
    await cdp.evalJS("document.getElementById('mod-invites-panel').scrollIntoView({behavior:'instant',block:'center'})");
    await pause(140);
    await screenshot('pilot-console-no-secrets');
+   // R62 real Chrome privacy choice: no daily cohort tracking by default.
+   const r62Owner=lab.db.prepare('SELECT id FROM users WHERE username=?').get(identity);
+   if(!r62Owner)throw Error('R62_OWNER_NOT_IN_DATABASE_'+size.name);
+   const r62Existing=lab.db.prepare('SELECT count(*) AS n FROM beta_retention_days WHERE user_id=?').get(r62Owner.id).n;
+   if(r62Existing!==0)throw Error('R62_TRACKED_WITHOUT_CONSENT_'+size.name);
+   await cdp.evalJS("(()=>{document.getElementById('retention-consent-panel').open=true;document.getElementById('retention-enable').click();return true;})()");
+   await cdp.wait("document.getElementById('retention-consent-status')?.textContent.includes('Согласие действует')",'r62-privacy-opt-in');
+   if(lab.db.prepare('SELECT count(*) AS n FROM beta_retention_days WHERE user_id=?').get(r62Owner.id).n!==1)
+    throw Error('R62_OPTIN_NOT_PERSISTED_'+size.name);
+   await cdp.evalJS("document.getElementById('retention-consent-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(130);
+   await screenshot('retention-consented');
+   await cdp.evalJS("document.getElementById('retention-disable').click()");
+   await cdp.wait("document.getElementById('retention-consent-status')?.textContent.includes('Выключено по умолчанию')",'r62-privacy-erased');
+   if(lab.db.prepare('SELECT count(*) AS n FROM beta_retention_consents WHERE user_id=?').get(r62Owner.id).n!==0
+     ||lab.db.prepare('SELECT count(*) AS n FROM beta_retention_days WHERE user_id=?').get(r62Owner.id).n!==0)
+    throw Error('R62_WITHDRAWAL_FAILED_TO_ERASE_'+size.name);
+   await pause(130);
+   await screenshot('retention-erased');
    // R39: genuine browser security controls, no DOM-only simulation.
    await cdp.evalJS("(()=>{document.getElementById('security-panel').open=true;document.getElementById('security-refresh').click();return true;})()");
    await cdp.wait("document.getElementById('security-sessions')?.textContent.includes('Активных сессий: 1')",'r39-real-session-count');
@@ -266,7 +285,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R47 BROWSER QA COMPLETE: 33 Chrome screenshots, creator onboarding, one-use invites and account/World flows on desktop/phones');
+  console.log('R62 BROWSER QA COMPLETE: 39 Chrome screenshots including real opt-in/erasure, creator onboarding, invites and World flows on desktop/phones');
  }finally{
   cdp?.close();
   if(chrome){
