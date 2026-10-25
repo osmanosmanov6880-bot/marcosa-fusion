@@ -85,7 +85,7 @@ test('R57: unreviewed media is private; independent moderator approves and rejec
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
   assert.equal(r.status,200);assert.equal(r.data.publicVisible,true);
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
-  assert.equal(r.status,404,'can't review a consumed pending decision');
+  assert.equal(r.status,404,'Consumed pending decision cannot be reviewed twice');
   r=await req(url);assert.equal(r.status,200);
   lab.db.prepare("UPDATE users SET role='member' WHERE username='reviewer57'").run();
   r=await req(url);assert.equal(r.status,404,'revoked reviewer cannot keep public image live');
