@@ -6,6 +6,8 @@ on:
       - "server-lab/**"
       - "ops/local-read-load.mjs"
       - "ops/test/local-read-load.test.mjs"
+      - "ops/local-backup-restore.mjs"
+      - "ops/test/local-backup-restore.test.mjs"
       - ".github/workflows/marcosa-r49-local-load.yml"
   push:
     branches: [main]
@@ -13,6 +15,8 @@ on:
       - "server-lab/**"
       - "ops/local-read-load.mjs"
       - "ops/test/local-read-load.test.mjs"
+      - "ops/local-backup-restore.mjs"
+      - "ops/test/local-backup-restore.test.mjs"
       - ".github/workflows/marcosa-r49-local-load.yml"
   workflow_dispatch:
 permissions:
@@ -32,6 +36,12 @@ jobs:
           node --check ops/local-read-load.mjs
           node --check ops/test/local-read-load.test.mjs
           node --test ops/test/local-read-load.test.mjs
+      - name: R67 independent SQLite backup/restore integrity, tamper and non-overwrite acceptance
+        run: |
+          set -euo pipefail
+          node --check ops/local-backup-restore.mjs
+          node --check ops/test/local-backup-restore.test.mjs
+          node --test ops/test/local-backup-restore.test.mjs
       - name: Generate actual 480-request concurrent SQLite/HTTP QA
         env:
           MARCOSA_LOAD_READS: "480"
