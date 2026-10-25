@@ -104,7 +104,10 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_saved_posts_owner ON saved_posts(user_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS pilot_invites (id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, label TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT REFERENCES users(id) ON DELETE SET NULL, used_at INTEGER, revoked_at INTEGER, CHECK(used_at IS NOT NULL OR used_by IS NULL))",
  "CREATE INDEX IF NOT EXISTS idx_pilot_invites_creator ON pilot_invites(creator_id,created_at DESC)",
- "CREATE INDEX IF NOT EXISTS idx_pilot_invites_expiry ON pilot_invites(expires_at) WHERE used_at IS NULL AND revoked_at IS NULL"
+ "CREATE INDEX IF NOT EXISTS idx_pilot_invites_expiry ON pilot_invites(expires_at) WHERE used_at IS NULL AND revoked_at IS NULL",
+ "CREATE TABLE IF NOT EXISTS beta_retention_consents (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, consented_at INTEGER NOT NULL, consented_day INTEGER NOT NULL CHECK(consented_day>=0))",
+ "CREATE TABLE IF NOT EXISTS beta_retention_days (user_id TEXT NOT NULL REFERENCES beta_retention_consents(user_id) ON DELETE CASCADE, day_utc INTEGER NOT NULL CHECK(day_utc>=0), source TEXT NOT NULL CHECK(source IN ('consent','login')), PRIMARY KEY(user_id,day_utc))",
+ "CREATE INDEX IF NOT EXISTS idx_retention_cohort ON beta_retention_consents(consented_day,user_id)"
 ].join(';\n')+';';
 
 
@@ -577,14 +580,22 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
+    const retentionConsent=db.prepare("SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?").get(user.id)||null;
+    const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
     const user=requireUser(req);
     const items=db.prepare('SELECT p.id,p.body,p.status,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? ORDER BY p.id DESC LIMIT 50').all(user.id);
     send(res,200,{items});return;
+   }
+   if(method==='GET'&&route==='/api/me/retention-consent'){
+    const owner=requireUser(req);
+    const record=db.prepare('SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?').get(owner.id);
+    send(res,200,{consented:Boolean(record),consentedAt:record?.consentedAt??null,cohortDay:record?.cohortDay??null,
+     scope:'self',tracking:'daily login only, UTC, opt-in, local-only'});return;
    }
    if(method==='GET'&&route==='/api/mod/pilot-metrics'){
     const operator=requireUser(req);
@@ -600,6 +611,16 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const followEdges=db.prepare("SELECT count(*) AS n FROM world_follows").get().n;
     const saves=db.prepare("SELECT count(*) AS n FROM saved_posts").get().n;
     const tickets=db.prepare("SELECT count(*) AS issued, sum(CASE WHEN used_at IS NOT NULL THEN 1 ELSE 0 END) AS redeemed, sum(CASE WHEN revoked_at IS NOT NULL THEN 1 ELSE 0 END) AS revoked, sum(CASE WHEN used_at IS NULL AND revoked_at IS NULL AND expires_at>? THEN 1 ELSE 0 END) AS pending FROM pilot_invites").get(now());
+    // Exact UTC-day returns, not forecasts. Only opted-in redeemed pilot users.
+    const consenting=db.prepare("SELECT DISTINCT c.user_id AS userId,c.consented_day AS cohortDay FROM beta_retention_consents c JOIN pilot_invites i ON i.used_by=c.user_id JOIN users u ON u.id=c.user_id WHERE i.used_at IS NOT NULL AND u.role='member'").all();
+    const currentDay=Math.floor(now()/DAY);
+    const seen=db.prepare("SELECT 1 FROM beta_retention_days WHERE user_id=? AND day_utc=? AND source='login'");
+    const retention=days=>{
+     const mature=consenting.filter(row=>currentDay>=row.cohortDay+days);
+     const returned=mature.filter(row=>seen.get(row.userId,row.cohortDay+days)).length;
+     return{eligible:mature.length,returned,rate:mature.length?returned/mature.length:null};
+    };
+    const d7=retention(7),d30=retention(30);
     send(res,200,{
      source:'verified-local-sqlite',generatedAt:new Date(now()).toISOString(),production:false,
      members,invitedMembers:invited,publishedCreators,invitedCreatorsPublished:invitedPublished,
@@ -607,7 +628,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      invitedCreatorActivationRate:invited>0?invitedPublished/invited:null,
      publicWorlds,repliesToOtherAuthors:replies,followEdges,savedReferences:saves,
      invitations:{issued:tickets.issued||0,redeemed:tickets.redeemed||0,revoked:tickets.revoked||0,pending:tickets.pending||0},
-     verifiedAdImpressions:null,paidRevenue:null,retentionD7:null,retentionD30:null
+     verifiedAdImpressions:null,paidRevenue:null,retentionD7:d7.rate,retentionD30:d30.rate,
+     retentionEvidence:{source:'explicit-opt-in-pilot-invites',consentingInvited:consenting.length,
+      d7,d30,definition:'successful login on exact UTC cohort day +7/+30',
+      limits:'local beta lab, opt-out excluded, no production traffic'}
     });return;
    }
    if(method==='GET'&&route==='/api/mod/invites'){
@@ -683,6 +707,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(await passwordMatches(password,user),401,'Неверная почта или пароль');
     const token=randomBytes(32).toString('hex');
     db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(hash(token),user.id,now()+DAY);
+    // Daily observations are only recorded after explicit active opt-in.
+    db.prepare("INSERT OR IGNORE INTO beta_retention_days(user_id,day_utc,source) SELECT user_id,?,'login' FROM beta_retention_consents WHERE user_id=?")
+     .run(Math.floor(now()/DAY),user.id);
     send(res,200,{authenticated:true},{'Set-Cookie':cookie(token)});return;
    }
    if(method==='POST'&&route==='/api/auth/logout'){
@@ -691,6 +718,21 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if((method==='POST'||method==='DELETE')&&route==='/api/me/retention-consent'){
+    throttle('beta-retention-consent:'+user.id,12,DAY);
+    if(method==='POST'){
+     check(Object.keys(body).length===1&&body.consent===true,400,'Нужно добровольное подтверждение');
+     const stamp=now(),day=Math.floor(stamp/DAY);
+     const created=db.prepare('INSERT OR IGNORE INTO beta_retention_consents(user_id,consented_at,consented_day) VALUES(?,?,?)')
+      .run(user.id,stamp,day);
+     if(created.changes)db.prepare("INSERT INTO beta_retention_days(user_id,day_utc,source) VALUES(?,?,'consent')").run(user.id,day);
+     send(res,200,{consented:true,changed:Boolean(created.changes),source:'voluntary-local-only'});return;
+    }
+    check(Object.keys(body).length===0,400,'Для отзыва согласия не нужны дополнительные данные');
+    // FK CASCADE erases observations and their opt-in evidence.
+    const removed=db.prepare('DELETE FROM beta_retention_consents WHERE user_id=?').run(user.id);
+    send(res,200,{consented:false,changed:Boolean(removed.changes),pastActivityDeleted:true});return;
+   }
    if(method==='POST'&&route==='/api/mod/invites'){
     check(user.role==='moderator',403,'Только модератор выдаёт приглашения');
     throttle('invite:'+user.id,24,3600000);

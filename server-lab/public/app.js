@@ -83,7 +83,20 @@ async function pilotMetrics(){
  const activation=report.invitedCreatorActivationRate===null?'нет приглашённых':
   Math.round(report.invitedCreatorActivationRate*100)+'% ('+report.invitedCreatorsPublished+'/'+report.invitedMembers+')';
  list.append(node('p','Активация приглашённых авторов: '+activation,'pilot-metrics-note'));
- list.append(node('p','D7/D30: не измерены · Рекламные показы и выручка: не измерены','pilot-metrics-note'));
+ const r=report.retentionEvidence;
+ const fmt=x=>x?.eligible>0?Math.round(x.rate*100)+'% ('+x.returned+'/'+x.eligible+')':'не измерено (нет зрелой когорты)';
+ list.append(node('p','D7: '+fmt(r?.d7)+' · D30: '+fmt(r?.d30),'pilot-metrics-note'));
+ list.append(node('p','Основа: добровольно согласившиеся приглашённые участники, реальные UTC-входы в локальную лабораторию. Отзывы согласия исключаются из когорты.','pilot-metrics-note'));
+ list.append(node('p','Рекламные показы и выручка не подтверждены.','pilot-metrics-note'));
+}
+async function loadRetentionConsent(){
+ if(!state.me)return;
+ const r=await api('/me/retention-consent');
+ $('retention-consent-status').textContent=r.consented?
+  'Согласие действует с '+new Date(r.consentedAt).toLocaleDateString('ru-RU')+'. Ты можешь отозвать его и удалить историю.':
+  'Выключено по умолчанию. Дни входа не сохраняются.';
+ $('retention-enable').hidden=r.consented;
+ $('retention-disable').hidden=!r.consented;
 }
 async function loadCoverAppeals(){
  if(!state.me)return;
@@ -268,6 +281,8 @@ async function session(){
   $('onboarding-counter').textContent='0 из 5 шагов';
   $('notification-settings-form').reset();
   $('notification-settings-status').textContent='Настройки доступны после входа';
+  $('retention-consent-status').textContent='Недоступно без входа';
+  $('retention-enable').hidden=false;$('retention-disable').hidden=true;
   clear($('blocked-users-list'));
   clear($('saved-list'));$('saved-more').hidden=true;
   state.savedCursor=null;state.savedIds=new Set();
@@ -301,7 +316,7 @@ async function session(){
   if(state.worlds.length)syncWorldSettings();
   syncCoverSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),reviewCovers(),reviewCoverAppeals()]);
   else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));}
  }
@@ -899,6 +914,12 @@ $('issue-invite-form').addEventListener('submit',event=>{
 $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
 $('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
+$('retention-enable').addEventListener('click',()=>run(async()=>{
+ await api('/me/retention-consent','POST',{consent:true});await loadRetentionConsent();
+},'Согласие сохранено. До этого дня посещения не учитывались.'));
+$('retention-disable').addEventListener('click',()=>run(async()=>{
+ await api('/me/retention-consent','DELETE',{});await loadRetentionConsent();
+},'Согласие отозвано, история учёта входов удалена.'));
 $('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очередь проверки изображений обновлена'));
 $('mod-cover-appeals-refresh').addEventListener('click',()=>run(reviewCoverAppeals,'Очередь апелляций обновлена'));
 $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals()]);}));

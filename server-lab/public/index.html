@@ -94,7 +94,14 @@
     <progress id="onboarding-progress" value="0" max="5">0 из 5</progress>
     <ul id="onboarding-steps" class="onboarding-steps" aria-live="polite"></ul>
    </details>
-   <details id="creator-insights" class="invite-panel creator-insights">
+   <details id="retention-consent-panel" class="invite-panel">
+     <summary>Добровольное измерение возвращаемости в закрытой бете</summary>
+     <p class="muted">По умолчанию выключено. Только после твоего согласия сервер запоминает дни UTC, когда ты входишь в локальную MARCOSA. Никаких IP, текста публикаций или кликов. D7/D30 рассчитываются только агрегированно для согласившихся приглашённых участников. Отзыв удаляет все записи дней; это не публичная аналитика.</p>
+     <p id="retention-consent-status" class="muted" role="status" aria-live="polite">Учёт выключен.</p>
+     <button id="retention-enable" type="button" class="gold">Разрешить учёт дней входа</button>
+     <button id="retention-disable" type="button" class="ghost" hidden>Отозвать согласие и удалить историю</button>
+    </details>
+    <details id="creator-insights" class="invite-panel creator-insights">
     <summary>Статистика моих миров</summary>
     <div id="creator-insights-list" class="compact-list" aria-live="polite"></div>
     <button id="insights-refresh" type="button" class="ghost small insights-refresh">Обновить статистику</button>
@@ -239,7 +246,7 @@
    </details>
    <details id="pilot-metrics-panel" class="invite-panel pilot-metrics">
     <summary>Пилот: проверенные показатели</summary>
-    <p class="muted">Цифры только из локальных записей пользователей. Нет выдуманных D7/D30, рекламных просмотров или платежей.</p>
+    <p class="muted">D7/D30 считаются только для добровольной пригласительной когорты после 7/30 дней и честных событий входа. До созревания когорты указано «не измерено».</p>
     <div id="pilot-metrics-data" class="pilot-metrics-grid" aria-live="polite"></div>
     <button id="pilot-metrics-refresh" type="button" class="ghost small">Пересчитать показатели</button>
    </details>
