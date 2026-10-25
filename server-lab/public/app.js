@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -22,6 +22,17 @@ const values=form=>Object.fromEntries(new FormData(form).entries());
 async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
+}
+async function loadTopics(){
+ const data=await api('/world-topics');
+ state.topicNames=new Map(data.items.map(item=>[item.id,item.title]));
+ for(const [id,withAll] of [['world-edit-category',false],['world-new-category',false],['discover-category',true]]){
+  const picker=$(id);clear(picker);
+  if(withAll){const all=node('option','Все тематики');all.value='';picker.append(all);}
+  for(const item of data.items){
+   const option=node('option',item.title);option.value=item.id;picker.append(option);
+  }
+ }
 }
 async function onboarding(){
  if(!state.me)return;
@@ -121,6 +132,7 @@ function syncWorldSettings(){
  if(!world)return;
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
+ form.elements.category.value=world.category||'general';
 }
 async function loadBlocks(){
  if(!state.me)return;
@@ -223,7 +235,8 @@ async function worlds(){
  const followInfo=state.me?await Promise.all(result.items.map(w=>api('/worlds/'+encodeURIComponent(w.slug)+'/followers'))):[];
  for(const [i,world] of result.items.entries()){
   const card=node('article','','world-card');
-  card.append(node('span','WORLD / '+world.slug,'eyebrow'),node('h3',world.title));
+  card.append(node('span','WORLD / '+world.slug,'eyebrow'),node('h3',world.title),
+   node('span','ТЕМА / '+(state.topicNames.get(world.category)||'Все темы'),'world-topic-label'));
   card.append(node('p',world.description||'Мир автора @'+world.owner));
   const stats=node('p',world.posts_count+' публикаций · '+world.followers_count+' подписчиков','world-stats');
   card.append(stats,node('small','Создан @'+world.owner));
@@ -257,21 +270,22 @@ async function worlds(){
  if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
 }
 async function discover(query){
- const found=await api('/discover?q='+encodeURIComponent(query));
+ const category=$('discover-category').value;
+ const found=await api('/discover?q='+encodeURIComponent(query)+(category?'&category='+encodeURIComponent(category):''));
  const area=$('discover-results');clear(area);area.hidden=false;
  area.append(node('h3','Результаты поиска: '+found.query));
  for(const world of found.worlds){
-  const btn=node('button',world.title+' / @'+world.owner+' · '+world.posts_count+' историй','ghost discover-hit');
+  const btn=node('button',world.title+' / @'+world.owner+' · '+(state.topicNames.get(world.category)||'Все темы')+' · '+world.posts_count+' историй','ghost discover-hit');
   btn.type='button';btn.addEventListener('click',()=>run(async()=>{
-   await openWorld(world.slug);
+   await openWorld(world.slug,world);
   }));area.append(btn);
  }
  for(const post of found.posts)area.append(postCard(post));
  if(!found.worlds.length&&!found.posts.length)area.append(node('p','По этому запросу нет опубликованных материалов.'));
 }
-async function openWorld(slug){
+async function openWorld(slug,knownWorld=null){
  if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
- const world=state.worldCatalog.find(w=>w.slug===slug);
+ const world=knownWorld||state.worldCatalog.find(w=>w.slug===slug);
  if(!world)throw Error('Мир не найден');
  const [posts,approved]=await Promise.all([
   api('/worlds/'+encodeURIComponent(slug)+'/posts'),
@@ -624,9 +638,9 @@ $('logout').addEventListener('click',()=>run(async()=>{
 $('world-settings-select').addEventListener('change',syncWorldSettings);
 $('world-settings-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
- const {slug,title,description}=values(form);
+ const {slug,title,description,category}=values(form);
  run(async()=>{
-  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description});
+  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,category});
   await session();await worlds();
  },'Оформление мира сохранено — данные видны посетителям.');
 });
@@ -738,7 +752,7 @@ $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
 $('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
 $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites()]);}));
-session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
+loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
   const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';

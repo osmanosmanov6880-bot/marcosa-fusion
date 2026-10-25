@@ -21,6 +21,8 @@ const hash=s=>createHash('sha256').update(s).digest('hex');
 const str=x=>typeof x==='string'?x.trim():'';
 const int=x=>/^[1-9][0-9]{0,14}$/.test(String(x))&&Number.isSafeInteger(Number(x))?Number(x):0;
 const REASONS=new Set(['spam','abuse','privacy','other']);
+const WORLD_TOPICS=Object.freeze({general:'Все темы',art:'Искусство',technology:'Технологии',business:'Бизнес',education:'Образование',lifestyle:'Стиль жизни',travel:'Путешествия'});
+const validTopic=(value)=>typeof value==='string'&&Object.hasOwn(WORLD_TOPICS,value);
 class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
 const check=(condition,status,message)=>{if(!condition)throw new HttpError(status,message);};
 const send=(res,status,value,headers={})=>{
@@ -129,10 +131,18 @@ function upgradeLegacySponsorStatuses(db){
  }
 }
 
+function upgradeWorldTopics(db){
+ const columns=db.prepare('PRAGMA table_info(worlds)').all();
+ if(!columns.some(row=>row.name==='category')){
+  db.exec("ALTER TABLE worlds ADD COLUMN category TEXT NOT NULL DEFAULT 'general' CHECK(category IN ('general','art','technology','business','education','lifestyle','travel'))");
+ }
+ db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_category ON worlds(category,created_at DESC)');
+}
 export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now()}={}){
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeWorldTopics(db);
  upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
  // Parameters in this expression are always bound to a trusted current
@@ -143,7 +153,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
-  myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  myWorlds:db.prepare('SELECT id,slug,title,description,category FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
@@ -256,29 +266,37 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     // Parameterized search; returns no drafts, hidden posts or private member data.
     const raw=str(query.get('q')).normalize('NFC');
     check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
+    const category=query.has('category')?str(query.get('category')).toLowerCase():'';
+    check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
       WHERE (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
-      AND ${visibleOwner('u.id')}
-      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer);
+      AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer,category,category);
     const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
       (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
       FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
       WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
-      AND ${visibleOwner('u.id')}
-      ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer);
-    send(res,200,{query:raw,worlds,posts,limit:12});return;
+      AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+      ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer,category,category);
+    send(res,200,{query:raw,category:category||null,worlds,posts,limit:12});return;
+   }
+   if(method==='GET'&&route==='/api/world-topics'){
+    send(res,200,{items:Object.entries(WORLD_TOPICS).map(([id,title])=>({id,title})),source:'verified-server-taxonomy'});return;
    }
    if(method==='GET'&&route==='/api/worlds'){
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const category=query.has('category')?str(query.get('category')).toLowerCase():'';
+    check(!category||validTopic(category),400,'Неизвестная категория');
+    const viewer=who(req)?.id||'';
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')}
-ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
-    send(res,200,{items});return;
+FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
+    send(res,200,{items,category:category||null});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
@@ -857,30 +875,34 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
    const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
    if(method==='PATCH'&&worldSettings){
     const slug=worldSettings[1];
-    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>k==='title'||k==='description'),
-     400,'Можно изменять только название и описание');
-    const original=db.prepare('SELECT id,title,description FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
+    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','category'].includes(k)),
+     400,'Можно изменять только название, описание и категорию');
+    const original=db.prepare('SELECT id,title,description,category FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
     check(original,404,'Мир не найден');
     const title=body.title===undefined?original.title:str(body.title);
     const description=body.description===undefined?original.description:str(body.description);
+    const category=body.category===undefined?original.category:body.category;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(description.length<=400,400,'Описание слишком длинное');
-    const result=db.prepare('UPDATE worlds SET title=?,description=? WHERE id=? AND owner_id=?')
-     .run(title,description,original.id,user.id);
+    check(validTopic(category),400,'Неизвестная категория');
+    const result=db.prepare('UPDATE worlds SET title=?,description=?,category=? WHERE id=? AND owner_id=?')
+     .run(title,description,category,original.id,user.id);
     check(result.changes===1,409,'Обновление мира не удалось');
-    send(res,200,{id:original.id,slug,title,description,ownerEditable:true});return;
+    send(res,200,{id:original.id,slug,title,description,category,ownerEditable:true});return;
    }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
+    const category=body.category===undefined?'general':body.category;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(/^[a-z][a-z0-9-]{2,39}$/.test(slug),400,'Неверный адрес мира');
     check(description.length<=400,400,'Описание слишком длинное');
+    check(validTopic(category),400,'Неизвестная категория');
     const n=db.prepare('SELECT count(*) AS n FROM worlds WHERE owner_id=?').get(user.id).n;
     check(n<3,409,'Лимит: три мира');
     const id=randomUUID();
-    try{db.prepare('INSERT INTO worlds(id,owner_id,slug,title,description,created_at) VALUES(?,?,?,?,?,?)').run(id,user.id,slug,title,description,now());}
+    try{db.prepare('INSERT INTO worlds(id,owner_id,slug,title,description,category,created_at) VALUES(?,?,?,?,?,?,?)').run(id,user.id,slug,title,description,category,now());}
     catch{throw new HttpError(409,'Адрес мира занят');}
-    send(res,201,{id,slug,title,description});return;
+    send(res,201,{id,slug,title,description,category});return;
    }
    if(method==='POST'&&route==='/api/posts'){
     throttle('post:'+user.id,25,3600000);

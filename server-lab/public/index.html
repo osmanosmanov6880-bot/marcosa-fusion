@@ -64,6 +64,7 @@
      <label>Выбери мир<select id="world-settings-select" name="slug" required></select></label>
      <label>Название мира<input name="title" maxlength="70" minlength="3" required></label>
      <label>Описание<textarea name="description" maxlength="400" rows="4"></textarea></label>
+     <label>Тематика мира<select id="world-edit-category" name="category" required></select></label>
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>
@@ -86,6 +87,7 @@
      <label>Название<input name="title" maxlength="70" minlength="3" required></label>
      <label>Адрес / slug<input name="slug" maxlength="40" minlength="3" pattern="[a-zA-Z][a-zA-Z0-9-]{2,39}" required></label>
      <label>Описание<textarea name="description" maxlength="400" rows="3"></textarea></label>
+     <label>Тематика мира<select id="world-new-category" name="category" required></select></label>
      <button class="ghost" type="submit">Создать мир</button>
     </form>
    </details>
@@ -158,6 +160,7 @@
   <form id="discover-form" class="discover-form" role="search">
    <label for="discover-input">Поиск опубликованных миров и историй</label>
    <div class="discover-line"><input id="discover-input" name="q" minlength="2" maxlength="72" placeholder="Тема, мир, история" required>
+   <select id="discover-category" name="category" aria-label="Фильтр по тематике миров"></select>
    <button type="submit" class="ghost">Найти</button><button id="discover-clear" type="button" class="ghost">Сбросить</button></div>
   </form>
   <div id="discover-results" class="discover-results" aria-live="polite" hidden></div>
