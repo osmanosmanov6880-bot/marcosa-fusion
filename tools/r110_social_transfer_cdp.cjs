@@ -140,6 +140,11 @@ async function main(){
     {width:viewport.width,height:viewport.height,deviceScaleFactor:1,mobile:viewport.mobile});
    await cdp.call('Page.navigate',{url:base+'social.html'});
    await cdp.wait("document.readyState==='complete' && !!window.MarcosaSocial && !!document.querySelector('#so-transfer-import')",'social-ui');
+   // Each viewport starts from a fresh browser-local state; do not let the
+   // desktop import affect the subsequent mobile export scenario.
+   await cdp.evaluate('localStorage.clear();true');
+   await cdp.call('Page.reload',{ignoreCache:true});
+   await cdp.wait("document.readyState==='complete' && !!window.MarcosaSocial && !!document.querySelector('#so-transfer-import')",'social-reset');
    await cdp.evaluate('('+prepareExport.toString()+')()');
    const exported=await cdp.evaluate('(async()=>JSON.parse(await window.__r110_export_blob.text()))()');
    if(exported.format!=='MARCOSA-SOCIAL-TRANSFER'||exported.version!==1||
