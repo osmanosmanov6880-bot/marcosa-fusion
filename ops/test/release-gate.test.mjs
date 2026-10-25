@@ -89,3 +89,38 @@ test('R48: no public proof can inject unknown top-level fields',()=>{
  e.proofs.someUnexpectedKey=proof();
  assert.equal(audit(e,'public').decision,'BLOCKED');
 });
+
+
+test('R63: beta and public cannot pass without independent real media and session safety evidence',()=>{
+ const mandatory=[
+  'real_auth_recovery_mfa_moderators',
+  'media_storage_private_acl',
+  'media_quarantine_scan_and_review',
+  'media_signed_delivery_revocation',
+  'media_export_deletion_verified'
+ ];
+ for(const id of mandatory){
+  assert.ok(PROFILES.beta.includes(id),'missing required beta gate '+id);
+  const e=fixture('beta');
+  delete e.proofs[id];
+  const v=audit(e,'beta');
+  assert.equal(v.decision,'BLOCKED',id);
+  assert.equal(v.productionAuthorized,false,id);
+  assert.ok(v.missing.some(x=>x.id===id));
+ }
+});
+test('R63: no worldwide paid release without verified webhook replay and content takedown evidence',()=>{
+ const mandatory=['payment_webhook_idempotency','content_rights_and_takedown'];
+ for(const id of mandatory){
+  assert.ok(PROFILES.public.includes(id),'missing required public gate '+id);
+  const e=fixture('public');
+  delete e.proofs[id];
+  const v=audit(e,'public');
+  assert.equal(v.decision,'BLOCKED',id);
+  assert.equal(v.productionAuthorized,false);
+  assert.ok(v.missing.some(x=>x.id===id));
+ }
+ // Even a complete set of links only begins an independent review.
+ assert.equal(audit(fixture('public'),'public').decision,'READY_FOR_INDEPENDENT_REVIEW');
+ assert.equal(audit(fixture('public'),'public').productionAuthorized,false);
+});
