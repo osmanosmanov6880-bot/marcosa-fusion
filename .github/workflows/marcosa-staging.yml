@@ -14,6 +14,7 @@ on:
       - "tests/**"
       - "tools/**"
       - "scripts/activate-staging.sh"
+      - "ops/staging-release-attestation.mjs"
       - ".github/workflows/marcosa-staging.yml"
 
 permissions:
@@ -113,6 +114,12 @@ jobs:
             echo "::error::Potential secrets or database in build"
             exit 1
           fi
+          # R90: Embed the reviewed source SHA and exact build-manifest digest
+          # INSIDE the deployed archive, never as an unverified workflow claim.
+          node --check ops/staging-release-attestation.mjs
+          node ops/staging-release-attestation.mjs             --sha "$GITHUB_SHA"             --manifest dist/build-manifest.json             --output dist/staging-release.json
+          test -s dist/staging-release.json
+          cp dist/staging-release.json "staging-expected-${GITHUB_SHA}.json"
           tar -czf marcosa-site.tar.gz -C dist .
           test "$(stat -c '%s' marcosa-site.tar.gz)" -lt 200000000
           sha256sum marcosa-site.tar.gz > marcosa-site.tar.gz.sha256
@@ -122,6 +129,7 @@ jobs:
           path: |
             marcosa-site.tar.gz
             marcosa-site.tar.gz.sha256
+            staging-expected-${{ github.sha }}.json
           retention-days: 7
           if-no-files-found: error
 
@@ -227,12 +235,39 @@ jobs:
           SHA="$1"
           ROOT="$HOME/marcosa-staging"
           test "$(readlink "$ROOT/current")" = "releases/$SHA"
-          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css creator.html creator.js creator.css creator-vault.js creator-backup.js creator-crypto.js creator-standalone.js creator-playtest.js film-network.html film-network.css film-network.js film-continuity.js source-hub.html source-hub.css source-hub.js cinema-pilot.html cinema-pilot.css cinema-pilot.js film-internet-v-humanity.html build-manifest.json; do
+          for name in index.html network.js network.css immersive.js immersive.css stories.html stories.js stories.css creator.html creator.js creator.css creator-vault.js creator-backup.js creator-crypto.js creator-standalone.js creator-playtest.js film-network.html film-network.css film-network.js film-continuity.js source-hub.html source-hub.css source-hub.js cinema-pilot.html cinema-pilot.css cinema-pilot.js film-internet-v-humanity.html build-manifest.json staging-release.json; do
             test -s "$ROOT/current/$name" || {
               printf 'Missing staging asset: %s\n' "$name" >&2
               exit 10
             }
           done
+          # Verify the active release digest AND actual bytes on SSH filesystem.
+          # This is necessary, but not equivalent to public HTTPS readback.
+          python3 - "$ROOT/current" "$SHA" <<'R90_VERIFY'
+          import hashlib
+          import json
+          import pathlib
+          import sys
+          root = pathlib.Path(sys.argv[1])
+          expected_sha = sys.argv[2]
+          proof = json.loads((root / "staging-release.json").read_text("utf-8"))
+          man_bytes = (root / "build-manifest.json").read_bytes()
+          manifest = json.loads(man_bytes)
+          if (proof.get("format") != "MARCOSA-STAGING-READBACK-v1" or
+              proof.get("sourceSha") != expected_sha or
+              proof.get("productionAuthorized") is not False or
+              proof.get("releaseKind") != "public_static_preview_only" or
+              proof.get("buildManifestSha256") != hashlib.sha256(man_bytes).hexdigest()):
+              raise SystemExit("R90 activated STAGING provenance mismatch")
+          if manifest.get("release_kind") != "public_static_preview_only":
+              raise SystemExit("R90 unexpected static release kind")
+          if proof.get("assetsCount") != len(manifest.get("files", {})):
+              raise SystemExit("R90 activated manifest file count mismatch")
+          for asset in ["index.html", "network.js", "network.css"]:
+              digest = hashlib.sha256((root / asset).read_bytes()).hexdigest()
+              if manifest["files"].get(asset) != digest:
+                  raise SystemExit("R90 activated asset bytes mismatch: " + asset)
+          R90_VERIFY
           printf 'STAGING_VERIFIED_RELEASE=%s\n' "$SHA"
           printf 'STAGING_LOCATION=%s\n' "$ROOT/current"
           VERIFY
