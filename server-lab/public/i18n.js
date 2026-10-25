@@ -80,6 +80,14 @@ const CATALOG=Object.freeze({
  'sponsor.no.payments':['Заявку должен сначала одобрить владелец World, затем независимый модератор. Денег и показов в лаборатории нет.','The World owner approves a proposal first, then an independent moderator. This laboratory has no payments or advertising impressions.'],
  'sponsor.send':['Отправить на проверку','Submit for review'],
  'safety.warning':['Лаборатория не имеет подтверждения почты, восстановления аккаунта, долговременной защиты от атак и production-инфраструктуры. Для публичного запуска нужен отдельный аудит.','The lab has no verified email, account recovery, production infrastructure or mature attack protection. An independent audit is required before launch.'],
+ 'topics.all':['Все тематики','All topics'],
+ 'topics.general':['Все темы','All subjects'],
+ 'topics.art':['Искусство','Art'],
+ 'topics.technology':['Технологии','Technology'],
+ 'topics.business':['Бизнес','Business'],
+ 'topics.education':['Образование','Education'],
+ 'topics.lifestyle':['Стиль жизни','Lifestyle'],
+ 'topics.travel':['Путешествия','Travel'],
  'notice.connecting':['Проверка соединения…','Connecting to local server…'],
  'notice.ready':['Локальный сервер готов. Данные настоящие, но изолированы от production.','Local server ready. Data is real but isolated from production.']
 });
