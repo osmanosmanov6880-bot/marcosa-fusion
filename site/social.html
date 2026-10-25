@@ -7,7 +7,7 @@
 <title>MARCOSA — Сообщество, идеи и культура</title>
 <link rel="stylesheet" href="./social-core.css">
 <link rel="stylesheet" href="./marcosa-brand.css"><link rel="stylesheet" href="./marcosa-cinematic.css"><link rel="stylesheet" href="./marcosa-quiet.css"><link rel="stylesheet" href="./marcosa-nocturne.css"><link rel="stylesheet" href="./marcosa-director.css"><link rel="stylesheet" href="./marcosa-social-first.css"><link rel="stylesheet" href="./marcosa-journal.css">
-<script src="./social-core.js" defer></script><script src="./social-journal.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
+<script src="./social-core.js" defer></script><script src="./social-journal.js" defer></script><script src="./social-transfer.js" defer></script><script src="./marcosa-brand.js" defer></script><script src="./marcosa-quiet.js" defer></script>
 </head>
 <body>
 <div class="so-shell" id="so-app">
@@ -111,6 +111,18 @@
   <a class="s27-journal-entry-link" href="#so-journal">МОЙ ЖУРНАЛ — ВСЕ ЗАПИСИ ↗</a>
   <a class="so-studio-link" href="./creator.html">ПЕРЕЙТИ К ПОЛНОМУ РЕДАКТОРУ ↗</a>
   <p class="so-safety">Данные остаются в браузере, пока не удалишь их или не очистишь хранилище. Никаких автоматических сообщений, платежей или синхронизации с аккаунтом.</p>
+  <section class="s110-transfer" id="so-transfer-panel" aria-labelledby="s110-transfer-title">
+   <div class="s110-transfer-eyebrow">PRIVATE BACKUP / LOCAL ONLY</div>
+   <h3 id="s110-transfer-title">Перенести личное.</h3>
+   <p>Скачай избранное и короткую заметку перед сменой браузера или домена. Импорт бережно добавляет закладки и не затирает существующий черновик.</p>
+   <div class="s110-transfer-actions">
+    <button id="so-transfer-export" type="button">СКАЧАТЬ АРХИВ ↓</button>
+    <button id="so-transfer-import-trigger" type="button">ВОССТАНОВИТЬ ↑</button>
+   </div>
+   <input id="so-transfer-import" type="file" accept=".json,application/json" aria-label="Выбрать локальный JSON-архив избранного и заметки" hidden>
+   <p id="so-transfer-feedback" role="status" aria-live="polite" class="s110-transfer-feedback"></p>
+   <small>JSON не зашифрован. Журнал и проекты экспортируются отдельно в соответствующих разделах; это не перенос аккаунта.</small>
+  </section>
  </aside>
 </div>
 <section class="s27-journal" id="so-journal" aria-labelledby="s27-title">

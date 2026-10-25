@@ -123,7 +123,7 @@ class PublicPreviewTests(unittest.TestCase):
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
             "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html",
-            "social.html", "social-core.css", "social-core.js",
+            "social.html", "social-core.css", "social-core.js", "social-transfer.js",
             "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css",
             "visual-station.webp", "visual-city.webp", "visual-cascade.webp", "visual-hero.webp",
             "visual-archive.webp", "visual-control.webp", "visual-operator.webp", "visual-earthrise.webp",

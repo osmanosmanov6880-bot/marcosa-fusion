@@ -18,7 +18,7 @@ from r25_grade_cinematic_assets import place as place_director_grade
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css")
+PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css", "social-transfer.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -233,6 +233,22 @@ def build() -> dict:
     for token in ("innerHTML", "XMLHttpRequest", "fetch(", "sendBeacon("):
         if token in journal_js:
             raise RuntimeError("R27 unsafe editor or remote data flow: " + token)
+    # R110: export/import only local bookmarks and the short draft, never Auth.
+    transfer = (SOURCE / "social-transfer.js").read_text(encoding="utf-8")
+    if not all(t in social for t in (
+        'id="so-transfer-panel"', 'id="so-transfer-export"',
+        'id="so-transfer-import-trigger"', 'id="so-transfer-import"',
+        'id="so-transfer-feedback"', 'src="./social-transfer.js"'
+    )):
+        raise RuntimeError("R110 portable Social controls are not on the real page")
+    if not all(t in transfer for t in (
+        "MARCOSA-SOCIAL-TRANSFER", "maxBackup:MAX_BACKUP",
+        "root.localStorage", "savedList", "parseBackup", "root.dispatchEvent"
+    )):
+        raise RuntimeError("R110 local social transfer safety/logic missing")
+    for forbidden in ("fetch(", "XMLHttpRequest", "sendBeacon(", "innerHTML", "eval("):
+        if forbidden in transfer:
+            raise RuntimeError("R110 transfer is strictly local-only: " + forbidden)
     # R22: the cinematic home is an actual navigable interface, not a flat poster.
     required_r22 = (
         'id="m22-experience"', 'class="m22-gateway-sidebar"',

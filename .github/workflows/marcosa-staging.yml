@@ -93,7 +93,8 @@ jobs:
           node --check site/marcosa-director.js
           node --check site/social-core.js
           node --check site/social-journal.js
-          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/brand_r21.test.cjs tests/r26_social_first.test.cjs tests/r27_journal.test.cjs tests/playtest.test.cjs
+          node --check site/social-transfer.js
+          node --test tests/film_kit.test.cjs tests/immersive.test.cjs tests/r4_graphics.test.cjs tests/stories.test.cjs tests/creator.test.cjs tests/vault.test.cjs tests/backup.test.cjs tests/crypto.test.cjs tests/standalone.test.cjs tests/film_network.test.cjs tests/film_continuity.test.cjs tests/source_hub.test.cjs tests/cinema_pilot.test.cjs tests/brand_r21.test.cjs tests/r26_social_first.test.cjs tests/r27_journal.test.cjs tests/social-transfer.test.cjs tests/playtest.test.cjs
       - name: Build static webroot and reject sensitive files
         shell: bash
         run: |
