@@ -386,7 +386,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&route==='/api/mod/cover-queue'){
     const moderator=requireUser(req);
     check(moderator.role==='moderator',403,'Доступ только модератору');
-    const items=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all();
+    const items=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' AND w.owner_id<>? ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all(moderator.id);
     send(res,200,{items,scope:'moderator',localOnly:true});return;
    }
    const modCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
