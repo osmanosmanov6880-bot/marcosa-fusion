@@ -1,0 +1,71 @@
+name: "MARCOSA | R90 hosted STAGING readback (no deployment)"
+on:
+  pull_request:
+    paths:
+      - "ops/staging-release-attestation.mjs"
+      - "ops/staging-live-readback.mjs"
+      - "ops/test/staging-live-readback.test.mjs"
+      - ".github/workflows/marcosa-r90-staging-readback.yml"
+      - ".github/workflows/marcosa-staging.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/staging-release-attestation.mjs"
+      - "ops/staging-live-readback.mjs"
+      - "ops/test/staging-live-readback.test.mjs"
+      - ".github/workflows/marcosa-r90-staging-readback.yml"
+      - ".github/workflows/marcosa-staging.yml"
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Full 40-character SHA of approved, already deployed static STAGING commit"
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Validate readback and manifest generator syntax
+        run: |
+          node --check ops/staging-release-attestation.mjs
+          node --check ops/staging-live-readback.mjs
+          node --check ops/test/staging-live-readback.test.mjs
+      - name: Verify exact SHA, served bytes, redirect, host, MIME and no-overwrite
+        run: node --test ops/test/staging-live-readback.test.mjs
+  public-staging-readback:
+    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
+    needs: offline-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: marcosa-staging
+    env:
+      STAGING_ORIGIN: ${{ vars.MARCOSA_STAGING_ORIGIN }}
+      STAGING_PUBLIC_HOST: ${{ vars.MARCOSA_STAGING_PUBLIC_HOST }}
+      RELEASE_SHA: ${{ inputs.release_sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Fail closed unless staging URL and independently approved hostname are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${STAGING_ORIGIN:-}" || { echo "::error::STAGING origin missing; no site verified"; exit 2; }
+          test -n "${STAGING_PUBLIC_HOST:-}" || { echo "::error::Approved STAGING hostname missing"; exit 2; }
+          [[ "${RELEASE_SHA:-}" =~ ^[a-f0-9]{40}$ ]] || { echo "::error::Exact 40-character SHA required"; exit 2; }
+      - name: Independently read back live hosted bytes over pinned HTTPS origin
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ops/staging-live-readback.mjs \
+            --origin "$STAGING_ORIGIN" --host "$STAGING_PUBLIC_HOST" --sha "$RELEASE_SHA"
+      - name: Explicitly forbid production authorization from readback success
+        run: echo "Public static STAGING readback only; real Auth/RLS/Storage and production approval remain blocked"
