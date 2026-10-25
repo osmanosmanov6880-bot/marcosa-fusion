@@ -1,0 +1,64 @@
+name: "MARCOSA | R111 first-party navigation / public asset route QA"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "tools/build_webroot.py"
+      - "tools/audit_navigation_contract.py"
+      - "tests/test_navigation_contract.py"
+      - ".github/workflows/marcosa-r111-navigation-contract.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "tools/build_webroot.py"
+      - "tools/audit_navigation_contract.py"
+      - "tests/test_navigation_contract.py"
+      - ".github/workflows/marcosa-r111-navigation-contract.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  internal-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test real first-party static route parser against fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/audit_navigation_contract.py
+          python -m unittest discover -s tests -p 'test_navigation_contract.py' -v
+      - name: Validate ALL first-party main page links against built-in immutable public allowlist
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/audit_navigation_contract.py > marcosa-r111-navigation.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path('marcosa-r111-navigation.json').read_text())
+          if (r.get('format')!='MARCOSA-R111-NAVIGATION-VALIDATOR' or
+              r.get('editablePagesAudited')!=8 or r.get('errorsCount')!=0 or
+              r.get('productionRootInspected') is not False):
+              raise SystemExit('First-party route QA found missing/unsafe URLs')
+          lines=['### R111: first-party editable navigation asset audit',
+                 '- Editable routes audited: '+str(r['editablePagesAudited']),
+                 '- Internal public references checked: '+str(r['internalReferencesValidated']),
+                 '- Missing, unsafe or root-relative first-party routes: '+str(r['errorsCount']),
+                 '- Immutable embedded film links are flagged separately in R108 and never silently modified',
+                 '- No production API/DB or private user content was accessed','']
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as file:
+              file.write('\n'.join(lines))
+          print('R111_EDITABLE_NAVIGATION_ASSETS=PASS')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r111-validated-internal-navigation
+          path: marcosa-r111-navigation.json
+          retention-days: 14
+          if-no-files-found: error
