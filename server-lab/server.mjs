@@ -737,10 +737,16 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(typeof password==='string'&&password.length>=12&&password.length<=128,400,'Пароль: 12–128 символов');
     const salt=randomBytes(16).toString('hex'),secret=await pwdHash(password,salt);
     const id=randomUUID(),worldId=randomUUID();
+    // Usernames allow underscores; World slugs permit hyphens instead.
+    // Make the default World reachable via normal /w/:slug URLs and use
+    // a bounded UUID suffix if a custom World has reserved that address.
+    const desiredWorldSlug='u-'+username.replaceAll('_','-');
+    const newWorldSlug=db.prepare('SELECT 1 FROM worlds WHERE slug=? LIMIT 1').get(desiredWorldSlug)
+      ?desiredWorldSlug+'-'+id.slice(0,8):desiredWorldSlug;
     try{
      atomic(()=>{
       db.prepare('INSERT INTO users(id,email,username,salt,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,username,salt,secret,now());
-      db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,'u-'+username,'Мир '+username,now());
+      db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,newWorldSlug,'Мир '+username,now());
       if(ticket){
        const claimed=db.prepare('UPDATE pilot_invites SET used_by=?,used_at=? WHERE id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?')
         .run(id,now(),ticket.id,now());
@@ -751,7 +757,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      if(e instanceof HttpError)throw e;
      throw new HttpError(409,'Регистрация с указанными данными невозможна');
     }
-    send(res,201,{created:true,username,world:'u-'+username});return;
+    send(res,201,{created:true,username,world:newWorldSlug});return;
    }
    if(method==='POST'&&route==='/api/auth/login'){
     throttle('login:'+clientIp(req),20,600000);
