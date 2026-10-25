@@ -78,6 +78,20 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r60.media_browser_cdp.mjs
           node server-lab/test/r60.media_browser_cdp.mjs
+      - name: R65 published PNG complaint with independent reviewer in actual Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r65.cover_reports_browser_cdp.mjs
+          node server-lab/test/r65.cover_reports_browser_cdp.mjs
+      - name: Retain R65 local browser screenshots for independent PR QA
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r65-real-cover-takedown-browser-qa
+          path: qa-r65/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Upload R60 browser media QA screenshots
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
