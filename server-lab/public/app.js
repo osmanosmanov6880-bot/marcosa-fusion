@@ -59,6 +59,24 @@ function clearIssuedInvite(){
  $('issued-invite-code').textContent='';
  $('issued-invite-result').hidden=true;
 }
+async function moderatorQueueHealth(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const report=await api('/mod/queue-health');
+ if(report.production!==false||report.source!=='verified-local-sqlite'||!Array.isArray(report.queues))
+  throw Error('Нет подтверждённого локального отчёта модерации');
+ const list=$('mod-queue-health-data');clear(list);
+ for(const queue of report.queues){
+  const item=node('div','','pilot-metric');
+  item.append(node('strong',queue.pending+' открыто · '+queue.overdue+' просрочено'));
+  item.append(node('span',queue.label+' · ориентир '+queue.targetHours+' ч'));
+  item.append(node('span',queue.oldestAgeHours===null?'Очередь пуста':'Самое старое: '+queue.oldestAgeHours+' ч'));
+  list.append(item);
+ }
+ const value=report.pendingTotal===0?'Очереди сейчас пусты':
+  'Открыто: '+report.pendingTotal+' · после внутренних ориентиров: '+report.overdueTotal;
+ $('mod-queue-health-status').textContent=value+' · '+new Date(report.generatedAt).toLocaleString('ru-RU')
+  +' · только локальная SQLite. Это не договорной SLA.';
+}
 async function pilotMetrics(){
  if(!state.me||state.me.role!=='moderator')return;
  const report=await api('/mod/pilot-metrics');
@@ -301,6 +319,8 @@ async function session(){
   $('world-cover-preview').removeAttribute('src');
   $('world-cover-delete').disabled=true;
   clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-cover-audit'));
+   clear($('mod-queue-health-data'));
+   $('mod-queue-health-status').textContent='Нет данных до входа модератора.';
   clear($('world-cover-appeals-list'));clear($('mod-cover-appeals-list'));clear($('my-cover-reports'));clear($('mod-cover-reports'));
   $('world-cover-appeal-form').reset();$('world-cover-appeal-form').hidden=true;
   clear($('onboarding-steps'));$('onboarding-progress').value=0;
@@ -343,8 +363,8 @@ async function session(){
   syncCoverSettings();
   await loadSavedIds();
   await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports()]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);
-  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));}
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),moderatorQueueHealth(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);
+  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-queue-health-data'));}
  }
 }
 async function worlds(){
@@ -977,6 +997,7 @@ $('issue-invite-form').addEventListener('submit',event=>{
 $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
 $('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
+$('mod-queue-health-refresh').addEventListener('click',()=>run(moderatorQueueHealth,'Реальные очереди пересчитаны из SQLite'));
 $('retention-enable').addEventListener('click',()=>run(async()=>{
  await api('/me/retention-consent','POST',{consent:true});await loadRetentionConsent();
 },'Согласие сохранено. До этого дня посещения не учитывались.'));
@@ -986,7 +1007,7 @@ $('retention-disable').addEventListener('click',()=>run(async()=>{
 $('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очередь проверки изображений обновлена'));
 $('mod-cover-appeals-refresh').addEventListener('click',()=>run(reviewCoverAppeals,'Очередь апелляций обновлена'));
 $('mod-cover-reports-refresh').addEventListener('click',()=>run(reviewCoverReports,'Очередь жалоб на изображения обновлена'));
-$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);}));
+$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports(),moderatorQueueHealth()]);}));
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
