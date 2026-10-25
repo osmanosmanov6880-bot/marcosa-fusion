@@ -76,6 +76,9 @@ jobs:
           set -euo pipefail
           python tools/audit_public_source.py
           python -m unittest discover -s tests -q
+          node --test tests/canary-live-https.test.mjs
+          bash -n ops/ssh-stage-verified.sh
+          python -m py_compile ops/install_production_canary.py ops/promote_canary_from_staging.py
           node --check site/network.js
           node --check site/creator.js
           node --check site/creator-vault.js

@@ -1,0 +1,67 @@
+name: "MARCOSA | R106 optional root-approved canary delivery contracts"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/promote_canary_from_staging.py"
+      - "ops/verify_canary_live_https.mjs"
+      - "ops/ssh-stage-verified.sh"
+      - "tests/test_promote_canary.py"
+      - "tests/canary-live-https.test.mjs"
+      - "ops/install_production_canary.py"
+      - ".github/workflows/marcosa-r106-canary-contract.yml"
+  pull_request:
+    paths:
+      - "ops/promote_canary_from_staging.py"
+      - "ops/verify_canary_live_https.mjs"
+      - "ops/ssh-stage-verified.sh"
+      - "tests/test_promote_canary.py"
+      - "tests/canary-live-https.test.mjs"
+      - "ops/install_production_canary.py"
+      - ".github/workflows/marcosa-r106-canary-contract.yml"
+permissions:
+  contents: read
+jobs:
+  offline-safety-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test safe optional canary updates and rollback with disposable folders
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_promote_canary.py' -v
+          python -m unittest discover -s tests -p 'test_canary_install.py' -v
+          node --check ops/verify_canary_live_https.mjs
+          node --test tests/canary-live-https.test.mjs
+          python -m py_compile ops/promote_canary_from_staging.py ops/install_production_canary.py
+          bash -n ops/ssh-stage-verified.sh
+      - name: Enforce strict production/canary separation
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          deploy=Path("ops/ssh-stage-verified.sh").read_text()
+          promote=Path("ops/promote_canary_from_staging.py").read_text()
+          install=Path("ops/install_production_canary.py").read_text()
+          assert 'CANARY_NOT_INSTALLED=PASS' in deploy
+          assert 'CANARY_ADMIN_GATE=PASS' in deploy
+          assert 'CANARY_SUMMARY=' in deploy
+          assert 'python3 - rollback $SOURCE_SHA' in deploy
+          assert 'PUBLIC_CANARY_HTTPS=PASS' in Path("ops/verify_canary_live_https.mjs").read_text()
+          assert '"productionRootModified":False' in promote
+          assert 'marker.stat().st_uid!=0' in promote
+          assert 'confirm!="MARCOSA-ADD-ONLY-CANARY"' in install
+          assert 'marker.write_text(MARK)' in install
+          assert 'STATE.write_text' in install
+          assert install.index('marker.write_text(MARK)')>install.index('STATE.write_text')
+          assert "systemctl" not in promote
+          assert 'chmod 777' not in deploy
+          assert '/opt/marcosa/current' not in deploy
+          print('R106 ROOTLESS_CANARY_DELIVERY_CONTRACT=PASS')
+          PY

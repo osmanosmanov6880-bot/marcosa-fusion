@@ -223,9 +223,8 @@ def populate_sidecar(sha: str, files: dict) -> None:
     finally:
         if tmp.exists():
             shutil.rmtree(tmp)
-    marker=CANARY/".canary-approved"
-    marker.write_text(MARK)
-    marker.chmod(0o444)
+    # Keep the approval marker ABSENT until Nginx and public HTTPS both pass.
+    # This prevents main CI from promoting an incompletely installed canary.
     pointer=pointers/"current"
     pointer.symlink_to("../releases/"+sha)
     if not (pointer/"index.html").is_file():
@@ -338,6 +337,11 @@ def apply(expect: str,confirm: str) -> dict:
            "backup":str(backup),"snippetSha256":digest(NGINX_SNIPPET.encode())}
     STATE.write_text(json.dumps(state,indent=2)+"\n")
     STATE.chmod(0o600)
+    marker=CANARY/".canary-approved"
+    if marker.exists() or marker.is_symlink():
+        raise ValueError("Unexpected preexisting canary approval")
+    marker.write_text(MARK)
+    marker.chmod(0o444)
     return {"canaryUrl":URL,"sourceSha":sha,"assetsVerified":len(files),
             "liveRootUnchanged":True,"productionAppReplaced":False,
             "nginxConfigTestPassed":True,"revertPrepared":True}
@@ -364,6 +368,15 @@ def rollback(confirm: str) -> dict:
     run("nginx","-t")
     run("systemctl","reload","nginx")
     SNIPPET.unlink()
+    marker=CANARY/".canary-approved"
+    if marker.is_symlink() or not marker.is_file() or marker.read_text()!=MARK:
+        raise ValueError("Unexpected canary approval state")
+    marker.unlink()
+    disabled=CANARY/".canary-disabled"
+    if disabled.exists() or disabled.is_symlink():
+        raise ValueError("Unexpected canary disabled marker")
+    disabled.write_text("MARCOSA-CANARY-DISABLED-v1\n")
+    disabled.chmod(0o444)
     STATE.rename(STATE_DIR/"reverted.json")
     return {"canaryRemovedFromNginx":True,"legacyProductionUnchanged":True,
             "sidecarFilesRetainedForForensicReview":True}
