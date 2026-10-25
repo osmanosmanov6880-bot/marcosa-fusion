@@ -84,3 +84,10 @@ test('R114 wrong workflow job name or skipped required job never passes',()=>{
  x.jobsByRun['8701001']=jobs('pages').map(j=>j.name==='publish'?{...j,conclusion:'skipped'}:j);
  assert.equal(evaluateRelease(x).status,'FAIL');
 });
+
+test('R114 shipped public entry discloses static-preview-only scope and never claims accounts',async()=>{
+ const {readFileSync}=await import('node:fs');
+ const html=readFileSync(new URL('../site/index.html',import.meta.url),'utf8');
+ assert.match(html,/name="marcosa-release-scope" content="R114-public-static-preview-only; no-production-cutover"/);
+ assert.doesNotMatch(html,/name="marcosa-release-scope" content="production-ready"/);
+});
