@@ -1,0 +1,97 @@
+name: "MARCOSA | R104 production canary readiness (READ ONLY)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/production_canary_readiness.py"
+      - "tests/test_production_canary_readiness.py"
+      - ".github/workflows/marcosa-r104-canary-readiness.yml"
+  pull_request:
+    paths:
+      - "ops/production_canary_readiness.py"
+      - "tests/test_production_canary_readiness.py"
+      - ".github/workflows/marcosa-r104-canary-readiness.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify canary gate without SSH/network
+        run: |
+          python -m unittest discover -s tests -p 'test_production_canary_readiness.py' -v
+          python -m py_compile ops/production_canary_readiness.py
+  inspect:
+    needs: source-tests
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compare existing nginx route layout read-only over verified Contabo SSH
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing restricted deploy key}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" \
+            --port "$DEPLOY_PORT" --known-hosts "$TMP/known_hosts" \
+            --expected "$DEPLOY_HOST_FINGERPRINT"
+          ssh -i "$TMP/key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'python3 -' \
+            < ops/production_canary_readiness.py > canary-readiness-r104.json
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const j=JSON.parse(readFileSync('canary-readiness-r104.json','utf8'));
+          if(j.format!=='MARCOSA-R104-PRODUCTION-CANARY-READINESS' ||
+             j.readOnly!==true || j.productionWritesMade!==false ||
+             j.productionCutoverAuthorized!==false || j.canaryCanBeInstalledByDeployUser!==false ||
+             !/^[0-9a-f]{40}$/.test(j.stagingSourceSha)) throw Error('Unsafe canary readiness result');
+          console.log(JSON.stringify(j,null,2));
+          const nt=j.nginxTopology;
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '### R104 — production canary readiness, READ ONLY',
+            '- Public live site unchanged: YES',
+            '- Root-owned legacy app: '+(j.liveOwnerIsRoot?'YES':'NO'),
+            '- Staging source SHA: '+j.stagingSourceSha,
+            '- Nginx layout readable: '+(j.nginxConfigReadable?'YES':'NO'),
+            '- Existing /network-os/ route conflict: '+(nt?.canaryRouteAlreadyUsed?'YES':'NOT OBSERVED'),
+            '- Nginx layout complete: '+(nt?.configComplete?'YES':'NO / MANUAL INSPECTION REQUIRED'),
+            '- Requires root-controlled reversible Nginx change: YES',
+            '- Automatic production cutover: PROHIBITED',
+            ''
+          ].join('\n'));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-canary-readiness-r104
+          path: canary-readiness-r104.json
+          retention-days: 14
+          if-no-files-found: error
