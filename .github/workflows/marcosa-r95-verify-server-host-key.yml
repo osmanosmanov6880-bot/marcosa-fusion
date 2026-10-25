@@ -1,0 +1,43 @@
+name: "MARCOSA | R95 independently pinned VPS host-key observation (read only)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r95-verify-server-host-key.yml"
+permissions:
+  contents: read
+jobs:
+  observe-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Compare observed public ED25519 host key to out-of-band pinned SHA256
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The following SHA256 was independently read by the owner from
+          # /etc/ssh/ssh_host_ed25519_key.pub via an authenticated Contabo VPS
+          # console. ssh-keyscan is untrusted *transport*, NOT a trust anchor.
+          HOST="169.58.48.38"
+          EXPECTED="SHA256:3VwLDjaMbBL/OAkWPjvaJoOgFlwRk/6g+ZJze+5toZA"
+          umask 077
+          FILE="$(mktemp)"
+          trap 'rm -f "$FILE"' EXIT
+          # Only retrieve a public key; no credentials, no auth, no writes.
+          ssh-keyscan -T 12 -p 22 -4 -t ed25519 "$HOST" 2>/dev/null | \
+            awk '$1=="169.58.48.38" && $2=="ssh-ed25519" && NF==3 {print}' | \
+            sort -u > "$FILE"
+          [[ "$(wc -l < "$FILE")" -eq 1 ]] || { echo "::error::Exactly one remote ED25519 host key required"; exit 2; }
+          OBSERVED="$(ssh-keygen -lf "$FILE" -E sha256 | awk '{print $2}')"
+          [[ "$OBSERVED" == "$EXPECTED" ]] || {
+            echo "::error::Candidate host key DOES NOT MATCH independently pinned Contabo fingerprint"
+            echo "Expected SHA256: $EXPECTED"
+            echo "Observed SHA256: $OBSERVED"
+            exit 3
+          }
+          echo "HOST_KEY_IDENTITY_VERIFIED=PASS"
+          echo "VPS=169.58.48.38"
+          echo "Verified full known_hosts public entry:"
+          cat "$FILE"
+          echo "Fingerprint: $OBSERVED"
+          echo "No SSH authentication performed; no files changed on server."
