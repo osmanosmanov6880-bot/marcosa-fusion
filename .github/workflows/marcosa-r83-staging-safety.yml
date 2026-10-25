@@ -1,0 +1,51 @@
+name: "MARCOSA | R83 staging SSH and manual release contract"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/staging-deploy-contract.mjs"
+      - "ops/verify-staging-host-key.mjs"
+      - "ops/test/staging-deploy-contract.test.mjs"
+      - "scripts/diagnose-staging-ssh.sh"
+      - ".github/workflows/marcosa-staging.yml"
+      - ".github/workflows/marcosa-r83-staging-safety.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/staging-deploy-contract.mjs"
+      - "ops/verify-staging-host-key.mjs"
+      - "ops/test/staging-deploy-contract.test.mjs"
+      - "scripts/diagnose-staging-ssh.sh"
+      - ".github/workflows/marcosa-staging.yml"
+      - ".github/workflows/marcosa-r83-staging-safety.yml"
+permissions:
+  contents: read
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check exact source and SSH script syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/staging-deploy-contract.mjs
+          node --check ops/verify-staging-host-key.mjs
+          node --check ops/test/staging-deploy-contract.test.mjs
+          bash -n scripts/diagnose-staging-ssh.sh
+      - name: Prove staging manual-only SSH contract without real secrets or network
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test ops/test/verify-staging-host-key.test.mjs ops/test/staging-deploy-contract.test.mjs
+      - name: Preserve evidence that no SSH credentials or live target are used in dry-run CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.event_name }}" != "deployment"
+          test -z "${DEPLOY_KEY:-}"
+          test -z "${DEPLOY_HOST:-}"
