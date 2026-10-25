@@ -18,6 +18,8 @@ import {measureModerationQueues} from './ops/moderation-queue-health.mjs';
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
 const DAY=86400000;
+const MIN_RETENTION_DISCLOSURE=5; // R88: no single-user opt-in disclosure
+
 const COOKIE='marcosa_session';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const str=x=>typeof x==='string'?x.trim():'';
@@ -727,8 +729,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const seen=db.prepare("SELECT 1 FROM beta_retention_days WHERE user_id=? AND day_utc=? AND source='login'");
     const retention=days=>{
      const mature=consenting.filter(row=>currentDay>=row.cohortDay+days);
+     // Immature (0) differs from suppressed (1..4). No per-user return bit
+     // can be inferred from a tiny cohort aggregate after disclosure.
+     if(!mature.length)return{eligible:0,returned:0,rate:null,suppressed:false};
+     if(mature.length<MIN_RETENTION_DISCLOSURE)
+      return{eligible:null,returned:null,rate:null,suppressed:true};
      const returned=mature.filter(row=>seen.get(row.userId,row.cohortDay+days)).length;
-     return{eligible:mature.length,returned,rate:mature.length?returned/mature.length:null};
+     return{eligible:mature.length,returned,rate:returned/mature.length,suppressed:false};
     };
     const d7=retention(7),d30=retention(30);
     send(res,200,{
@@ -739,9 +746,12 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      publicWorlds,repliesToOtherAuthors:replies,followEdges,savedReferences:saves,
      invitations:{issued:tickets.issued||0,redeemed:tickets.redeemed||0,revoked:tickets.revoked||0,pending:tickets.pending||0},
      verifiedAdImpressions:null,paidRevenue:null,retentionD7:d7.rate,retentionD30:d30.rate,
-     retentionEvidence:{source:'explicit-opt-in-pilot-invites',consentingInvited:consenting.length,
+     retentionEvidence:{source:'explicit-opt-in-pilot-invites',
+      consentingInvited:consenting.length===0||consenting.length>=MIN_RETENTION_DISCLOSURE?consenting.length:null,
+      consentCountSuppressed:consenting.length>0&&consenting.length<MIN_RETENTION_DISCLOSURE,
+      minimumDisclosureEligible:MIN_RETENTION_DISCLOSURE,
       d7,d30,definition:'successful login on exact UTC cohort day +7/+30',
-      limits:'local beta lab, opt-out excluded, no production traffic'}
+      limits:'local beta lab, opt-out excluded, suppress small cohorts, no production traffic'}
     });return;
    }
    if(method==='GET'&&route==='/api/mod/invites'){
