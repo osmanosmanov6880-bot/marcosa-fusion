@@ -108,6 +108,7 @@ def verify_readonly() -> dict:
         "stagingSourceSha": repo_sha,
         "stagingApprovalVerified": True,
         "nginxConfigReadable": bool(file_available),
+        "nginxConfigSha256": digest_file(CONF, CONFIG_LIMIT) if file_available and not CONF.is_symlink() else None,
         "nginxTopology": topology,
         "proposedAdditivePath": ROUTE,
         "canaryCanBeInstalledByDeployUser": False,
