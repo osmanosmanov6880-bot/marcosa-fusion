@@ -98,6 +98,12 @@ test('R57: unreviewed media is private; independent moderator approves and rejec
   assert.equal(r.data.items.length,0);
   r=await req('/account/export',{cookie:alice.cookie});
   assert.equal(r.data.worldCoverMetadata.length,1);
+  assert.equal(r.data.worldCoverMetadata[0].reviewStatus,'rejected');
+  let audit=await req('/mod/cover-audit',{cookie:moderator.cookie});
+  assert.equal(audit.status,200);
+  assert.deepEqual(audit.data.items.map(x=>x.decision),['rejected','approved']);
+  audit=await req('/mod/cover-audit',{cookie:bob.cookie});
+  assert.equal(audit.status,403,'private moderation audit denied to regular user');
   assert.equal(lab.db.prepare('SELECT count(*) AS n FROM world_cover_review_audit').get().n,2);
   assert.deepEqual(lab.db.prepare('SELECT decision FROM world_cover_review_audit ORDER BY id').all().map(x=>x.decision),['approved','rejected']);
   r=await req('/worlds/'+moderator.world.slug+'/cover',{method:'POST',cookie:moderator.cookie,mime:'image/png',data:image});
