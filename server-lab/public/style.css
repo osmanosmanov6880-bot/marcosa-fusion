@@ -363,3 +363,10 @@ dialog form{display:grid;gap:17px}
 #mod-cover-appeals-list button,#mod-cover-appeals-refresh{min-height:44px}
 #mod-cover-appeals-refresh{width:100%}
 @media(max-width:650px){#mod-cover-appeals-list button{width:100%;min-height:48px}#world-cover-appeal-form{padding:12px}}
+
+/* R64: keyboard access with the established quiet luxury design language. */
+.skip-navigation{position:fixed;z-index:1000;top:12px;left:12px;transform:translateY(-180%);padding:13px 20px;min-height:44px;border-radius:8px;border:2px solid #f2d7ad;background:#152239;color:#fff3dc;font:700 13px/1.4 var(--sans);text-decoration:none;box-shadow:0 13px 45px #0009}
+.skip-navigation:focus,.skip-navigation:focus-visible{transform:none;outline:3px solid #f3dab7;outline-offset:3px}
+#world-detail-title:focus,#worlds:focus,#main-content:focus{outline:none}
+#world-detail:focus-within{border-color:#e1c59d8a}
+@media(prefers-contrast:more){.panel,.world-card,.post,.mod-cover-item{border-color:#e9c69c!important}.muted,.feature p,.pilot-metrics-note{color:#edf2f7!important}button:focus-visible,a:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #ffe4ad!important;outline-offset:3px!important}}
