@@ -21,6 +21,8 @@ const hash=s=>createHash('sha256').update(s).digest('hex');
 const str=x=>typeof x==='string'?x.trim():'';
 const int=x=>/^[1-9][0-9]{0,14}$/.test(String(x))&&Number.isSafeInteger(Number(x))?Number(x):0;
 const REASONS=new Set(['spam','abuse','privacy','other']);
+const WORLD_TOPICS=Object.freeze({general:'Все темы',art:'Искусство',technology:'Технологии',business:'Бизнес',education:'Образование',lifestyle:'Стиль жизни',travel:'Путешествия'});
+const validTopic=(value)=>typeof value==='string'&&Object.hasOwn(WORLD_TOPICS,value);
 class HttpError extends Error{constructor(status,message){super(message);this.status=status;}}
 const check=(condition,status,message)=>{if(!condition)throw new HttpError(status,message);};
 const send=(res,status,value,headers={})=>{
@@ -129,10 +131,18 @@ function upgradeLegacySponsorStatuses(db){
  }
 }
 
+function upgradeWorldTopics(db){
+ const columns=db.prepare('PRAGMA table_info(worlds)').all();
+ if(!columns.some(row=>row.name==='category')){
+  db.exec("ALTER TABLE worlds ADD COLUMN category TEXT NOT NULL DEFAULT 'general' CHECK(category IN ('general','art','technology','business','education','lifestyle','travel'))");
+ }
+ db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_category ON worlds(category,created_at DESC)');
+}
 export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now()}={}){
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeWorldTopics(db);
  upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
  // Parameters in this expression are always bound to a trusted current
@@ -143,7 +153,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
-  myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  myWorlds:db.prepare('SELECT id,slug,title,description,category FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
@@ -271,6 +281,9 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
       AND ${visibleOwner('u.id')}
       ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer);
     send(res,200,{query:raw,worlds,posts,limit:12});return;
+   }
+   if(method==='GET'&&route==='/api/world-topics'){
+    send(res,200,{items:Object.entries(WORLD_TOPICS).map(([id,title])=>({id,title})),source:'verified-server-taxonomy'});return;
    }
    if(method==='GET'&&route==='/api/worlds'){
     const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
