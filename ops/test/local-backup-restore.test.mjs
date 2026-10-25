@@ -4,6 +4,7 @@ import {mkdtempSync,readFileSync,writeFileSync,statSync,lstatSync,symlinkSync,co
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {createApp} from '../../server-lab/server.mjs';
 import {backupLocal,restoreLocal,verifyDatabase,sha256,FORMAT} from '../local-backup-restore.mjs';
 
@@ -14,14 +15,18 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
  try{
   app=createApp({databasePath:live});
   await new Promise(ok=>app.server.listen(0,'127.0.0.1',ok));
-  const a='11111111-2222-4333-8444-555555555555',reviewer='33333333-4444-4555-8666-777777777777',w='aaaa-bbbb';
+  const a='11111111-2222-4333-8444-555555555555',reviewer='33333333-4444-4555-8666-777777777777',reporter='99999999-4444-4555-8666-888888888888',w='aaaa-bbbb';
   const insert=app.db.prepare("INSERT INTO users(id,email,username,salt,password_hash,role,created_at) VALUES(?,?,?,?,?,?,?)");
   insert.run(a,'owner@example.invalid','owner_r67','0'.repeat(32),'a'.repeat(128),'member',123);
   insert.run(reviewer,'moderator@example.invalid','review_r67','1'.repeat(32),'b'.repeat(128),'moderator',123);
+  insert.run(reporter,'reporter@example.invalid','report_r67','2'.repeat(32),'c'.repeat(128),'member',123);
   app.db.prepare("INSERT INTO worlds(id,owner_id,slug,title,description,created_at) VALUES(?,?,?,?,?,?)").run(w,a,'backup-world','Backup World','backup acceptance',123);
   const blob=Buffer.alloc(92,17);
   app.db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(w,blob,2,2,blob.length,123,'approved',reviewer,125);
+  const digest=createHash('sha256').update(blob).digest('hex');
+  app.db.prepare("INSERT INTO world_cover_reports(world_id,reporter_id,cover_sha256,reason,detail,created_at) VALUES(?,?,?,?,?,?)")
+   .run(w,reporter,digest,'privacy','Reported image for independent review',127);
   app.db.prepare("INSERT INTO beta_retention_consents(user_id,consented_at,consented_day) VALUES(?,?,?)").run(a,172800000,2);
   app.db.prepare("INSERT INTO beta_retention_days(user_id,day_utc,source) VALUES(?,?,'consent')").run(a,2);
   assert.equal(verifyDatabase(live).integrity,'ok');
@@ -39,9 +44,10 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
   await app.close();app=null;
   copy=createApp({databasePath:restored});
   await new Promise(ok=>copy.server.listen(0,'127.0.0.1',ok));
-  assert.equal(copy.db.prepare('SELECT count(*) AS n FROM users').get().n,2);
+  assert.equal(copy.db.prepare('SELECT count(*) AS n FROM users').get().n,3);
   assert.ok(copy.db.prepare('SELECT png FROM world_covers').get().png.equals(blob));
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM beta_retention_days').get().n,1);
+  assert.equal(copy.db.prepare('SELECT count(*) AS n FROM world_cover_reports').get().n,1);
   assert.deepEqual(copy.db.prepare('PRAGMA foreign_key_check').all(),[]);
   await copy.close();copy=null;
   await assert.rejects(()=>restoreLocal({backup:output,manifest:output+'.json',destination:restored}),/already exists/);
@@ -50,6 +56,8 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
   await assert.rejects(()=>restoreLocal({backup:damaged,manifest:output+'.json',destination:join(dir,'untrusted.sqlite')}),/SHA-256 mismatch/);
   const link=join(dir,'link.sqlite');symlinkSync(output,link);
   await assert.rejects(()=>restoreLocal({backup:link,manifest:output+'.json',destination:join(dir,'linked.sqlite')}),/non-symlink/);
+  const trap=join(dir,'dangling-restore.sqlite');symlinkSync(join(dir,'missing.sqlite'),trap);
+  await assert.rejects(()=>restoreLocal({backup:output,manifest:output+'.json',destination:trap}),/already exists/);
   await assert.rejects(()=>backupLocal({source:live,destination:output}),/already exists/);
   const cli=join(process.cwd(),'ops','local-backup-restore.mjs'),file=join(dir,'cli.sqlite');
   const got=JSON.parse(execFileSync(process.execPath,[cli,'backup','--db',restored,'--out',file],{encoding:'utf8'}));
