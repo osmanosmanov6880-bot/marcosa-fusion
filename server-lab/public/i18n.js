@@ -7,6 +7,8 @@
 'use strict';
 const CATALOG=Object.freeze({
  'locale.label':['Язык','Language'],
+ 'nav.skip':['Перейти к основному содержанию','Skip to main content'],
+ 'feed.tabsAria':['Показать публикации','Show posts'],
  'hero.lead':['Мир начинается','A world begins'],
  'hero.tail':['с тебя.','with you.'],
  'hero.description':['Настоящие пользовательские аккаунты, персональные миры, публикации и модерация — в закрытом локальном испытании. Не коммерческий сервис и не публичная соцсеть.','Real accounts, personal Worlds, posts and moderation in a closed local test. Not a commercial service or a public social network.'],
@@ -90,25 +92,32 @@ function stored(){
 }
 const requested=new URLSearchParams(location.search).get('lang');
 let language=valid(requested)?requested:(stored()||'ru');
+// Snapshot trusted HTML while this defer script runs BEFORE app.js loads any
+// accounts, World titles, drafts or posts. Never auto-translate user content.
+const byRussian=new Map(Object.entries(CATALOG).map(([key,pair])=>[pair[0],key]));
+const staticNodes=[],staticAttributes=[];
+const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT);
+while(walker.nextNode()){
+ const node=walker.currentNode,tag=node.parentElement?.tagName;
+ if(!tag||['SCRIPT','STYLE','NOSCRIPT','TEXTAREA'].includes(tag))continue;
+ const value=node.nodeValue,trimmed=value.trim(),key=byRussian.get(trimmed);
+ if(!key)continue;
+ const at=value.indexOf(trimmed);
+ staticNodes.push({node,key,prefix:value.slice(0,at),suffix:value.slice(at+trimmed.length)});
+}
+for(const element of document.querySelectorAll('[placeholder],[aria-label],[alt]')){
+ for(const attr of ['placeholder','aria-label','alt']){
+  const key=byRussian.get(element.getAttribute(attr));
+  if(key)staticAttributes.push({element,attr,key});
+ }
+}
 const translateStatic=()=>{
  document.documentElement.lang=language;
- for(const element of document.querySelectorAll('[data-i18n]')){
-  // No public/user-controlled element is automatically selected or translated.
-  const key=element.getAttribute('data-i18n');
-  if(!Object.hasOwn(CATALOG,key))continue;
-  element.textContent=translate(key,language);
+ for(const {node,key,prefix,suffix} of staticNodes){
+  if(node.isConnected)node.nodeValue=prefix+translate(key,language)+suffix;
  }
- for(const element of document.querySelectorAll('[data-i18n-placeholder]')){
-  const key=element.getAttribute('data-i18n-placeholder');
-  if(Object.hasOwn(CATALOG,key))element.setAttribute('placeholder',translate(key,language));
- }
- for(const element of document.querySelectorAll('[data-i18n-aria]')){
-  const key=element.getAttribute('data-i18n-aria');
-  if(Object.hasOwn(CATALOG,key))element.setAttribute('aria-label',translate(key,language));
- }
- for(const element of document.querySelectorAll('[data-i18n-alt]')){
-  const key=element.getAttribute('data-i18n-alt');
-  if(Object.hasOwn(CATALOG,key))element.setAttribute('alt',translate(key,language));
+ for(const {element,attr,key} of staticAttributes){
+  if(element.isConnected)element.setAttribute(attr,translate(key,language));
  }
  const select=document.getElementById('language-switch');
  if(select)select.value=language;
@@ -137,8 +146,8 @@ window.MARCOSA_LOCALE=Object.freeze({
  apply:translateStatic,
  catalogKeys:()=>Object.keys(CATALOG) // diagnostics only, no secrets or content.
 });
+translateStatic(); // Early snapshot limits translation strictly to template-owned text.
 document.addEventListener('DOMContentLoaded',()=>{
- translateStatic();
  document.getElementById('language-switch')?.addEventListener('change',event=>setLanguage(event.target.value));
 });
 })();
