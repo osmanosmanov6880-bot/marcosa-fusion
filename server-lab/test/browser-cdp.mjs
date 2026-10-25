@@ -237,7 +237,7 @@ async function main(){
    await cdp.evalJS("(()=>{document.getElementById('invite-clear').click();document.getElementById('invite-refresh').click();return true;})()");
    await cdp.wait("document.getElementById('invite-list')?.textContent.includes('Использован')",'r45-used-pilot-visible');
    await cdp.evalJS("(()=>{document.getElementById('pilot-metrics-panel').open=true;document.getElementById('pilot-metrics-refresh').click();return true;})()");
-   await cdp.wait("Array.from(document.querySelectorAll('#pilot-metrics-data .pilot-metric')).some(x=>x.textContent.includes('Регистраций по одноразовым кодам')&&x.querySelector('strong')?.textContent==='1')",'r47-pilot-metrics');
+   await cdp.wait("Array.from(document.querySelectorAll('#pilot-metrics-data .pilot-metric')).some(x=>x.textContent.includes('Регистраций по одноразовым кодам')&&x.querySelector('strong')?.textContent==='"+(sizes.indexOf(size)+1)+"')",'r47-pilot-metrics');
    await cdp.evalJS("document.getElementById('pilot-metrics-panel').scrollIntoView({behavior:'instant',block:'center'})");
    await pause(140);
    await screenshot('pilot-evidence');
