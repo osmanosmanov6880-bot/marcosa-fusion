@@ -117,6 +117,12 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r71.locale_dictionary.test.mjs
           node --test server-lab/test/r71.locale_dictionary.test.mjs
+      - name: R79 real emergency public PNG shutdown, creator privacy and restart recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r79.media_incident_kill_switch.test.mjs
+          node --test server-lab/test/r79.media_incident_kill_switch.test.mjs
       - name: R71 bilingual UI and user-content isolation in actual desktop/mobile Chromium
         shell: bash
         run: |
