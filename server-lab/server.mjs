@@ -13,6 +13,7 @@ import {fileURLToPath} from 'node:url';
 import {promisify} from 'node:util';
 import {scrypt,randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
 import {sanitizePngCover,MAX_COVER_BYTES} from './media/safe-png.mjs';
+import {measureModerationQueues} from './ops/moderation-queue-health.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -615,6 +616,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const record=db.prepare('SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?').get(owner.id);
     send(res,200,{consented:Boolean(record),consentedAt:record?.consentedAt??null,cohortDay:record?.cohortDay??null,
      scope:'self',tracking:'daily login only, UTC, opt-in, local-only'});return;
+   }
+   if(method==='GET'&&route==='/api/mod/queue-health'){
+    const actor=requireUser(req);
+    check(actor.role==='moderator',403,'Только независимый модератор может читать сводку очередей');
+    send(res,200,measureModerationQueues(db,now()));return;
    }
    if(method==='GET'&&route==='/api/mod/pilot-metrics'){
     const operator=requireUser(req);
