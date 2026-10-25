@@ -145,7 +145,14 @@ test('R76 twelve isolated real-HTTP accounts, multi-user writes and persistent p
   assert.doesNotMatch(serialized,new RegExp('PRIVATE DRAFT from '+members[1].username));
   assert.doesNotMatch(serialized,/password_hash|token_hash|refresh_token|service_role/);
   assert.equal((await request('/account/export')).status,401);
-
+  // Twenty-four actual concurrent GETs on the same initialized SQLite:
+  // real HTTP results, no invented production p95 or external traffic.
+  const burst=await Promise.all(Array.from({length:24},(_,i)=>
+   request('/worlds',{cookie:members[i%members.length].cookie})));
+  assert.equal(burst.length,24);
+  assert.ok(burst.every(x=>x.status===200&&Array.isArray(x.data.items)));
+  assert.ok(burst.every(x=>x.data.items.length<=30));
+  
   // Persist actual data to disk and recover into a fresh server process.
   assert.deepEqual(lab.db.prepare('PRAGMA foreign_key_check').all(),[]);
   await lab.close();lab=null;
