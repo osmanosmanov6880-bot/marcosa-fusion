@@ -283,6 +283,12 @@
     <p id="mod-queue-health-status" class="pilot-metrics-note" role="status" aria-live="polite">Нет данных до входа модератора.</p>
     <button id="mod-queue-health-refresh" type="button" class="ghost small">Обновить реальные очереди</button>
    </details>
+   <details id="mod-readiness-panel" class="invite-panel pilot-metrics">
+    <summary>Целостность локальной базы</summary>
+    <p class="muted">Ручная проверка SQLite и внешних ключей. Это не гарантия производственного SLA или восстановления.</p>
+    <p id="mod-readiness-status" class="readiness-result" role="status" aria-live="polite">Диагностика ещё не запускалась.</p>
+    <button id="mod-readiness-refresh" type="button" class="ghost small">Проверить готовность базы</button>
+   </details>
    <details id="pilot-metrics-panel" class="invite-panel pilot-metrics">
     <summary>Пилот: проверенные показатели</summary>
     <p class="muted">D7/D30 считаются только для добровольной пригласительной когорты после 7/30 дней и честных событий входа. До созревания когорты указано «не измерено».</p>
