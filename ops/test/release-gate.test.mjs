@@ -85,7 +85,7 @@ test('R48: no public proof can inject unknown top-level fields',()=>{
  const e=fixture('public');
  e.productionAuthorized=true;
  assert.equal(audit(e,'public').decision,'BLOCKED');
- e.productionAuthorized=false;
+ delete e.productionAuthorized;
  e.proofs.someUnexpectedKey=proof();
  assert.equal(audit(e,'public').decision,'BLOCKED');
 });
