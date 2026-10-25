@@ -110,6 +110,12 @@ jobs:
           path: qa-r64/
           retention-days: 7
           if-no-files-found: warn
+      - name: R71 verify 201 static bilingual labels and user-content translation isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r71.locale_dictionary.test.mjs
+          node --test server-lab/test/r71.locale_dictionary.test.mjs
       - name: R71 bilingual UI and user-content isolation in actual desktop/mobile Chromium
         shell: bash
         run: |
