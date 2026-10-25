@@ -18,6 +18,7 @@ test('R59 independent cover appeals: private owner and moderator, no auto-publis
  async function req(path,{method='GET',cookie,data,type='application/json',origin=base}={}){
   const headers={};if(cookie)headers.Cookie=cookie;
   if(method!=='GET'){headers.Origin=origin;headers['Content-Type']=type;}
+  if(method==='POST'&&path.endsWith('/cover')&&type==='image/png')headers['X-Marcosa-Rights-Attestation']='rights-v1';
   const raw=data===undefined?undefined:Buffer.isBuffer(data)?data:JSON.stringify(data);
   const r=await fetch(base+'/api'+path,{method,headers,...(raw===undefined?{}:{body:raw})});
   const content=(r.headers.get('content-type')||'').includes('image/png')?Buffer.from(await r.arrayBuffer()):await r.json();
