@@ -1,0 +1,67 @@
+name: "MARCOSA | R117 triple-proof PREVIEW release certificate (NO PRODUCTION)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R116 read-only live VPS rollback readiness after each STAGING release"
+    types: [completed]
+  pull_request:
+    paths:
+      - "ops/release_certificate_r117.mjs"
+      - "tests/release_certificate_r117.test.mjs"
+      - ".github/workflows/marcosa-r117-release-certificate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r117-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test false-PASS prevention without credentials or network
+        run: |
+          set -euo pipefail
+          node --check ops/release_certificate_r117.mjs
+          node --test tests/release_certificate_r117.test.mjs
+  issue-certificate:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.event == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Require matching successful Pages HTTPS + STAGING SSH + actual VPS rollback proof
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          node ops/release_certificate_r117.mjs
+      - name: Preserve exact evidence (including a non-PASS diagnosis)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r117-triple-proof-release-certificate
+          path: marcosa-r117-release-certificate.json
+          retention-days: 14
+          if-no-files-found: warn
