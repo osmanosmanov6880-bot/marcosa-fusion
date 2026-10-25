@@ -276,23 +276,30 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
    if(method==='GET'&&followRead){
     const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followRead[1]);
     check(world,404,'Мир не найден');
-    const count=db.prepare('SELECT count(*) AS n FROM world_follows WHERE world_id=?').get(world.id).n;
     const visitor=who(req);
+    if(visitor&&isBlocked(visitor.id,world.owner_id))throw new HttpError(404,'Мир не найден');
+    const count=db.prepare('SELECT count(*) AS n FROM world_follows WHERE world_id=?').get(world.id).n;
     const followed=Boolean(visitor&&db.prepare('SELECT 1 FROM world_follows WHERE world_id=? AND user_id=?').get(world.id,visitor.id));
     send(res,200,{slug:followRead[1],count,followed,owned:visitor?.id===world.owner_id});return;
    }
    const commentRead=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
    if(method==='GET'&&commentRead){
     const id=int(commentRead[1]);
-    check(db.prepare("SELECT 1 FROM posts WHERE id=? AND status='published'").get(id),404,'Публикация не найдена');
+    const source=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(id);
+    check(source,404,'Публикация не найдена');
+    const viewer=who(req)?.id||'';
+    if(viewer&&isBlocked(viewer,source.author_id))throw new HttpError(404,'Публикация не найдена');
     const limit=20;
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный курсор комментариев');
-    const rows=db.prepare("SELECT c.id,c.body,c.created_at,u.username FROM comments c JOIN users u ON u.id=c.author_id WHERE c.post_id=? AND c.status='published' AND c.id<? ORDER BY c.id DESC LIMIT ?").all(id,cursor,limit+1);
+    const rows=db.prepare("SELECT c.id,c.body,c.created_at,u.username FROM comments c JOIN users u ON u.id=c.author_id WHERE c.post_id=? AND c.status='published' AND c.id<? AND "+visibleOwner('u.id')+" ORDER BY c.id DESC LIMIT ?")
+     .all(id,cursor,viewer,viewer,limit+1);
     send(res,200,page(rows,limit));return;
    }
    if(method==='GET'&&route==='/api/sponsors/approved'){
-    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' ORDER BY a.id DESC LIMIT 12").all();
+    const viewer=who(req)?.id||'';
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' AND "+visibleOwner('a.owner_id')+" AND "+visibleOwner('w.owner_id')+" ORDER BY a.id DESC LIMIT 12")
+     .all(viewer,viewer,viewer,viewer);
     send(res,200,{items,paid:false,production:false});return;
    }
    if(method==='GET'&&route==='/api/me/sponsors'){
@@ -352,6 +359,12 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
      .all(user.id,cursor,limit+1);
     const unreadCount=db.prepare('SELECT count(*) AS n FROM activity_events WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
     send(res,200,{...page(rows,limit),unreadCount});return;
+   }
+   if(method==='GET'&&route==='/api/me/blocks'){
+    const user=requireUser(req);
+    const items=db.prepare("SELECT u.username,b.created_at FROM user_blocks b JOIN users u ON u.id=b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC,u.username LIMIT 100")
+      .all(user.id);
+    send(res,200,{items,scope:'self',isPublic:false});return;
    }
    if(method==='GET'&&route==='/api/me/security'){
     const user=requireUser(req);
@@ -505,12 +518,39 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     });
     send(res,200,{id,status:body.decision,restored:body.decision==='restored'});return;
    }
+   const userBlock=route.match(/^\/api\/users\/([a-z][a-z0-9_]{2,23})\/block$/);
+   if(userBlock&&(method==='POST'||method==='DELETE')){
+    throttle('block:'+user.id,24,3600000);
+    const target=db.prepare('SELECT id,username FROM users WHERE username=?').get(userBlock[1]);
+    check(target,404,'Аккаунт не найден');
+    check(target.id!==user.id,400,'Нельзя блокировать самого себя');
+    if(method==='DELETE'){
+     const result=db.prepare('DELETE FROM user_blocks WHERE blocker_id=? AND blocked_id=?').run(user.id,target.id);
+     send(res,200,{username:target.username,blocked:false,changed:Boolean(result.changes)});return;
+    }
+    const result=atomic(()=>{
+     const inserted=db.prepare('INSERT OR IGNORE INTO user_blocks(blocker_id,blocked_id,created_at) VALUES(?,?,?)')
+      .run(user.id,target.id,now());
+     if(!inserted.changes)return inserted;
+     // End existing social ties in both directions without exposing the
+     // block action to the blocked user or forging new notifications.
+     db.prepare("DELETE FROM world_follows WHERE (user_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)) OR (user_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?))")
+      .run(user.id,target.id,target.id,user.id);
+     db.prepare("DELETE FROM activity_events WHERE (recipient_id=? AND actor_id=?) OR (recipient_id=? AND actor_id=?)")
+      .run(user.id,target.id,target.id,user.id);
+     db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE status IN ('pending_creator','pending_review','approved') AND ((owner_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)) OR (owner_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)))")
+      .run(now(),user.id,target.id,target.id,user.id);
+     return inserted;
+    });
+    send(res,result.changes?201:200,{username:target.username,blocked:true,changed:Boolean(result.changes)});return;
+   }
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
     const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
     check(world,404,'Мир не найден');
     check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
+    if(method==='POST')ensureNoBlock(user.id,world.owner_id);
     if(method==='POST'){
      throttle('follow:'+user.id,70,3600000);
      const result=atomic(()=>{
@@ -530,6 +570,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
     const post=db.prepare("SELECT author_id,world_id FROM posts WHERE id=? AND status='published'").get(postId);
     check(post,404,'Публикация недоступна');
+    ensureNoBlock(user.id,post.author_id);
     const id=atomic(()=>{
      const created=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
      recordActivity(post.author_id,user.id,'post_comment',{worldId:post.world_id,postId});
@@ -593,6 +634,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
     check(targetWorld,404,'Выбранный World не найден');
     check(targetWorld.owner_id!==user.id,403,'Нельзя предложить рекламу собственному World');
+    ensureNoBlock(user.id,targetWorld.owner_id);
     check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
     check(headline.length>=5&&headline.length<=130,400,'Заголовок предложения: 5–130 символов');
     const submittedUrl=str(body.landingUrl);
