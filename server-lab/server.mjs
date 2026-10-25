@@ -250,7 +250,7 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     const raw=str(query.get('q')).normalize('NFC');
     check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.visibility,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -267,7 +267,7 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     send(res,200,{query:raw,worlds,posts,limit:12});return;
    }
    if(method==='GET'&&route==='/api/worlds'){
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.visibility,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
 FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -612,7 +612,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
     throttle('comment-report:'+user.id,30,3600000);
     check(REASONS.has(body.reason),400,'Причина жалобы не поддерживается');
     const id=int(reportComment[1]);
-    const comment=db.prepare("SELECT c.author_id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id=? AND c.status='published' AND p.status='published'").get(id);
+    const comment=db.prepare("SELECT c.author_id FROM comments c JOIN posts p ON p.id=c.post_id JOIN worlds w ON w.id=p.world_id WHERE c.id=? AND c.status='published' AND p.status='published' AND w.visibility='public'").get(id);
     check(comment,404,'Комментарий не найден');
     check(comment.author_id!==user.id,403,'Нельзя жаловаться на собственный комментарий');
     try{
