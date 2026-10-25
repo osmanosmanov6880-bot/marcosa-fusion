@@ -78,7 +78,10 @@ const SCHEMA=[
  "CREATE TABLE IF NOT EXISTS user_blocks (blocker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY(blocker_id,blocked_id), CHECK(blocker_id<>blocked_id))",
  "CREATE INDEX IF NOT EXISTS idx_user_blocks_target ON user_blocks(blocked_id,blocker_id)",
  "CREATE TABLE IF NOT EXISTS saved_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, UNIQUE(user_id,post_id))",
- "CREATE INDEX IF NOT EXISTS idx_saved_posts_owner ON saved_posts(user_id,id DESC)"
+ "CREATE INDEX IF NOT EXISTS idx_saved_posts_owner ON saved_posts(user_id,id DESC)",
+ "CREATE TABLE IF NOT EXISTS pilot_invites (id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, label TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT REFERENCES users(id) ON DELETE SET NULL, used_at INTEGER, revoked_at INTEGER, CHECK(used_at IS NOT NULL OR used_by IS NULL))",
+ "CREATE INDEX IF NOT EXISTS idx_pilot_invites_creator ON pilot_invites(creator_id,created_at DESC)",
+ "CREATE INDEX IF NOT EXISTS idx_pilot_invites_expiry ON pilot_invites(expires_at) WHERE used_at IS NULL AND revoked_at IS NULL"
 ].join(';\n')+';';
 
 
@@ -125,7 +128,8 @@ function upgradeLegacySponsorStatuses(db){
  }
 }
 
-export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.now()}={}){
+export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now()}={}){
+ check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
  upgradeLegacySponsorStatuses(db);
@@ -415,6 +419,30 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const items=db.prepare('SELECT p.id,p.body,p.status,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? ORDER BY p.id DESC LIMIT 50').all(user.id);
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/mod/invites'){
+    const moderator=requireUser(req);
+    check(moderator.role==='moderator',403,'Только модератор управляет приглашениями');
+    const items=db.prepare("SELECT p.id,p.label,p.created_at AS createdAt,p.expires_at AS expiresAt,p.used_at AS usedAt,p.revoked_at AS revokedAt,u.username AS usedBy FROM pilot_invites p LEFT JOIN users u ON u.id=p.used_by WHERE p.creator_id=? ORDER BY p.created_at DESC,p.id DESC LIMIT 50")
+     .all(moderator.id);
+    send(res,200,{items,scope:'moderator',mode:registrationMode,hasSecrets:false});return;
+   }
+   if(method==='GET'&&route==='/api/me/onboarding'){
+    const member=requireUser(req);
+    const world=db.prepare("SELECT count(*) AS total, max(CASE WHEN length(trim(description))>=24 THEN 1 ELSE 0 END) AS customized FROM worlds WHERE owner_id=?").get(member.id);
+    const published=db.prepare("SELECT count(*) AS n FROM posts WHERE author_id=? AND status='published'").get(member.id).n;
+    const following=db.prepare("SELECT count(*) AS n FROM world_follows WHERE user_id=?").get(member.id).n;
+    const replied=db.prepare("SELECT count(*) AS n FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.author_id=? AND c.status='published' AND p.status='published' AND p.author_id<>c.author_id").get(member.id).n;
+    const saved=db.prepare('SELECT count(*) AS n FROM saved_posts WHERE user_id=?').get(member.id).n;
+    const steps=[
+     {id:'world',title:'Оформи описание своего мира',complete:Boolean(world.customized)},
+     {id:'publish',title:'Опубликуй первую историю',complete:published>0},
+     {id:'follow',title:'Подпишись на интересный чужой мир',complete:following>0},
+     {id:'reply',title:'Ответь автору другой истории',complete:replied>0},
+     {id:'save',title:'Сохрани полезную публикацию',complete:saved>0}
+    ];
+    send(res,200,{mode:'verified-sqlite-actions',completed:steps.filter(x=>x.complete).length,total:steps.length,steps,
+     advertisingRevenue:null,retentionD7:null,production:false});return;
+   }
    if(method==='GET'&&route==='/api/mod/reports'){
     const user=requireUser(req);check(user.role==='moderator',403,'Доступ запрещён');
     const items=db.prepare("SELECT r.id,r.post_id,r.reason,r.detail,r.status,r.created_at,u.username AS reporter FROM reports r JOIN users u ON u.id=r.reporter_id WHERE r.status='open' ORDER BY r.id ASC LIMIT 100").all();
@@ -426,8 +454,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
    const body=await readJSON(req);
    if(method==='POST'&&route==='/api/auth/register'){
     throttle('signup:'+clientIp(req),8,600000);
-    check(inviteCode.length>=12,403,'Регистрация по приглашениям временно закрыта');
-    check(timingSafeEqual(Buffer.from(hash(str(body.inviteCode)),'hex'),Buffer.from(hash(inviteCode),'hex')),403,'Неверный код приглашения');
+    const supplied=str(body.inviteCode);
+    const legacy=registrationMode==='legacy'&&inviteCode.length>=12
+      &&timingSafeEqual(Buffer.from(hash(supplied),'hex'),Buffer.from(hash(inviteCode),'hex'));
+    const ticket=registrationMode!=='closed'&&/^[a-f0-9]{48}$/.test(supplied)
+      ?db.prepare('SELECT id FROM pilot_invites WHERE code_hash=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?').get(hash(supplied),now())
+      :null;
+    check(registrationMode!=='closed'&&(legacy||ticket),403,'Недействительное или использованное приглашение');
     const email=str(body.email).toLowerCase(),username=str(body.username).toLowerCase();
     const password=body.password;
     check(email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),400,'Неверная почта');
@@ -436,11 +469,19 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const salt=randomBytes(16).toString('hex'),secret=await pwdHash(password,salt);
     const id=randomUUID(),worldId=randomUUID();
     try{
-     db.exec('BEGIN IMMEDIATE');
-     db.prepare('INSERT INTO users(id,email,username,salt,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,username,salt,secret,now());
-     db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,'u-'+username,'Мир '+username,now());
-     db.exec('COMMIT');
-    }catch(e){db.exec('ROLLBACK');throw new HttpError(409,'Регистрация с указанными данными невозможна');}
+     atomic(()=>{
+      db.prepare('INSERT INTO users(id,email,username,salt,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,username,salt,secret,now());
+      db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,'u-'+username,'Мир '+username,now());
+      if(ticket){
+       const claimed=db.prepare('UPDATE pilot_invites SET used_by=?,used_at=? WHERE id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?')
+        .run(id,now(),ticket.id,now());
+       check(claimed.changes===1,403,'Недействительное или использованное приглашение');
+      }
+     });
+    }catch(e){
+     if(e instanceof HttpError)throw e;
+     throw new HttpError(409,'Регистрация с указанными данными невозможна');
+    }
     send(res,201,{created:true,username,world:'u-'+username});return;
    }
    if(method==='POST'&&route==='/api/auth/login'){
@@ -459,6 +500,30 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if(method==='POST'&&route==='/api/mod/invites'){
+    check(user.role==='moderator',403,'Только модератор выдаёт приглашения');
+    throttle('invite:'+user.id,24,3600000);
+    check(Object.keys(body).every(key=>['label','expiresHours'].includes(key)),400,'Неизвестные поля');
+    const label=body.label===undefined?'':str(body.label);
+    const hours=body.expiresHours===undefined?72:body.expiresHours;
+    check(label.length<=60&&Number.isInteger(hours)&&hours>=1&&hours<=168,400,'Срок приглашения: 1–168 часов');
+    const open=db.prepare('SELECT count(*) AS n FROM pilot_invites WHERE creator_id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?').get(user.id,now()).n;
+    check(open<25,409,'Лимит 25 активных приглашений');
+    const code=randomBytes(24).toString('hex'),id=randomUUID(),createdAt=now(),expiresAt=createdAt+hours*3600000;
+    db.prepare('INSERT INTO pilot_invites(id,code_hash,creator_id,label,created_at,expires_at) VALUES(?,?,?,?,?,?)')
+     .run(id,hash(code),user.id,label,createdAt,expiresAt);
+    send(res,201,{id,code,expiresAt,oneUse:true,disclosure:'Код будет показан только один раз',mode:registrationMode});return;
+   }
+   const revokeInvite=route.match(/^\/api\/mod\/invites\/([0-9a-f-]{36})\/revoke$/);
+   if(method==='POST'&&revokeInvite){
+    check(user.role==='moderator',403,'Только модератор может отозвать приглашение');
+    const ticket=db.prepare('SELECT id,used_at,revoked_at FROM pilot_invites WHERE id=? AND creator_id=?').get(revokeInvite[1],user.id);
+    check(ticket,404,'Приглашение не найдено');
+    check(ticket.used_at===null,409,'Использованное приглашение нельзя отзывать');
+    const result=db.prepare('UPDATE pilot_invites SET revoked_at=? WHERE id=? AND revoked_at IS NULL')
+     .run(now(),ticket.id);
+    send(res,200,{revoked:true,changed:Boolean(result.changes)});return;
+   }
    if(method==='POST'&&route==='/api/me/security/revoke-others'){
     throttle('security:'+user.id,12,3600000);
     const currentPassword=typeof body.currentPassword==='string'?body.currentPassword:'';
@@ -835,7 +900,7 @@ if(process.argv[1]&&resolve(process.argv[1])===file){
  if(!['127.0.0.1','localhost','::1'].includes(host)){
   console.error('R28 is loopback-only. Refusing external network bind.');process.exit(1);
  }
- const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||''});
+ const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||'',registrationMode:process.env.MARCOSA_REGISTRATION_MODE||'legacy'});
  const port=Number(process.env.PORT||8787);
  app.server.listen(port,host,()=>console.log('MARCOSA R28 LAB at http://'+host+':'+app.server.address().port));
 }

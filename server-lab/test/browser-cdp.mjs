@@ -69,7 +69,10 @@ async function devtools(port){
 }
 async function main(){
  const work=mkdtempSync(join(tmpdir(),'marcosa-r28-browser-'));
- const lab=createApp({inviteCode:'r28-browser-invite-that-is-long'});
+ // Advance only the disposable lab clock between viewport cohorts.
+ // This tests authentic rate-limit expiration; application limits stay intact.
+ let labNow=Date.now();
+ const lab=createApp({inviteCode:'r28-browser-invite-that-is-long',now:()=>labNow});
  let chrome=null,cdp=null;
  try{
   await new Promise((resolve,reject)=>{
@@ -114,6 +117,7 @@ async function main(){
    {name:'compact',width:360,height:740,mobile:true}
   ];
   for(const size of sizes){
+   labNow+=601000; // different 10-minute signup windows, no throttle bypass
    console.log('R30 BROWSER SCREEN:',size.name);
    cdp.errors.length=0;cdp.requests.length=0;
    await cdp.call('Emulation.setDeviceMetricsOverride',{
@@ -159,6 +163,10 @@ async function main(){
    const statement='Мой мир — фактическая публикация R28 '+size.name;
    await cdp.evalJS("(()=>{const f=document.getElementById('post-form');f.elements.body.value='"+statement+"';f.requestSubmit(f.querySelector('button[value=published]'));return true;})()");
    await cdp.wait("document.getElementById('feed-list').textContent.includes('"+statement+"')",'published');
+   await cdp.wait("document.getElementById('onboarding-counter')?.textContent==='2 из 5 шагов'",'r45-real-creator-checklist');
+   await cdp.evalJS("(()=>{document.getElementById('onboarding-panel').open=true;document.getElementById('onboarding-panel').scrollIntoView({behavior:'instant',block:'center'});return true;})()");
+   await pause(140);
+   await screenshot('creator-onboarding');
    // R42 genuine Chrome: save the freshly published story via the real HTTP
    // button, verify private reading collection, then remove it.
    await cdp.wait("Array.from(document.querySelectorAll('#feed-list .post')).some(x=>x.textContent.includes('"+statement+"')&&x.querySelector('.saved-toggle'))",'r42-save-visible');
@@ -211,6 +219,29 @@ async function main(){
    await cdp.wait("document.getElementById('my-sponsors').textContent.includes('revoked')",'r30-consent-revocation');
    const revoked=await cdp.evalJS("document.getElementById('my-sponsors').textContent.includes('revoked')");
    if(!revoked)throw Error('R30_SPONSOR_REVOCATION_NOT_REFLECTED_'+size.name);
+   // R45: authenticate the author as a local moderator via the test fixture,
+   // issue a genuine one-use pilot code through the browser and redeem exactly once.
+   // Screenshots intentionally hide the secret before capture.
+   lab.db.prepare("UPDATE users SET role='moderator' WHERE username=?").run(identity);
+   await cdp.call('Page.navigate',{url:base+'/'});
+   await cdp.wait("document.getElementById('moderator')?.hidden===false&&document.getElementById('identity')?.textContent==='@"+identity+"'",'r45-moderator-console');
+   await cdp.evalJS("(()=>{const p=document.getElementById('mod-invites-panel');p.open=true;const f=document.getElementById('issue-invite-form');f.elements.label.value='R45 real browser pilot "+size.name+"';f.elements.expiresHours.value='4';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('issued-invite-code')?.textContent.length===48",'r45-one-use-code-issued');
+   const issuedCode=await cdp.evalJS("document.getElementById('issued-invite-code').textContent");
+   if(!/^[a-f0-9]{48}$/.test(issuedCode))throw Error('R45_CODE_IN_BROWSER_INVALID_'+size.name);
+   const pilotEmail='r45'+size.name+'@example.net';
+   async function claimPilot(){
+    const r=await fetch(base+'/api/auth/register',{method:'POST',headers:{'Content-Type':'application/json',Origin:base},
+     body:JSON.stringify({username:'r45'+size.name,email:pilotEmail,password:'long-safe-password-2026',inviteCode:issuedCode})});
+    return r.status;
+   }
+   if(await claimPilot()!==201||await claimPilot()!==403)throw Error('R45_BROWSER_INVITE_REPLAY_PROTECTION_FAILED_'+size.name);
+   await cdp.evalJS("(()=>{document.getElementById('invite-clear').click();document.getElementById('invite-refresh').click();return true;})()");
+   await cdp.wait("document.getElementById('invite-list')?.textContent.includes('Использован')",'r45-used-pilot-visible');
+   if(await cdp.evalJS("document.getElementById('issued-invite-code').textContent.length")!==0)throw Error('R45_BROWSER_CODE_NOT_CLEARED_'+size.name);
+   await cdp.evalJS("document.getElementById('mod-invites-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(140);
+   await screenshot('pilot-console-no-secrets');
    // R39: genuine browser security controls, no DOM-only simulation.
    await cdp.evalJS("(()=>{document.getElementById('security-panel').open=true;document.getElementById('security-refresh').click();return true;})()");
    await cdp.wait("document.getElementById('security-sessions')?.textContent.includes('Активных сессий: 1')",'r39-real-session-count');
@@ -232,7 +263,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R42 BROWSER QA COMPLETE: 24 Chrome screenshots, real saved collection and account/World flows on desktop/phones');
+  console.log('R45 BROWSER QA COMPLETE: 30 Chrome screenshots, creator onboarding, one-use invites and account/World flows on desktop/phones');
  }finally{
   cdp?.close();
   if(chrome){

@@ -259,3 +259,28 @@ dialog form{display:grid;gap:17px}
 #saved-more{width:100%;min-height:42px;margin-top:15px}
 .post-actions .saved-toggle[aria-pressed="true"]{border-color:#dbbf91;color:#f1d5a5}
 @media(max-width:720px){.saved-panel{padding-top:19px}.post-actions .saved-toggle{min-height:42px}}
+
+/* R45: Founder-grade pilot enrollment. No external fonts, JS interpolation or tracking. */
+.onboarding-panel{padding:16px 0 17px;margin:17px 0;border-top:1px solid var(--line)}
+.onboarding-panel summary{font-size:14px;font-weight:650;line-height:1.5}
+.onboarding-panel>.muted{line-height:1.7;font-size:12px;margin:12px 0}
+#onboarding-counter{display:block;font-size:12px;font-weight:650;margin-bottom:8px;color:#f0d5ad}
+#onboarding-progress{appearance:auto;width:100%;height:13px;accent-color:#c5a572;display:block;margin:0 0 15px}
+.onboarding-steps{list-style:none;padding:0;margin:12px 0;display:grid;gap:10px}
+.onboarding-steps li{padding:10px 12px;border:1px solid #d5bd9a24;border-radius:8px;font-size:12px;line-height:1.55;overflow-wrap:anywhere}
+.onboarding-steps .onboarding-complete{color:#e8d1a7;border-color:#c5a57255;background:#c5a5720b}
+.onboarding-steps .onboarding-pending{color:#acb5c3}
+.pilot-invites{padding:14px 0;border-top:1px solid var(--line);margin:16px 0}
+.pilot-invites summary{font-size:13px;line-height:1.55}
+.pilot-invites>.muted{font-size:12px;line-height:1.6;margin:11px 0}
+.pilot-invites label{font-size:12px}
+.pilot-invites input{min-width:0;width:100%}
+.pilot-invites button{min-height:42px}
+#issued-invite-result{padding:12px;border:1px solid #c5a57266;background:#071725;border-radius:9px;margin:14px 0}
+.issued-invite-code{display:block;overflow-wrap:anywhere;user-select:all;font-size:12px;letter-spacing:.045em;line-height:1.8;color:#ebd1aa;margin:10px 0}
+.invite-row{display:grid;gap:5px;padding:11px 0;border-top:1px solid #d5bd9a24}
+.invite-row strong{color:#eed3ad;font-size:12px}
+.invite-row small{color:#aab6c6;font-size:11px}
+.invite-row button{justify-self:start}
+#invite-refresh{margin-top:14px;width:100%}
+@media(max-width:720px){.pilot-invites button,.invite-row button{width:100%;min-height:44px}.onboarding-panel{padding:18px 0}}

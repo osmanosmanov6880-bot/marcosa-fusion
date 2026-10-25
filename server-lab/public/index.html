@@ -67,6 +67,13 @@
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>
+   <details id="onboarding-panel" class="invite-panel onboarding-panel" open>
+    <summary>Первые пять шагов в MARCOSA</summary>
+    <p class="muted">Прогресс считается по настоящим действиям твоего аккаунта, а не по выдуманным просмотрам.</p>
+    <label for="onboarding-progress" id="onboarding-counter">0 из 5 шагов</label>
+    <progress id="onboarding-progress" value="0" max="5">0 из 5</progress>
+    <ul id="onboarding-steps" class="onboarding-steps" aria-live="polite"></ul>
+   </details>
    <details id="creator-insights" class="invite-panel creator-insights">
     <summary>Статистика моих миров</summary>
     <div id="creator-insights-list" class="compact-list" aria-live="polite"></div>
@@ -179,6 +186,22 @@
    <h3>Жалобы на комментарии</h3><div id="comment-report-list"></div>
    <h3>Независимые апелляции</h3><div id="appeal-review-list" class="compact-list"></div>
    <details class="audit-details"><summary>Журнал решений модераторов</summary><div id="moderation-audit" class="compact-list"></div></details>
+   <details id="mod-invites-panel" class="invite-panel pilot-invites">
+    <summary>Одноразовые приглашения для закрытой беты</summary>
+    <p class="muted">Доступно только модератору локального сервера. Случайный код отображается один раз, хранится только его SHA-256. Не отправляй коды в публичные чаты.</p>
+    <form id="issue-invite-form" class="form-block">
+     <label>Метка участника (не почта)<input name="label" maxlength="60" placeholder="Когорта A / создатель"></label>
+     <label>Срок действия, часов<input name="expiresHours" type="number" min="1" max="168" value="72" required></label>
+     <button type="submit" class="gold">Создать одноразовый код</button>
+    </form>
+    <div id="issued-invite-result" hidden>
+     <label for="issued-invite-code">Код — доступен только сейчас, сохрани конфиденциально</label>
+     <code id="issued-invite-code" class="issued-invite-code"></code>
+     <button type="button" id="invite-clear" class="ghost small">Скрыть секрет</button>
+    </div>
+    <div id="invite-list" class="compact-list" aria-live="polite"></div>
+    <button id="invite-refresh" type="button" class="ghost small">Обновить список без секретов</button>
+   </details>
    <button id="reload-reports" class="ghost" type="button">Обновить модерацию</button>
   </div>
   <section class="sponsor-lab" aria-labelledby="sponsor-heading">
