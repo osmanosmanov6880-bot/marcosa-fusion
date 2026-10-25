@@ -266,32 +266,37 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     // Parameterized search; returns no drafts, hidden posts or private member data.
     const raw=str(query.get('q')).normalize('NFC');
     check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
+    const category=query.has('category')?str(query.get('category')).toLowerCase():'';
+    check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
       WHERE (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
-      AND ${visibleOwner('u.id')}
-      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer);
+      AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer,category,category);
     const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
       (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
       FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
       WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
-      AND ${visibleOwner('u.id')}
-      ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer);
-    send(res,200,{query:raw,worlds,posts,limit:12});return;
+      AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+      ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer,category,category);
+    send(res,200,{query:raw,category:category||null,worlds,posts,limit:12});return;
    }
    if(method==='GET'&&route==='/api/world-topics'){
     send(res,200,{items:Object.entries(WORLD_TOPICS).map(([id,title])=>({id,title})),source:'verified-server-taxonomy'});return;
    }
    if(method==='GET'&&route==='/api/worlds'){
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
+    const category=query.has('category')?str(query.get('category')).toLowerCase():'';
+    check(!category||validTopic(category),400,'Неизвестная категория');
+    const viewer=who(req)?.id||'';
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')}
-ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
-    send(res,200,{items});return;
+FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
+    send(res,200,{items,category:category||null});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
