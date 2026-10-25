@@ -123,6 +123,26 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r77.dynamic_locale_keys.test.mjs
           node --test server-lab/test/r77.dynamic_locale_keys.test.mjs
+      - name: R89 genuine SQLite readiness privilege, FK corruption and recovery HTTP QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r89.sqlite_readiness.test.mjs
+          node --test server-lab/test/r89.sqlite_readiness.test.mjs
+      - name: R89 real Chrome operator readiness RU EN 1440 390 360
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r89.readiness_browser_cdp.mjs
+          node server-lab/test/r89.readiness_browser_cdp.mjs
+      - name: Retain R89 operator SQLite readiness browser captures
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r89-operator-sqlite-readiness
+          path: qa-r89/
+          retention-days: 7
+          if-no-files-found: warn
       - name: R85 reject hostile PNG variants, corrupted CRC and metadata with real SQLite
         shell: bash
         run: |
