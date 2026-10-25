@@ -5,7 +5,7 @@
  */
 import {DatabaseSync} from 'node:sqlite';
 import {createReadStream,existsSync,lstatSync,statSync,openSync,closeSync,
- chmodSync,renameSync,rmSync,copyFileSync,readFileSync,writeFileSync,constants} from 'node:fs';
+ chmodSync,linkSync,rmSync,copyFileSync,readFileSync,writeFileSync,constants} from 'node:fs';
 import {resolve,dirname} from 'node:path';
 import {createHash,randomBytes} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
@@ -21,7 +21,9 @@ function safeExisting(value,label){
 function safeNew(value,label){
  assert(typeof value==='string'&&value.length>0&&!value.includes('\0'),label+' path required');
  const path=resolve(value);
- assert(!existsSync(path),label+' already exists; overwrites forbidden');
+ // lstat detects dangling symlinks; existsSync alone would miss them.
+ try{lstatSync(path);throw Error(label+' already exists; overwrites forbidden');}
+ catch(error){if(error.code!=='ENOENT')throw error;}
  const parent=lstatSync(dirname(path));
  assert(parent.isDirectory()&&!parent.isSymbolicLink(),label+' parent must be a real directory');
  return path;
@@ -77,8 +79,10 @@ export async function backupLocal({source,destination,createdAt=new Date().toISO
   writeFileSync(tempManifest,JSON.stringify(manifest,null,2)+'\n',{flag:'w',mode:0o600});
   chmodSync(tempManifest,0o600);
   assert(!existsSync(out)&&!existsSync(manifestPath),'Backup destination appeared during operation');
-  renameSync(temp,out);temp=null;
-  renameSync(tempManifest,manifestPath);tempManifest=null;
+  // Atomic create-only hard link: unlike rename, it CANNOT replace an
+  // existing destination, even if a concurrent actor created a symlink.
+  linkSync(temp,out);rmSync(temp);temp=null;
+  linkSync(tempManifest,manifestPath);rmSync(tempManifest);tempManifest=null;
   return{backup:out,manifest:manifestPath,sha256:digest,bytes,verification};
  }catch(error){
   if(temp)rmSync(temp,{force:true});
@@ -107,7 +111,7 @@ export async function restoreLocal({backup,manifest,destination}){
   const verification=verifyDatabase(temp);
   assert(await sha256(temp)===data.sha256,'Restore copy SHA-256 mismatch');
   assert(!existsSync(out),'Restore target unexpectedly appeared');
-  renameSync(temp,out);temp=null;
+  linkSync(temp,out);rmSync(temp);temp=null;
   return{restored:out,sourceDigest:data.sha256,verification};
  }finally{
   if(temp)rmSync(temp,{force:true});
