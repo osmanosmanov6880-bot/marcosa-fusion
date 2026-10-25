@@ -105,10 +105,14 @@ async function main(){
    {name:'mobile',width:390,height:844,mobile:true},
    {name:'compact',width:360,height:740,mobile:true}
   ];
-  const key=async value=>{
+  const key=async(value,activateNativeButton=false)=>{
    const args={key:value,code:value==='Escape'?'Escape':'Enter',
     windowsVirtualKeyCode:value==='Escape'?27:13};
    await cdp.call('Input.dispatchKeyEvent',{type:'rawKeyDown',...args});
+   // Real CDP Enter requires a trusted character event to activate buttons.
+   // rawKeyDown is sufficient for links and Escape, but NOT for native button click.
+   if(value==='Enter'&&activateNativeButton)await cdp.call('Input.dispatchKeyEvent',
+    {type:'char',...args,text:'\r',unmodifiedText:'\r'});
    await cdp.call('Input.dispatchKeyEvent',{type:'keyUp',...args});
   };
   for(const size of sizes){
@@ -144,7 +148,7 @@ async function main(){
    await cdp.call('Page.navigate',{url:base+'/#world-u-a11yowner'});
    await cdp.wait("document.getElementById('world-detail')?.hidden===false&&document.activeElement?.id==='world-detail-title'",'R64-deep-link-focus');
    await cdp.evalJS("document.getElementById('world-close').focus()");
-   await key('Enter');
+   await key('Enter',true);
    await pause(150);
    const closeState=await cdp.evalJS("({hidden:document.getElementById('world-detail')?.hidden,focused:document.activeElement?.id||document.activeElement?.className||document.activeElement?.tagName,hash:location.hash,opener:!!document.querySelector('#world-list a.world-open[href=\"#world-u-a11yowner\"]')})");
    console.log('R66 CLOSED DEEPLINK FOCUS',size.name,JSON.stringify(closeState));
