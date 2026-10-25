@@ -1,0 +1,121 @@
+name: "MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R117 triple-proof PREVIEW release certificate (NO PRODUCTION)"
+    types: [completed]
+  pull_request:
+    paths:
+      - "ops/production_boundary_r118.mjs"
+      - "tests/production_boundary_r118.test.mjs"
+      - ".github/workflows/marcosa-r118-production-boundary.yml"
+      - "tools/production_parity_audit.py"
+      - "tests/test_production_parity_audit.py"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r118-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Inspect exact read-only implementation and anti-false-GO tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/production_boundary_r118.mjs
+          node --test tests/production_boundary_r118.test.mjs
+          python -m unittest discover -s tests -p 'test_production_parity_audit.py' -v
+          python -m py_compile tools/production_parity_audit.py
+  live-production-parity:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.name == 'MARCOSA | R117 triple-proof PREVIEW release certificate (NO PRODUCTION)' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'workflow_run' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Independently demand CURRENT main has all R117 preview proofs
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "::error::This run is superseded by newer main; no remote action."
+            exit 2
+          }
+          node ops/release_certificate_r117.mjs
+      - name: Inspect real existing production public files, strictly READ ONLY, and redact evidence
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing restricted SSH-only key}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"; rm -f -- r118-legacy-parity-untrusted.json' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          KEY_FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs \
+            --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
+            --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          # ONLY the reviewed public-file parity inspector is streamed; no files
+          # are installed or written on production or the isolated STAGING VPS.
+          ssh -T -i "$TMP/key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'python3 -' \
+            < tools/production_parity_audit.py > r118-legacy-parity-untrusted.json
+          [[ -s r118-legacy-parity-untrusted.json ]] || exit 2
+          [[ "$(wc -c < r118-legacy-parity-untrusted.json)" -lt 65536 ]] || exit 2
+          node ops/production_boundary_r118.mjs
+      - name: Preserve ONLY bounded, redacted NO-GO evidence (never raw legacy output)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r118-production-boundary-no-go
+          path: marcosa-r118-production-boundary.json
+          retention-days: 14
+          if-no-files-found: warn
