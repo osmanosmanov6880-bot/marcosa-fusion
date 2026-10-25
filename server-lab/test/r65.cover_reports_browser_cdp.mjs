@@ -143,7 +143,7 @@ async function main(){
    const publicStatus=async()=>{const r=await fetch(url);await r.arrayBuffer();return r.status;};
    await login(owner);
    await cdp.wait("document.getElementById('world-cover-select')?.options.length>0",'ownerWorld');
-   await cdp.evalJS("(()=>{const bytes=Uint8Array.from(atob("+JSON.stringify(fixture)+"),s=>s.charCodeAt(0));const dt=new DataTransfer();dt.items.add(new File([bytes],'real-owner-cover.png',{type:'image/png'}));document.getElementById('world-cover-file').files=dt.files;document.getElementById('world-cover-panel').open=true;document.getElementById('world-cover-form').requestSubmit();return true;})()");
+   await cdp.evalJS("(()=>{const bytes=Uint8Array.from(atob("+JSON.stringify(fixture)+"),s=>s.charCodeAt(0));const dt=new DataTransfer();dt.items.add(new File([bytes],'real-owner-cover.png',{type:'image/png'}));document.getElementById('world-cover-file').files=dt.files;document.getElementById('world-cover-panel').open=true;document.getElementById('world-cover-rights').checked=true;document.getElementById('world-cover-form').requestSubmit();return true;})()");
    await cdp.wait("document.getElementById('world-cover-status')?.textContent.includes('ожидает модерации')",'pending');
    if(await publicStatus()!==404)throw Error('R65_OWNER_EARLY_PUBLIC');
    await logout();

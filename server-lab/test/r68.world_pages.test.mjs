@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {randomUUID} from 'node:crypto';
+import {randomUUID,createHash} from 'node:crypto';
 import {deflateSync} from 'node:zlib';
 import {createApp} from '../server.mjs';
 function crc(b){let n=0xffffffff;for(const x of b){n^=x;for(let k=0;k<8;k++)n=(n&1)?(n>>>1)^0xedb88320:(n>>>1);}return(n^0xffffffff)>>>0;}
@@ -67,6 +67,11 @@ test('R68 real share HTML: safe metadata, noindex, blocked users, older worlds a
   const pixels=png();
   app.db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(w.id,pixels,2,2,pixels.length,100,'approved',reviewer,101);
+  // R74: historical approved covers must NOT acquire a fake rights statement.
+  assert.doesNotMatch((await req(link)).body,/<meta property="og:image"/);
+  assert.equal((await req('/api/worlds/'+slug+'/cover')).status,404);
+  app.db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?)")
+   .run(w.id,w.owner_id,createHash('sha256').update(pixels).digest('hex'),Date.now());
   assert.match((await req(link)).body,/<meta property="og:image"/);
   app.db.prepare("UPDATE users SET role='member' WHERE id=?").run(reviewer);
   assert.doesNotMatch((await req(link)).body,/<meta property="og:image"/);

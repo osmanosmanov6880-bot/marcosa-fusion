@@ -72,6 +72,9 @@ const SCHEMA=[
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
  "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
+ "CREATE TABLE IF NOT EXISTS world_cover_rights (world_id TEXT PRIMARY KEY REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS world_cover_rights_history (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_world_cover_rights_history ON world_cover_rights_history(owner_id,world_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS world_cover_review_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, decision TEXT NOT NULL CHECK(decision IN ('approved','rejected')), created_at INTEGER NOT NULL)",
  
  "CREATE TABLE IF NOT EXISTS world_cover_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE,reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,cover_sha256 TEXT NOT NULL CHECK(length(cover_sha256)=64),reason TEXT NOT NULL CHECK(reason IN ('copyright','privacy','abuse','impersonation','other')),detail TEXT NOT NULL CHECK(length(detail) BETWEEN 12 AND 500),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','dismissed','withdrawn')),reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,decided_at INTEGER,UNIQUE(world_id,reporter_id,cover_sha256))",
@@ -276,11 +279,16 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const worldPage=route.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
    if(method==='GET'&&worldPage){
     const viewer=who(req)?.id||'';
-    const world=db.prepare("SELECT w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId,"
-     +" EXISTS(SELECT 1 FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
-     +" WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover"
+    const world=db.prepare("SELECT w.id,w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId"
      +" FROM worlds w JOIN users u ON u.id=w.owner_id WHERE w.slug=? LIMIT 1").get(worldPage[1]);
     check(world&&(!viewer||!isBlocked(viewer,world.ownerId)),404,'Мир не найден');
+    // Legacy approved PNG without a current owner SHA declaration is NOT
+    // eligible for preview; the same rule also governs actual byte delivery.
+    const preview=db.prepare("SELECT c.png,r.asset_sha256 FROM world_covers c"
+     +" JOIN world_cover_rights r ON r.world_id=c.world_id AND r.owner_id=?"
+     +" JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
+     +" WHERE c.world_id=? AND c.review_status='approved'").get(world.ownerId,world.id);
+    const hasCover=!!preview&&preview.asset_sha256===hash(Buffer.from(preview.png));
     const title=htmlAttr(world.title)+' · MARCOSA';
     const description=htmlAttr(world.description||'Мир автора @'+world.owner);
     const canonical=htmlAttr('http://'+verifiedHost+'/w/'+world.slug);
@@ -293,7 +301,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      '<meta property="og:description" content="'+description+'">',
      '<meta property="og:url" content="'+canonical+'">'
     ];
-    if(world.hasCover)meta.push('<meta property="og:image" content="'+htmlAttr('http://'+verifiedHost+'/api/worlds/'+world.slug+'/cover')+'">');
+    if(hasCover)meta.push('<meta property="og:image" content="'+htmlAttr('http://'+verifiedHost+'/api/worlds/'+world.slug+'/cover')+'">');
     const template=await readFile(new URL('./public/index.html',import.meta.url),'utf8');
     const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>')
      .replace('</head>',meta.join('\n')+'\n</head>');
@@ -388,8 +396,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(source,404,'Мир не найден');
     const viewer=who(req)?.id||'';
     check(!viewer||!isBlocked(viewer,source.owner_id),404,'Обложка недоступна');
-    const image=db.prepare("SELECT c.png FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator' WHERE c.world_id=? AND c.review_status='approved'").get(source.id);
-    check(image,404,'Обложка не найдена');
+    const image=db.prepare("SELECT c.png,r.asset_sha256 FROM world_covers c"
+     +" JOIN world_cover_rights r ON r.world_id=c.world_id AND r.owner_id=?"
+     +" JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
+     +" WHERE c.world_id=? AND c.review_status='approved'").get(source.owner_id,source.id);
+    check(image&&image.asset_sha256===hash(Buffer.from(image.png)),404,'Обложка не найдена');
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
       'Content-Disposition':'inline','Cache-Control':'private, no-store',
       'X-Content-Type-Options':'nosniff','Cross-Origin-Resource-Policy':'same-origin'});
@@ -403,6 +414,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],owner.id);
     check(world,404,'Мир не найден');
     const body=await readPngBody(req);
+    check(req.headers['x-marcosa-rights-attestation']==='rights-v1',428,
+     'Перед загрузкой подтвердите, что у вас есть права или разрешение на изображение');
     let safe;
     try{safe=sanitizePngCover(body);}
     catch{throw new HttpError(422,'Обложка должна быть PNG RGB/RGBA без анимации, до 1600 px и 768 KiB');}
@@ -411,9 +424,15 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      db.prepare("UPDATE world_cover_reports SET status='withdrawn',decided_at=? WHERE world_id=? AND status='open'").run(now(),world.id);
      db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,'pending',NULL,NULL) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at,review_status='pending',reviewed_by=NULL,reviewed_at=NULL")
       .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
+     db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?) ON CONFLICT(world_id) DO UPDATE SET owner_id=excluded.owner_id,asset_sha256=excluded.asset_sha256,statement_version=excluded.statement_version,asserted_at=excluded.asserted_at")
+      .run(world.id,owner.id,hash(safe.png),now());
+     db.prepare("INSERT INTO world_cover_rights_history(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?)")
+      .run(world.id,owner.id,hash(safe.png),now());
     });
     send(res,200,{hasCover:true,width:safe.width,height:safe.height,bytes:safe.bytes,
-      type:'image/png',metadataRemoved:true,reviewStatus:'pending',publicVisible:false,slug:coverRoute[1],production:false});
+      type:'image/png',metadataRemoved:true,reviewStatus:'pending',
+      rightsDeclarationRecorded:true,rightsDeclarationIsIndependentProof:false,
+      publicVisible:false,slug:coverRoute[1],production:false});
     return;
    }
    const privateCover=route.match(/^\/api\/me\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
@@ -622,6 +641,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
     const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.review_status AS reviewStatus,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
+    const worldCoverRights=db.prepare("SELECT w.slug,r.asset_sha256 AS assetSha256,r.statement_version AS statementVersion,r.asserted_at AS declaredAt FROM world_cover_rights r JOIN worlds w ON w.id=r.world_id WHERE r.owner_id=? AND w.owner_id=? ORDER BY w.slug").all(user.id,user.id);
+    const worldCoverRightsHistory=db.prepare("SELECT w.slug,r.asset_sha256 AS assetSha256,r.statement_version AS statementVersion,r.asserted_at AS declaredAt FROM world_cover_rights_history r JOIN worlds w ON w.id=r.world_id WHERE r.owner_id=? AND w.owner_id=? ORDER BY r.id ASC").all(user.id,user.id);
     const coverAppeals=db.prepare("SELECT w.slug,a.reason,a.status,a.created_at AS createdAt,a.decided_at AS decidedAt FROM world_cover_appeals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id ASC").all(user.id);
     const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
@@ -632,7 +653,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     const coverReports=db.prepare("SELECT r.reason,r.detail,r.status,r.created_at AS createdAt,r.decided_at AS decidedAt,w.slug FROM world_cover_reports r JOIN worlds w ON w.id=r.world_id WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -912,6 +933,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
       canonical=sanitizePngCover(persisted).png.equals(persisted);
      }catch{canonical=false;}
      check(canonical,422,'Материал не прошёл обязательную PNG-нормализацию');
+     const claim=db.prepare("SELECT asset_sha256,owner_id,statement_version FROM world_cover_rights WHERE world_id=?").get(item.world_id);
+     check(claim&&claim.owner_id===item.owner_id&&
+      claim.asset_sha256===hash(Buffer.from(item.png))&&claim.statement_version==='rights-v1',
+      409,'Нет действующего подтверждения прав на текущую версию PNG');
     }
     atomic(()=>{
      const result=db.prepare("UPDATE world_covers SET review_status=?,reviewed_by=?,reviewed_at=? WHERE world_id=? AND review_status='pending'").run(decision,user.id,now(),item.world_id);
