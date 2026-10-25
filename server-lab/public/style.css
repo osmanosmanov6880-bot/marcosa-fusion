@@ -284,3 +284,15 @@ dialog form{display:grid;gap:17px}
 .invite-row button{justify-self:start}
 #invite-refresh{margin-top:14px;width:100%}
 @media(max-width:720px){.pilot-invites button,.invite-row button{width:100%;min-height:44px}.onboarding-panel{padding:18px 0}}
+
+/* R47 verified pilot scorecard — never imply paid delivery or invented traffic. */
+.pilot-metrics{margin:16px 0;padding:15px 0;border-top:1px solid var(--line)}
+.pilot-metrics summary{font-size:13px;line-height:1.6}
+.pilot-metrics>.muted{font-size:12px;line-height:1.7;margin:13px 0}
+.pilot-metrics-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:14px 0}
+.pilot-metric{padding:13px 10px;border:1px solid #c7b18b44;background:#091826;border-radius:9px;min-width:0}
+.pilot-metric strong{font-size:22px;font-variant-numeric:tabular-nums;color:#e4c79d;display:block;line-height:1.3}
+.pilot-metric span{font-size:10px;color:#bbc5d2;line-height:1.6;display:block;overflow-wrap:anywhere}
+.pilot-metrics-note{grid-column:1/-1;color:#b9c4d2;font-size:11px;line-height:1.7;margin:3px 0}
+#pilot-metrics-refresh{width:100%;min-height:42px}
+@media(max-width:720px){.pilot-metrics{padding:20px 0}.pilot-metric strong{font-size:20px}}
