@@ -64,11 +64,6 @@
      <label>Выбери мир<select id="world-settings-select" name="slug" required></select></label>
      <label>Название мира<input name="title" maxlength="70" minlength="3" required></label>
      <label>Описание<textarea name="description" maxlength="400" rows="4"></textarea></label>
-     <label>Доступ к миру<select name="visibility" required>
-      <option value="public">Публичный — доступен всем</option>
-      <option value="private">Приватный — только владельцу</option>
-     </select></label>
-     <p class="muted privacy-warning">При закрытии мира подписки и активные рекламные согласия прекращаются. Возврат к публичному доступу не восстановит их автоматически. Ранее сохранённые посторонними копии материалов удалить невозможно.</p>
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>
@@ -86,6 +81,12 @@
      <label>Описание<textarea name="description" maxlength="400" rows="3"></textarea></label>
      <button class="ghost" type="submit">Создать мир</button>
     </form>
+   </details>
+   <details id="saved-panel" class="saved-panel invite-panel">
+    <summary>Моя коллекция сохранённых публикаций</summary>
+    <p class="muted">Сохраняй полезные истории из ленты. Коллекция видна только тебе; скрытые модерацией и заблокированные публикации не показываются.</p>
+    <div id="saved-list" class="compact-list" aria-live="polite"></div>
+    <button id="saved-more" class="ghost small" type="button" hidden>Показать ещё сохранённые</button>
    </details>
    <section id="appeals-panel" class="appeals-panel" aria-labelledby="appeals-heading">
     <h3 id="appeals-heading">Мои обращения</h3>

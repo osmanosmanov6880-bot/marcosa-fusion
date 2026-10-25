@@ -250,8 +250,12 @@ dialog form{display:grid;gap:17px}
 .world-card .block-user{display:block;margin-top:8px;min-height:36px;white-space:normal}
 @media(max-width:720px){.blocks-panel{padding:17px 0}.blocked-user{flex-wrap:wrap}.blocked-user button{min-height:42px}}
 
-/* R42: owner-only World privacy with a deliberate quiet-luxury warning. */
-.privacy-warning{font-size:11px;line-height:1.65;padding:12px;border-left:2px solid #ba9a69;background:#16263c;border-radius:4px;color:#d4d2d0}
-.world-settings select[name="visibility"]{min-height:44px}
-.world-own{overflow-wrap:anywhere}
-@media(max-width:720px){.privacy-warning{font-size:12px;padding:14px}}
+/* R42 private saved stories; quiet-luxury responsive reading collection */
+.saved-panel{margin:18px 0;padding:16px 0;border-top:1px solid var(--line)}
+.saved-panel summary{font-size:14px;font-weight:650;color:var(--ink)}
+.saved-panel>.muted{margin:13px 0;line-height:1.65;font-size:12px}
+#saved-list{display:grid;gap:12px;margin-top:14px}
+#saved-list .post{margin:0}
+#saved-more{width:100%;min-height:42px;margin-top:15px}
+.post-actions .saved-toggle[aria-pressed="true"]{border-color:#dbbf91;color:#f1d5a5}
+@media(max-width:720px){.saved-panel{padding-top:19px}.post-actions .saved-toggle{min-height:42px}}
