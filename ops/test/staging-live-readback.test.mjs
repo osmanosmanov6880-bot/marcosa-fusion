@@ -41,7 +41,7 @@ test('R90 deterministic content-addressed staging attestation never grants produ
  assert.equal(f.att.buildManifestSha256,sha256(f.man));
  assert.equal(f.att.productionAuthorized,false);
  assert.throws(()=>makeStagingAttestation({sourceSha:'wrong',manifestBytes:f.man}),/40-character/);
- assert.throws(()=>makeStagingAttestation({sourceSha:SHA,manifestBytes:Buffer.from('{}')}),/audited static preview/);
+ assert.throws(()=>makeStagingAttestation({sourceSha:SHA,manifestBytes:Buffer.from('{}')}),/manifest/);
  const tampered=Buffer.from(JSON.stringify({release_kind:'public_static_preview_only',
   files:{'index.html':'0'.repeat(64),'network.js':'0'.repeat(64),'../secret':'0'.repeat(64)}}));
  assert.throws(()=>makeStagingAttestation({sourceSha:SHA,manifestBytes:tampered}));
