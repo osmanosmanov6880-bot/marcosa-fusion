@@ -8,6 +8,7 @@ on:
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
       - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
       - "docs/MARCOSA_R46_POSTGRES_PILOT_INVITES_REFERENCE.sql"
+      - "docs/MARCOSA_R51_POSTGRES_NOTIFICATION_SETTINGS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -18,6 +19,7 @@ on:
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
       - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
       - "docs/MARCOSA_R46_POSTGRES_PILOT_INVITES_REFERENCE.sql"
+      - "docs/MARCOSA_R51_POSTGRES_NOTIFICATION_SETTINGS_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -98,6 +100,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/50_rls_pilot_invites.sql
+      - name: Apply R51 owner-only preferences contract in disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R51_POSTGRES_NOTIFICATION_SETTINGS_REFERENCE.sql
+      - name: Verify three identities, denied mutations, default booleans and deletion
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/60_rls_notification_preferences.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
