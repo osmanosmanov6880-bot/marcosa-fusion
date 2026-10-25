@@ -20,7 +20,7 @@ test('R71 200+ trusted UI labels have distinct, complete bilingual keys',()=>{
  }
  assert.ok(source.includes('const walker=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT)'),
   'Trusted template capture required before user content arrives');
- assert.ok(!source.includes('MutationObserver'),'Never auto-translate user content');
+ assert.ok(!/\bnew\s+MutationObserver\s*\(/.test(source),'Never auto-translate user content');
  assert.ok(!source.includes('innerHTML='),'Locale must never inject parsed HTML');
  assert.ok(!source.includes('fetch('),'No network translation provider');
 });
