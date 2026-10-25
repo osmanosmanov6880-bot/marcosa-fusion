@@ -136,6 +136,9 @@ async function main(){
    const en=await cdp.evalJS("(()=>({lang:document.documentElement.lang,hero:document.querySelector('h1')?.textContent,login:document.querySelector('#login-form button')?.textContent,skip:document.querySelector('.skip-navigation')?.textContent,search:document.querySelector('#discover-form button')?.textContent,open:document.querySelector('#world-list .world-open')?.textContent,world:document.querySelector('#world-list .world-card h3')?.textContent,post:document.querySelector('#feed-list .post-body')?.textContent,title:document.title,aria:document.getElementById('discover-category')?.getAttribute('aria-label'),saved:localStorage.getItem('marcosa.ui.language.r71'),topic:[...document.getElementById('discover-category').options].some(x=>x.textContent==='Art')}))()");
    if(en.lang!=='en'||!en.hero.includes('A world begins')||en.login!=='Enter your World'||en.skip!=='Skip to main content'||en.search!=='Search'||en.open!=='Open World ↗'||en.world!=='Войти'||en.post!=='Твой доступ'||!en.title.includes('English beta')||en.aria!=='Filter Worlds by topic'||en.saved!=='en'||!en.topic)
     throw Error('R71_ENGLISH_OR_USER_DATA_'+viewport.name+' '+JSON.stringify(en));
+   const dynamics=await cdp.evalJS("(()=>({discussion:document.querySelector('#feed-list details.discussion summary')?.textContent,ads:document.getElementById('sponsor-showcase')?.textContent,body:document.querySelector('#feed-list .post-body')?.textContent}))()");
+   if(dynamics.discussion!=='Discussion · 0'||!dynamics.ads?.includes('No approved pilot proposals')||dynamics.body!=='Твой доступ')
+    throw Error('R77_EN_DYNAMIC_ORIGINAL_USER_CONTENT_'+viewport.name+' '+JSON.stringify(dynamics));
    await shot('english');
    await cdp.call('Page.navigate',{url:base+'/'});
    await cdp.wait("document.readyState==='complete'&&document.documentElement.lang==='en'&&document.querySelector('h1')?.textContent.includes('A world begins')",'R71-persist-reload');
@@ -145,8 +148,8 @@ async function main(){
    if(ssr.world!=='Войти'||ssr.description!=='Пароль'||ssr.close!=='← All Worlds'||ssr.robots!=='noindex,nofollow'||!ssr.title.includes('Войти'))
     throw Error('R71_SSR_USER_CONTENT_PROTECTION_'+viewport.name+' '+JSON.stringify(ssr));
    await cdp.evalJS("MARCOSA_LOCALE.setLanguage('ru')");
-   const recovered=await cdp.evalJS("({lang:document.documentElement.lang,label:document.getElementById('world-close')?.textContent,selection:document.getElementById('language-switch')?.value})");
-   if(recovered.lang!=='ru'||recovered.label!=='← Все миры'||recovered.selection!=='ru')
+   const recovered=await cdp.evalJS("({lang:document.documentElement.lang,label:document.getElementById('world-close')?.textContent,selection:document.getElementById('language-switch')?.value,discussion:document.querySelector('#feed-list details.discussion summary')?.textContent})");
+   if(recovered.lang!=='ru'||recovered.label!=='← Все миры'||recovered.selection!=='ru'||recovered.discussion!=='Обсуждение · 0')
     throw Error('R71_RESTORATION_'+viewport.name+' '+JSON.stringify(recovered));
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length||cdp.errors.length)
