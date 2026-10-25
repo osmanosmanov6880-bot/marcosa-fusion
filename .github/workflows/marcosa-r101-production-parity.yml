@@ -54,16 +54,16 @@ jobs:
       - name: Independently verify VPS, inspect public legacy and staged assets read-only
         shell: bash
         env:
-          DEPLOY_HOST: \${{ secrets.MARCOSA_STAGING_HOST }}
-          DEPLOY_USER: \${{ secrets.MARCOSA_STAGING_USER }}
-          DEPLOY_KEY: \${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_PORT: \${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
           EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
         run: |
           set -euo pipefail
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           source ops/load-pinned-staging-host.sh
-          : "\${DEPLOY_KEY:?Missing restricted SSH key}"
+          : "${DEPLOY_KEY:?Missing restricted SSH key}"
           umask 077
           TMP="$(mktemp -d)"
           trap 'rm -rf -- "$TMP"' EXIT
