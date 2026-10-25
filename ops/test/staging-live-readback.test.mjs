@@ -72,8 +72,7 @@ test('R90 refuse unsafe DNS host, off-host origin, ambiguous or insecure URL',()
 });
 test('R90 refuse stale commit attestation and swapped build manifest despite all files being present',async()=>{
  let f=fixture();
- f.att.sourceSha='b'.repeat(40);
- f.map.set('staging-release.json',Buffer.from(JSON.stringify(f.att)));
+ f.map.set('staging-release.json',Buffer.from(JSON.stringify({...f.att,sourceSha:'b'.repeat(40)})));
  await assert.rejects(()=>verify(f),/Source SHA/);
  f=fixture();f.map.set('build-manifest.json',Buffer.from(f.man.toString()+' '));
  await assert.rejects(()=>verify(f),/build-manifest bytes mismatch/);
