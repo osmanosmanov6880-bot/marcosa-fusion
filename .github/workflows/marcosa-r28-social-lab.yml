@@ -76,6 +76,20 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r60.media_browser_cdp.mjs
           node server-lab/test/r60.media_browser_cdp.mjs
+      - name: R64 actual keyboard World navigation, focus recovery and reduced-motion QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r64.keyboard_accessibility_cdp.mjs
+          node server-lab/test/r64.keyboard_accessibility_cdp.mjs
+      - name: R64 real Chromium desktop-mobile keyboard screenshots
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r64-accessible-keyboard-navigation
+          path: qa-r64/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Upload R60 browser media QA screenshots
         if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
