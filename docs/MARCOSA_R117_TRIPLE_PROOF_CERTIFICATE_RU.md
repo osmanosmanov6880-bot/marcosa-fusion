@@ -16,7 +16,7 @@ R117 создаёт машиночитаемый `marcosa-r117-release-certifica
 - Сырьевые журналы: [GitHub Pages](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/workflows/marcosa-public-pages.yml), [STAGING](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/workflows/marcosa-staging.yml), [R116](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/workflows/marcosa-r116-rollback-readiness.yml).
 - Артефакт R117 имеет отдельные поля `evidence.publicPages`, `evidence.restrictedContaboStaging`, `evidence.verifiedVpsRollbackCandidate`, SHA и состояние на момент проверки.
 
-Сертификат **не является цифровой подписью** и подтверждает только проверенный момент времени. Новый коммит требует нового сертификата. Проверка повторяется при завершении реального R116 workflow_run или вручную через `workflow_dispatch` на `main`.
+Сертификат **не является цифровой подписью** и подтверждает только проверенный момент времени. Новый коммит требует нового сертификата. Проверка повторяется при завершении реального R116 `workflow_run`, при завершении публикации GitHub Pages или вручную через `workflow_dispatch` на `main`. Это учитывает любой порядок окончания Pages и VPS. Преждевременный `PENDING` не становится `PASS` до получения всех трёх подтверждений.
 
 ## Что остаётся строго запрещено
 
