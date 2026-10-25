@@ -1,0 +1,49 @@
+name: "MARCOSA | R115 full-integrity STAGING rollback rehearsal"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/rollback-staging.sh"
+      - "tests/test_r115_rollback_integrity.py"
+      - ".github/workflows/marcosa-r115-rollback-integrity.yml"
+  pull_request:
+    paths:
+      - "scripts/rollback-staging.sh"
+      - "tests/test_r115_rollback_integrity.py"
+      - ".github/workflows/marcosa-r115-rollback-integrity.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-real-bash-rollback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Validate Bash and rehearse atomically rotated STAGING symlinks with disposable releases
+        run: |
+          set -euo pipefail
+          bash -n scripts/rollback-staging.sh
+          python -m unittest discover -s tests -p 'test_r115_rollback_integrity.py' -v
+          python -m unittest discover -s tests -p 'test_deploy_guardrails.py' -v
+      - name: Enforce recovery proof and no production mutation
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          code=Path("scripts/rollback-staging.sh").read_text()
+          assert 'STAGING_ROLLBACK_TARGET_BYTES_VERIFIED=PASS' in code
+          assert 'STAGING_ROLLBACK_TARGET_ASSETS_VERIFIED=' in code
+          assert 'ROLLBACK_TARGET_CHECKSUM_MISMATCH' in code
+          assert 'proof.get("productionAuthorized") is not False' in code
+          assert 'manifest.get("release_kind")!="public_static_preview_only"' in code
+          assert '[[ "$OLD" != "$TARGET" ]]' in code
+          assert '[[ ! -L "$ROOT/.staging-approved" ]]' not in code or '&& ! -L "$ROOT/.staging-approved"' in code
+          for forbidden in ("sudo ", "systemctl ", "nginx -s", "rsync --delete",
+                            "rm -rf /opt/marcosa", "chown root"):
+              assert forbidden not in code,forbidden
+          print("R115_SOURCE_PINNED_ROLLBACK_GUARD=PASS")
+          PY
