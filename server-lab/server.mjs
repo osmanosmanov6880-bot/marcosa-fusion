@@ -300,7 +300,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Robots-Tag':'noindex, nofollow'});
     res.end(html);return;
    }
-   if(method==='GET'&&['/','/app.js','/style.css'].includes(route)){
+   if(method==='GET'&&['/','/app.js','/i18n.js','/style.css'].includes(route)){
     const name=route==='/'?'index.html':route.slice(1);
     const data=await readFile(new URL('./public/'+name,import.meta.url));
     const type=name.endsWith('.js')?'text/javascript':name.endsWith('.css')?'text/css':'text/html';

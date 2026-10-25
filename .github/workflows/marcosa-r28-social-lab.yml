@@ -31,6 +31,7 @@ jobs:
           set -euo pipefail
           node --check server-lab/server.mjs
           node --check server-lab/public/app.js
+          node --check server-lab/public/i18n.js
           node --check server-lab/test/core.test.mjs
           test -s server-lab/public/index.html
           test -s server-lab/public/style.css
@@ -107,6 +108,26 @@ jobs:
         with:
           name: marcosa-r64-accessible-keyboard-navigation
           path: qa-r64/
+          retention-days: 7
+          if-no-files-found: warn
+      - name: R71 verify 201 static bilingual labels and user-content translation isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r71.locale_dictionary.test.mjs
+          node --test server-lab/test/r71.locale_dictionary.test.mjs
+      - name: R71 bilingual UI and user-content isolation in actual desktop/mobile Chromium
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r71.bilingual_browser_cdp.mjs
+          node server-lab/test/r71.bilingual_browser_cdp.mjs
+      - name: Retain R71 six real RU-EN locale browser screenshots
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r71-verified-bilingual-shell
+          path: qa-r71/
           retention-days: 7
           if-no-files-found: warn
       - name: Upload R60 browser media QA screenshots
