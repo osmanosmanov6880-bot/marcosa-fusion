@@ -130,3 +130,14 @@ test('missing or malformed trust inputs rejected without claiming production',()
   assert.throws(()=>evaluateCertificate({...example(),runs:Array(501).fill(null)}));
   assert.throws(()=>evaluateCertificate({...example(),jobsByRun:null}));
 });
+
+test('workflow reruns certificate both after Pages and real VPS proof in either order',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const yaml=readFileSync(new URL('../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
+  assert.match(yaml,/workflows:\s*\n\s+- "MARCOSA \| R116 read-only live VPS rollback readiness after each STAGING release"\s*\n\s+- "MARCOSA \| Publish public Network OS preview"/);
+  assert.match(yaml,/github\.event\.workflow_run\.event == 'workflow_run'/);
+  assert.match(yaml,/github\.event\.workflow_run\.event == 'push'/);
+  assert.match(yaml,/persist-credentials: false/);
+  assert.match(yaml,/github\.event\.workflow_run\.head_branch == 'main'/);
+  assert.doesNotMatch(yaml,/permissions:\s*\n\s+contents: write/);
+});
