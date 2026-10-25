@@ -334,6 +334,17 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     const unreadCount=db.prepare('SELECT count(*) AS n FROM activity_events WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
     send(res,200,{...page(rows,limit),unreadCount});return;
    }
+   if(method==='GET'&&route==='/api/me/security'){
+    const user=requireUser(req);
+    const sessionId=getCookie(req.headers.cookie);
+    const current=db.prepare("SELECT expires_at FROM sessions WHERE token_hash=? AND user_id=?")
+     .get(hash(sessionId),user.id);
+    check(current,401,'Сессия недействительна');
+    const activeSessions=db.prepare("SELECT count(*) AS n FROM sessions WHERE user_id=? AND expires_at>?")
+     .get(user.id,now()).n;
+    send(res,200,{activeSessions,currentExpiresAt:current.expires_at,
+     emailVerified:false,recoveryConfigured:false,mode:'local-security-lab'});return;
+   }
    if(method==='GET'&&route==='/api/account/export'){
     const user=requireUser(req);
     // All rows are owner-bound; never include password hashes or session tokens.
@@ -398,6 +409,37 @@ FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 3
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if(method==='POST'&&route==='/api/me/security/revoke-others'){
+    throttle('security:'+user.id,12,3600000);
+    const currentPassword=typeof body.currentPassword==='string'?body.currentPassword:'';
+    check(currentPassword.length<=128,400,'Некорректный пароль');
+    const stored=stmt.email.get(user.email);
+    check(await passwordMatches(currentPassword,stored),403,'Неверный текущий пароль');
+    const currentToken=getCookie(req.headers.cookie);
+    check(currentToken,401,'Недействительная сессия');
+    const removed=db.prepare('DELETE FROM sessions WHERE user_id=? AND token_hash<>?').run(user.id,hash(currentToken));
+    send(res,200,{revoked:removed.changes,currentSessionActive:true});return;
+   }
+   if(method==='POST'&&route==='/api/me/security/change-password'){
+    throttle('security:'+user.id,12,3600000);
+    const currentPassword=typeof body.currentPassword==='string'?body.currentPassword:'';
+    const newPassword=body.newPassword;
+    check(currentPassword.length<=128&&typeof newPassword==='string'&&newPassword.length>=12&&newPassword.length<=128,
+     400,'Новый пароль: 12–128 символов');
+    const stored=stmt.email.get(user.email);
+    check(await passwordMatches(currentPassword,stored),403,'Неверный текущий пароль');
+    check(newPassword!==currentPassword,400,'Новый пароль должен отличаться от старого');
+    const newSalt=randomBytes(16).toString('hex');
+    const newHash=await pwdHash(newPassword,newSalt);
+    const revoked=atomic(()=>{
+     const change=db.prepare('UPDATE users SET salt=?,password_hash=? WHERE id=?')
+      .run(newSalt,newHash,user.id);
+     check(change.changes===1,409,'Аккаунт изменён');
+     return db.prepare('DELETE FROM sessions WHERE user_id=?').run(user.id).changes;
+    });
+    send(res,200,{passwordChanged:true,sessionsRevoked:revoked,requiresLogin:true},
+     {'Set-Cookie':cookie('',0)});return;
+   }
    if(method==='POST'&&route==='/api/me/activity/read'){
     const result=db.prepare('UPDATE activity_events SET read_at=? WHERE recipient_id=? AND read_at IS NULL').run(now(),user.id);
     send(res,200,{read:result.changes,unreadCount:0});return;

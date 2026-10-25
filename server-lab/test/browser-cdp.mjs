@@ -201,13 +201,28 @@ async function main(){
    await cdp.wait("document.getElementById('my-sponsors').textContent.includes('revoked')",'r30-consent-revocation');
    const revoked=await cdp.evalJS("document.getElementById('my-sponsors').textContent.includes('revoked')");
    if(!revoked)throw Error('R30_SPONSOR_REVOCATION_NOT_REFLECTED_'+size.name);
+   // R39: genuine browser security controls, no DOM-only simulation.
+   await cdp.evalJS("(()=>{document.getElementById('security-panel').open=true;document.getElementById('security-refresh').click();return true;})()");
+   await cdp.wait("document.getElementById('security-sessions')?.textContent.includes('Активных сессий: 1')",'r39-real-session-count');
+   await cdp.evalJS("document.getElementById('security-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(140);
+   await screenshot('account-security');
+   await cdp.evalJS("(()=>{const f=document.getElementById('security-revoke-form');f.elements.currentPassword.value='long-safe-password-2026';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('notice')?.textContent.includes('Остальные сессии завершены')",'r39-session-revoke');
+   await cdp.evalJS("(()=>{const f=document.getElementById('security-password-form');f.elements.currentPassword.value='long-safe-password-2026';f.elements.newPassword.value='brand-new-browser-password-2026';f.requestSubmit();return true;})()");
+   await cdp.wait("document.getElementById('identity')?.textContent==='Гость'",'r39-password-change-logout');
+   await cdp.wait("document.getElementById('notice')?.textContent.includes('Пароль обновлён')",'r39-password-success');
+   // The old credential must actually fail and a fresh login must succeed.
+   const credentialCheck=await cdp.evalJS("(async()=>{const base='/api/auth/login';const headers={'Content-Type':'application/json'};const email='"+identity+"@example.net';const old=await fetch(base,{method:'POST',headers,body:JSON.stringify({email,password:'long-safe-password-2026'})});const fresh=await fetch(base,{method:'POST',headers,body:JSON.stringify({email,password:'brand-new-browser-password-2026'})});return{old:old.status,fresh:fresh.status}})()");
+   if(credentialCheck.old!==401||credentialCheck.fresh!==200)
+    throw Error('R39_REAL_PASSWORD_ROTATION_FAILED_'+size.name+' '+JSON.stringify(credentialCheck));
 
    const external=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(external.length)throw Error('EXTERNAL_NETWORK_ACCESS '+external.slice(0,5).join(' | '));
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R38 BROWSER QA COMPLETE: 18 Chrome screenshots including real owner-edited Worlds and social flows');
+  console.log('R39 BROWSER QA COMPLETE: 21 Chrome screenshots, real World Studio and security rotation on desktop/phones');
  }finally{
   cdp?.close();
   if(chrome){

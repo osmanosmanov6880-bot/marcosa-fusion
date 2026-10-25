@@ -225,3 +225,16 @@ dialog form{display:grid;gap:17px}
 .world-settings textarea{min-height:100px;line-height:1.6}
 .world-settings button{width:100%;min-height:44px}
 @media(max-width:720px){.world-settings{padding-top:20px}.world-settings summary{font-size:14px}}
+
+/* R39 — discreet account safety console, accessible and responsive. */
+.security-panel{margin:19px 0;padding:16px 0;border-top:1px solid var(--line)}
+.security-panel summary{font-size:14px;font-weight:650;letter-spacing:.015em}
+.security-panel .security-status{display:grid;gap:8px;margin:15px 0;padding:13px 15px;background:#102238;border:1px solid #c3a98444;border-radius:9px}
+.security-status span{font-size:12px;line-height:1.6;color:#e9d6b8;overflow-wrap:anywhere}
+.security-status .security-caveat{color:#bdc6d0;font-size:11px}
+.security-panel form{margin-top:19px;border-top:1px solid #d8bfa333;padding-top:17px}
+.security-panel form h4{font-size:14px;color:#f1dcb9;margin:0 0 7px}
+.security-panel form label{font-size:12px}
+.security-panel form button{min-height:44px;white-space:normal}
+#security-refresh{width:100%}
+@media(max-width:720px){.security-panel{padding:19px 0}.security-panel form button{width:100%}}
