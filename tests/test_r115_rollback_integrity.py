@@ -66,13 +66,44 @@ class IsolatedRollbackTests(unittest.TestCase):
         self.env = os.environ.copy()
         self.env.update(HOME=str(self.home), PATH=str(self.bin)+":"+self.env.get("PATH",""))
 
-    def execute(self):
-        return subprocess.run(["bash",str(SCRIPT)],env=self.env,check=False,
+    def execute(self,*args):
+        return subprocess.run(["bash",str(SCRIPT),*args],env=self.env,check=False,
                               capture_output=True,text=True,timeout=12)
 
     def assert_unmoved(self):
         self.assertEqual(os.readlink(self.root/"current"),"releases/"+OLD)
         self.assertEqual(os.readlink(self.root/"previous"),"releases/"+PREVIOUS)
+
+    def test_readonly_preflight_verified_previous_without_any_link_change(self):
+        result=self.execute("--check-only",OLD)
+        self.assertEqual(result.returncode,0,result.stdout+" "+result.stderr)
+        self.assertIn("STAGING_ROLLBACK_PREFLIGHT=PASS",result.stdout)
+        self.assertIn("STAGING_ROLLBACK_TARGET_ASSETS_VERIFIED=4",result.stdout)
+        self.assertIn("STAGING_CURRENT_SHA="+OLD,result.stdout)
+        self.assertIn("STAGING_PREVIOUS_SHA="+PREVIOUS,result.stdout)
+        self.assertIn("PRODUCTION_UNCHANGED=YES",result.stdout)
+        self.assert_unmoved()
+        self.assertFalse((self.root/".rollback-current-next").exists())
+        self.assertFalse((self.root/".rollback-previous-next").exists())
+
+    def test_readonly_preflight_rejects_superseded_main_sha(self):
+        result=self.execute("--check-only","c"*40)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("STAGING_ROLLBACK_PREFLIGHT=SUPERSEDED",result.stderr)
+        self.assert_unmoved()
+
+    def test_readonly_preflight_refuses_tampered_previous_release(self):
+        (self.good/"network.css").write_bytes(b"stale or tampered")
+        result=self.execute("--check-only",OLD)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("ROLLBACK_TARGET_CHECKSUM_MISMATCH",result.stderr)
+        self.assert_unmoved()
+
+    def test_readonly_preflight_rejects_missing_exact_sha(self):
+        result=self.execute("--check-only")
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("usage:",result.stderr)
+        self.assert_unmoved()
 
     def test_real_two_pointer_rollback_after_every_target_checksum(self):
         result=self.execute()

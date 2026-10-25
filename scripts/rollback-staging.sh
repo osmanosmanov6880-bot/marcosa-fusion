@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
 # Roll back the STAGING symlink only. No access to production is needed.
 set -euo pipefail
+# --check-only EXACT_SHA uses the exact same trusted target verifier as the
+# real rollback, but NEVER creates, renames or removes any filesystem entry.
+MODE="rollback"
+EXPECTED_SHA=""
+if [[ "$#" -eq 2 && "$1" == "--check-only" && "$2" =~ ^[a-f0-9]{40}$ ]]; then
+  MODE="check-only"
+  EXPECTED_SHA="$2"
+elif [[ "$#" -ne 0 ]]; then
+  echo "usage: rollback-staging.sh [--check-only EXACT_SHA]" >&2
+  exit 2
+fi
 [[ "$(id -un)" == "marcosa-deploy" ]] || { echo "Refusing non-staging user" >&2; exit 2; }
 ROOT="$HOME/marcosa-staging"
 [[ -d "$ROOT" && ! -L "$ROOT" ]] || exit 2
@@ -90,6 +101,16 @@ print("STAGING_ROLLBACK_TARGET_ASSETS_VERIFIED="+str(count))
 PY
 [[ "$OLD" != "$TARGET" ]] || { echo "Current and previous are identical" >&2; exit 2; }
 [[ -d "$ROOT/$OLD" && ! -L "$ROOT/$OLD" ]] || exit 2
+if [[ "$MODE" == "check-only" ]]; then
+  [[ "$OLD" == "releases/$EXPECTED_SHA" ]] || {
+    echo "STAGING_ROLLBACK_PREFLIGHT=SUPERSEDED" >&2; exit 4;
+  }
+  echo "STAGING_ROLLBACK_PREFLIGHT=PASS"
+  echo "STAGING_CURRENT_SHA=${OLD#releases/}"
+  echo "STAGING_PREVIOUS_SHA=${TARGET#releases/}"
+  echo "PRODUCTION_UNCHANGED=YES"
+  exit 0
+fi
 # Prepare both new pointers before changing the existing ones.
 [[ ! -e "$ROOT/.rollback-current-next" && ! -L "$ROOT/.rollback-current-next" ]] || exit 2
 [[ ! -e "$ROOT/.rollback-previous-next" && ! -L "$ROOT/.rollback-previous-next" ]] || exit 2

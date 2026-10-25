@@ -1,0 +1,112 @@
+name: "MARCOSA | R116 read-only live VPS rollback readiness after each STAGING release"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | Build, test and deploy STAGING"
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "scripts/rollback-staging.sh"
+      - "tests/test_r115_rollback_integrity.py"
+      - ".github/workflows/marcosa-r116-rollback-readiness.yml"
+  pull_request:
+    paths:
+      - "scripts/rollback-staging.sh"
+      - "tests/test_r115_rollback_integrity.py"
+      - ".github/workflows/marcosa-r116-rollback-readiness.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r116-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-rehearsal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prove both real Bash rollback and read-only preflight with disposable STAGING
+        run: |
+          set -euo pipefail
+          bash -n scripts/rollback-staging.sh
+          python -m unittest discover -s tests -p 'test_r115_rollback_integrity.py' -v
+  read-only-vps-proof:
+    needs: offline-rehearsal
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Read-only verify exact source SHA and rollback candidate on Contabo
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+          EXPECTED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          LIVE_MAIN="$(git rev-parse HEAD)"
+          if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
+            echo "R116_PREVIOUS_RUN_SUPERSEDED=SKIP"
+            echo "### R116 — previous SHA superseded; no remote action" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing restricted SSH-only key}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          KEY_FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs \
+            --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
+            --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          RESULT="$(ssh -i "$TMP/key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" "bash -s -- --check-only $EXPECTED_SHA" \
+            < scripts/rollback-staging.sh)"
+          printf '%s\n' "$RESULT"
+          printf '%s\n' "$RESULT" | grep -qx 'STAGING_ROLLBACK_PREFLIGHT=PASS'
+          printf '%s\n' "$RESULT" | grep -qx "STAGING_CURRENT_SHA=$EXPECTED_SHA"
+          printf '%s\n' "$RESULT" | grep -qx 'STAGING_ROLLBACK_TARGET_BYTES_VERIFIED=PASS'
+          printf '%s\n' "$RESULT" | grep -qx 'PRODUCTION_UNCHANGED=YES'
+          COUNT="$(printf '%s\n' "$RESULT" | sed -n 's/^STAGING_ROLLBACK_TARGET_ASSETS_VERIFIED=//p')"
+          PREVIOUS="$(printf '%s\n' "$RESULT" | sed -n 's/^STAGING_PREVIOUS_SHA=//p')"
+          [[ "$COUNT" =~ ^[0-9]{1,5}$ && "$COUNT" -ge 3 ]] || exit 2
+          [[ "$PREVIOUS" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          {
+            echo '### R116 — actual VPS, READ-ONLY rollback readiness'
+            echo "- Deployed source SHA: $EXPECTED_SHA"
+            echo "- Fully SHA-256 verified rollback candidate: $PREVIOUS"
+            echo "- Number of rollback assets verified: $COUNT"
+            echo '- No symlink rotation, Nginx changes, production writes or DB reads.'
+            echo '- A real rollback requires a separate failure/remediation trigger.'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "R116_ACTUAL_VPS_ROLLBACK_READINESS=PASS"
