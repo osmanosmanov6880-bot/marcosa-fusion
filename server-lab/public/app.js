@@ -20,6 +20,7 @@ const node=(tag,text='',cls='')=>{
 const clear=element=>element.replaceChildren();
 const values=form=>Object.fromEntries(new FormData(form).entries());
 const coverUrl=slug=>'/api/worlds/'+encodeURIComponent(slug)+'/cover';
+const privateCoverUrl=slug=>'/api/me/worlds/'+encodeURIComponent(slug)+'/cover';
 async function sendCover(slug,file){
  if(!file||file.type!=='image/png'||file.size<57||file.size>786432)
   throw Error('Выбери PNG до 768 KiB, без анимации');
@@ -84,6 +85,29 @@ async function pilotMetrics(){
  list.append(node('p','Активация приглашённых авторов: '+activation,'pilot-metrics-note'));
  list.append(node('p','D7/D30: не измерены · Рекламные показы и выручка: не измерены','pilot-metrics-note'));
 }
+async function reviewCovers(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const result=await api('/mod/cover-queue'),target=$('mod-cover-list');clear(target);
+ for(const item of result.items){
+  const row=node('article','','mod-cover-item');
+  row.append(node('strong',item.title+' · @'+item.owner),node('small',item.width+' × '+item.height+' px · ожидает рассмотрения'));
+  const image=node('img','','mod-cover-image');
+  image.src='/api/mod/worlds/'+encodeURIComponent(item.slug)+'/cover';
+  image.alt='Обложка мира '+item.title+' на независимой проверке';
+  image.loading='lazy';row.append(image);
+  for(const [decision,title] of [['approved','Одобрить изображение'],['rejected','Отклонить']]){
+   const button=node('button',title,decision==='approved'?'gold small':'ghost small');
+   button.type='button';
+   button.addEventListener('click',()=>run(async()=>{
+    await api('/mod/worlds/'+encodeURIComponent(item.slug)+'/cover/review','POST',{decision});
+    await Promise.all([reviewCovers(),worlds()]);
+   },decision==='approved'?'Изображение одобрено и опубликовано':'Изображение отклонено'));
+   row.append(button);
+  }
+  target.append(row);
+ }
+ if(!result.items.length)target.append(node('p','Новых изображений на рассмотрении нет.','muted'));
+}
 async function pilotInvites(){
  if(!state.me||state.me.role!=='moderator')return;
  const result=await api('/mod/invites'),list=$('invite-list');clear(list);
@@ -141,10 +165,10 @@ function syncCoverSettings(){
  const image=$('world-cover-preview');
  image.hidden=!world?.hasCover;
  $('world-cover-delete').disabled=!world?.hasCover;
- if(world?.hasCover)image.src=coverUrl(world.slug);
+ if(world?.hasCover)image.src=privateCoverUrl(world.slug);
  else image.removeAttribute('src');
- $('world-cover-status').textContent=world?.hasCover
-  ?'Опубликованная обложка · видна посетителям':'У этого мира пока нет обложки';
+ const labels={pending:'В очереди на независимую проверку',approved:'Одобрено · видно посетителям',rejected:'Отклонено · видит только владелец'};
+ $('world-cover-status').textContent=world?.hasCover?(labels[world.coverStatus]||'Статус требует проверки'):'У этого мира пока нет обложки';
 }
 function syncWorldSettings(){
  const form=$('world-settings-form'),slug=form.elements.slug.value;
@@ -200,7 +224,7 @@ async function session(){
   $('world-cover-preview').hidden=true;
   $('world-cover-preview').removeAttribute('src');
   $('world-cover-delete').disabled=true;
-  clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));
+  clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));
   clear($('onboarding-steps'));$('onboarding-progress').value=0;
   $('onboarding-counter').textContent='0 из 5 шагов';
   $('notification-settings-form').reset();
@@ -239,8 +263,8 @@ async function session(){
   syncCoverSettings();
   await loadSavedIds();
   await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding()]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics()]);
-  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));}
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),reviewCovers()]);
+  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));}
  }
 }
 async function worlds(){
@@ -687,8 +711,8 @@ $('world-cover-form').addEventListener('submit',event=>{
   form.elements.cover.value='';
   await session();await worlds();
   $('world-cover-select').value=slug;syncCoverSettings();
-  $('world-cover-status').textContent='PNG сохранён · '+saved.width+' × '+saved.height+' px · метаданные удалены';
- },'Новая обложка опубликована в твоём World');
+  $('world-cover-status').textContent='PNG принят · '+saved.width+' × '+saved.height+' px · метаданные удалены · ожидает модерации';
+ },'Обложка отправлена на независимую проверку');
 });
 $('world-cover-delete').addEventListener('click',()=>run(async()=>{
  const slug=$('world-cover-select').value;
@@ -828,7 +852,8 @@ $('issue-invite-form').addEventListener('submit',event=>{
 $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
 $('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
-$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites()]);}));
+$('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очередь проверки изображений обновлена'));
+$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers()]);}));
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
