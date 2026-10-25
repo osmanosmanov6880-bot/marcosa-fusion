@@ -1,0 +1,98 @@
+name: "MARCOSA | R100 production compatibility audit (READ ONLY, no deploy)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r100-production-readonly-compat.yml"
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type AUDIT-PRODUCTION-READONLY for read-only inspection"
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  production-compat-readonly:
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirmation == 'AUDIT-PRODUCTION-READONLY')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Retrieve immutable trusted R99 static preview for comparison only
+        uses: actions/download-artifact@v4
+        with:
+          name: marcosa-site-863adfddfef56783b7bc62e99c1b466c3571f134
+          run-id: 40232174313
+          github-token: ${{ github.token }}
+      - name: Compare public preview to existing root-owned production without changing anything
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          sha256sum -c marcosa-site.tar.gz.sha256
+          PREVIEW_HASH="$(tar -xOzf marcosa-site.tar.gz ./index.html | sha256sum | awk '{print $1}')"
+          [[ "$PREVIEW_HASH" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          SSH_ARGS=(-i "$TMP/key" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
+          REPORT="$(ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          [[ "$(id -un)" == "marcosa-deploy" ]] || exit 2
+          LIVE="/opt/marcosa/current"
+          [[ -d "$LIVE" && -f "$LIVE/index.html" ]] || exit 2
+          [[ -r "$LIVE/index.html" ]] || exit 2
+          echo "ROOT_PATH=$LIVE"
+          echo "ROOT_OWNER=$(stat -c %U:%G "$LIVE")"
+          if [[ -w "$LIVE" ]]; then echo "DEPLOY_USER_CAN_WRITE_PRODUCTION=YES"; else echo "DEPLOY_USER_CAN_WRITE_PRODUCTION=NO"; fi
+          echo "LIVE_INDEX_SHA256=$(sha256sum "$LIVE/index.html" | awk '{print $1}')"
+          echo "LIVE_INDEX_BYTES=$(stat -c %s "$LIVE/index.html")"
+          echo "LIVE_TOPLEVEL_SOURCE_COUNT=$(find "$LIVE" -maxdepth 1 -type f | wc -l)"
+          LEGACY_COMPONENTS=0
+          for file in marcosa-config.js marcosa-supabase.js interaction-bridge.js developer-console.js nexus.js supabase scripts; do
+            if [[ -e "$LIVE/$file" && ! -L "$LIVE/$file" ]]; then
+              echo "PRODUCTION_COMPONENT_PRESENT=$file"
+              LEGACY_COMPONENTS=$((LEGACY_COMPONENTS+1))
+            fi
+          done
+          echo "PRODUCTION_DISTINCT_COMPONENT_COUNT=$LEGACY_COMPONENTS"
+          echo "PRODUCTION_AUDIT_ONLY=YES"
+          REMOTE
+          )"
+          printf '%s\n' "$REPORT"
+          LIVE_HASH="$(printf '%s\n' "$REPORT" | sed -n 's/^LIVE_INDEX_SHA256=//p')"
+          [[ "$LIVE_HASH" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          echo "PUBLIC_PREVIEW_INDEX_SHA256=$PREVIEW_HASH"
+          if [[ "$LIVE_HASH" == "$PREVIEW_HASH" ]]; then
+            echo "INDEX_BYTES_IDENTICAL=YES"
+          else
+            echo "INDEX_BYTES_IDENTICAL=NO"
+          fi
+          echo "AUTOMATIC_PRODUCTION_CUTOVER_AUTHORIZED=NO"
+          {
+            echo "### R100 production read-only compatibility audit"
+            echo "- Root-owned live site compared against vetted static preview index SHA256"
+            echo "- Production files, Nginx and databases were not changed"
+            echo "- Preview index matches existing production: $([[ "$LIVE_HASH" == "$PREVIEW_HASH" ]] && echo YES || echo NO)"
+            echo "- No automatic production cutover authorized"
+            echo "- Safe delivery target remains isolated SSH STAGING"
+          } >> "$GITHUB_STEP_SUMMARY"
