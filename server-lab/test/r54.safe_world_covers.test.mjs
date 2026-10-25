@@ -81,7 +81,8 @@ test('R54: owner-only real PNG upload, public sanitized cover, replace, blocked 
  }
  try{
   await boot();
-  const owner=await person('owner54'),stranger=await person('stranger54');
+  const owner=await person('owner54'),stranger=await person('stranger54'),moderator=await person('moderator54');
+  lab.db.prepare("UPDATE users SET role='moderator' WHERE username='moderator54'").run();
   const url='/worlds/'+owner.world.slug+'/cover';
   let r=await req(url);
   assert.equal(r.status,404,'empty World must not fabricate a cover');
@@ -102,6 +103,13 @@ test('R54: owner-only real PNG upload, public sanitized cover, replace, blocked 
   assert.equal(r.status,200);
   assert.equal(r.data.metadataRemoved,true);
   assert.equal(r.data.width,3);
+  assert.equal(r.data.reviewStatus,'pending');
+  r=await req(url);
+  assert.equal(r.status,404,'unreviewed World cover is never public');
+  r=await req('/me'+url,{cookie:owner.cookie});
+  assert.equal(r.status,200,'owner can inspect pending normalized PNG');
+  let decision=await req('/mod'+url+'/review',{cookie:moderator.cookie,method:'POST',body:{decision:'approved'}});
+  assert.equal(decision.status,200,'independent moderator publishes verified PNG');
   r=await req(url);
   assert.equal(r.status,200);
   assert.equal(r.response.headers.get('x-content-type-options'),'nosniff');
@@ -114,6 +122,7 @@ test('R54: owner-only real PNG upload, public sanitized cover, replace, blocked 
   assert.equal(r.data.items.find(x=>x.slug===owner.world.slug)?.hasCover,1);
   r=await req('/auth/me',{cookie:owner.cookie});
   assert.equal(r.data.worlds[0].hasCover,1);
+  assert.equal(r.data.worlds[0].coverStatus,'approved');
   r=await req('/account/export',{cookie:owner.cookie});
   assert.equal(r.data.worldCoverMetadata.length,1);
   assert.equal(r.data.worldCoverMetadata[0].width,3);
@@ -121,6 +130,11 @@ test('R54: owner-only real PNG upload, public sanitized cover, replace, blocked 
   r=await req(url,{method:'POST',body:png(5,4),type:'image/png',cookie:owner.cookie});
   assert.equal(r.status,200);assert.equal(r.data.width,5);
   r=await req(url);
+  assert.equal(r.status,404,'replacement withdraws previous public approval');
+  decision=await req('/mod'+url+'/review',{cookie:moderator.cookie,method:'POST',body:{decision:'approved'}});
+  assert.equal(decision.status,200);
+  r=await req(url);
+  assert.equal(r.status,200);
   assert.equal(sanitizePngCover(r.data).width,5);
   r=await req('/users/owner54/block',{method:'POST',cookie:stranger.cookie,body:{}});
   assert.equal(r.status,201);

@@ -335,3 +335,15 @@ dialog form{display:grid;gap:17px}
 .world-share{display:inline-flex;align-items:center;justify-content:center;margin:14px 0 18px;border-color:#d2b58a66;min-height:44px;letter-spacing:.015em}
 .world-share:focus-visible{outline:2px solid #d6b985;outline-offset:3px}
 @media(max-width:720px){.world-share{width:100%;min-height:48px}}
+
+/* R57: image review console — restrained, readable and safe on handhelds. */
+.mod-cover-panel{margin:18px 0;padding:18px 0;border-top:1px solid var(--line)}
+.mod-cover-panel summary{font-size:14px;font-weight:650;line-height:1.5}
+.mod-cover-panel>.muted{font-size:12px;line-height:1.7;margin:10px 0}
+.mod-cover-item{display:grid;gap:10px;border:1px solid #c5a57249;border-radius:9px;background:#0b2033;padding:12px;margin:12px 0;min-width:0}
+.mod-cover-item strong{font-size:13px;line-height:1.6;color:#f3d9b2}
+.mod-cover-item small{font-size:11px;color:#bac5d0;line-height:1.5}
+.mod-cover-image{display:block;max-width:100%;width:100%;max-height:220px;aspect-ratio:16/9;object-fit:cover;border-radius:8px;border:1px solid #d2b98b55}
+.mod-cover-item button,.mod-cover-panel button{min-height:44px;width:100%}
+.mod-cover-item button:focus-visible{outline:2px solid #e3be88;outline-offset:3px}
+@media(max-width:650px){.mod-cover-item{padding:12px 10px}.mod-cover-item button{min-height:48px}}
