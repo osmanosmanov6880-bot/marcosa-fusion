@@ -347,3 +347,19 @@ dialog form{display:grid;gap:17px}
 .mod-cover-item button,.mod-cover-panel button{min-height:44px;width:100%}
 .mod-cover-item button:focus-visible{outline:2px solid #e3be88;outline-offset:3px}
 @media(max-width:650px){.mod-cover-item{padding:12px 10px}.mod-cover-item button{min-height:48px}}
+
+/* R59 independent media appeals: editorial, accessible, no attention-grabbing status badges. */
+#world-cover-appeal-form{margin:16px 0;padding:14px;border:1px solid #c3a9824e;border-radius:10px;background:#102238}
+#world-cover-appeal-form[hidden]{display:none!important}
+#world-cover-appeal-form textarea{display:block;min-width:0;width:100%;min-height:100px;margin:10px 0;font-size:13px}
+#world-cover-appeal-form button{width:100%;min-height:44px}
+#world-cover-appeals-list{display:grid;gap:8px;margin:16px 0 5px}
+.cover-appeal-row{font-size:12px;line-height:1.65;color:#cbd3dc;background:#101f30;border-left:2px solid #b79e78;padding:10px 13px;overflow-wrap:anywhere}
+#mod-cover-appeals-panel{padding:17px 0;margin:17px 0;border-top:1px solid var(--line)}
+#mod-cover-appeals-panel summary{font-size:13px;font-weight:600}
+#mod-cover-appeals-panel>.muted{font-size:12px;line-height:1.6;margin:12px 0}
+#mod-cover-appeals-list{display:grid;gap:12px;margin:17px 0}
+#mod-cover-appeals-list .mod-cover-item{display:grid;gap:8px;padding:14px;border:1px solid #c8ad8244;border-radius:10px;background:#0c2033}
+#mod-cover-appeals-list button,#mod-cover-appeals-refresh{min-height:44px}
+#mod-cover-appeals-refresh{width:100%}
+@media(max-width:650px){#mod-cover-appeals-list button{width:100%;min-height:48px}#world-cover-appeal-form{padding:12px}}
