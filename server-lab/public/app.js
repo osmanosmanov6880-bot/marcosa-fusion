@@ -958,7 +958,8 @@ $('retention-disable').addEventListener('click',()=>run(async()=>{
 },'Согласие отозвано, история учёта входов удалена.'));
 $('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очередь проверки изображений обновлена'));
 $('mod-cover-appeals-refresh').addEventListener('click',()=>run(reviewCoverAppeals,'Очередь апелляций обновлена'));
-$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals()]);}));
+$('mod-cover-reports-refresh').addEventListener('click',()=>run(reviewCoverReports,'Очередь жалоб на изображения обновлена'));
+$('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);}));
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
