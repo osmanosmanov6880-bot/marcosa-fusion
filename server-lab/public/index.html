@@ -70,7 +70,7 @@
    </details>
    <details id="world-cover-panel" class="invite-panel world-cover-panel">
     <summary>Обложка мира — твоя визуальная история</summary>
-    <p class="muted">Загрузи собственную фотографию в PNG. Принимаются RGB/RGBA без анимации до 1600 px и 768 KiB. Сервер удаляет метаданные, затем показывает обложку всем посетителям твоего мира. Права на изображение должны принадлежать тебе.</p>
+    <p class="muted">Загрузи собственную фотографию в PNG. Принимаются RGB/RGBA без анимации до 1600 px и 768 KiB. Сервер удаляет метаданные. Обложка становится публичной только после независимого рассмотрения модератором; до этого она доступна только тебе и проверяющему. Права на изображение должны принадлежать тебе.</p>
     <form id="world-cover-form" class="form-block">
      <label>Выбери свой мир<select id="world-cover-select" name="slug" required></select></label>
      <label>Файл PNG<input id="world-cover-file" name="cover" type="file" accept="image/png" required></label>
@@ -235,6 +235,12 @@
     <p class="muted">Цифры только из локальных записей пользователей. Нет выдуманных D7/D30, рекламных просмотров или платежей.</p>
     <div id="pilot-metrics-data" class="pilot-metrics-grid" aria-live="polite"></div>
     <button id="pilot-metrics-refresh" type="button" class="ghost small">Пересчитать показатели</button>
+   </details>
+   <details id="mod-cover-panel" class="invite-panel mod-cover-panel">
+    <summary>Независимая проверка изображений миров</summary>
+    <p class="muted">Новые PNG не становятся публичными, пока другой модератор не одобрит их. Обложку своего World нельзя рассматривать самостоятельно.</p>
+    <div id="mod-cover-list" class="compact-list" aria-live="polite"></div>
+    <button type="button" id="mod-cover-refresh" class="ghost small">Обновить очередь изображений</button>
    </details>
    <button id="reload-reports" class="ghost" type="button">Обновить модерацию</button>
   </div>
