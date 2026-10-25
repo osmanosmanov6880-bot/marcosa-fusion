@@ -63,6 +63,7 @@ test('R54: owner-only real PNG upload, public sanitized cover, replace, blocked 
  async function req(path,{method='GET',cookie,body,type='application/json',origin=base}={}){
   const headers={};if(cookie)headers.Cookie=cookie;
   if(method!=='GET'){headers['Content-Type']=type;headers.Origin=origin;}
+  if(method==='POST'&&path.endsWith('/cover')&&type==='image/png')headers['X-Marcosa-Rights-Attestation']='rights-v1';
   const data=body===undefined?undefined:Buffer.isBuffer(body)?body:JSON.stringify(body);
   const r=await fetch(base+'/api'+path,{method,headers,...(data===undefined?{}:{body:data})});
   const contentType=r.headers.get('content-type')||'';
