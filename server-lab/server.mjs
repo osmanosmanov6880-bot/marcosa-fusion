@@ -180,14 +180,15 @@ function upgradeWorldCoverReview(db){
   db.exec('ALTER TABLE world_covers ADD COLUMN reviewed_at INTEGER');
  db.exec('CREATE INDEX IF NOT EXISTS idx_world_cover_review_queue ON world_covers(review_status,updated_at)');
 }
-export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now()}={}){
+export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now(),publicMediaDisabled=false}={}){
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
+ check(typeof publicMediaDisabled==='boolean',400,'Media emergency mode must be a boolean');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
  // R78: SQLite has no builtin SHA256. Keep catalog flags consistent with the
  // exact normalized PNG bytes actually authorized by the delivery endpoint.
  db.function('marcosa_sha256',{deterministic:true},blob=>
-  blob instanceof Uint8Array?hash(Buffer.from(blob)):null);
+  !publicMediaDisabled&&blob instanceof Uint8Array?hash(Buffer.from(blob)):null);
  upgradeWorldCoverReview(db);
  upgradeWorldTopics(db);
  upgradeLegacySponsorStatuses(db);
@@ -293,7 +294,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      +" JOIN world_cover_rights r ON r.world_id=c.world_id AND r.owner_id=?"
      +" JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
      +" WHERE c.world_id=? AND c.review_status='approved'").get(world.ownerId,world.id);
-    const hasCover=!!preview&&preview.asset_sha256===hash(Buffer.from(preview.png));
+    const hasCover=!publicMediaDisabled&&!!preview&&preview.asset_sha256===hash(Buffer.from(preview.png));
     const title=htmlAttr(world.title)+' · MARCOSA';
     const description=htmlAttr(world.description||'Мир автора @'+world.owner);
     const canonical=htmlAttr('http://'+verifiedHost+'/w/'+world.slug);
@@ -323,7 +324,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const data=await readFile(new URL('../site/marcosa-mark.svg',import.meta.url));
     res.writeHead(200,{'Content-Type':'image/svg+xml; charset=utf-8'});res.end(data);return;
    }
-   if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab'});return;}
+   if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab',publicMediaDelivery:publicMediaDisabled?'disabled':'enabled'});return;}
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
    }
@@ -397,6 +398,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    }
    const coverRoute=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover$/);
    if(coverRoute&&method==='GET'){
+    if(publicMediaDisabled){
+     send(res,503,{error:'Публичная выдача изображений временно приостановлена',production:false},
+      {'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+     return;
+    }
     const source=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(coverRoute[1]);
     check(source,404,'Мир не найден');
     const viewer=who(req)?.id||'';
@@ -1345,7 +1351,11 @@ if(process.argv[1]&&resolve(process.argv[1])===file){
  if(!['127.0.0.1','localhost','::1'].includes(host)){
   console.error('R28 is loopback-only. Refusing external network bind.');process.exit(1);
  }
- const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||'',registrationMode:process.env.MARCOSA_REGISTRATION_MODE||'legacy'});
+ const emergency=process.env.MARCOSA_DISABLE_PUBLIC_MEDIA;
+ if(emergency!==undefined&&!['0','1'].includes(emergency)){
+  console.error('MARCOSA_DISABLE_PUBLIC_MEDIA must be 0 or 1; refusing ambiguous configuration.');process.exit(1);
+ }
+ const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||'',registrationMode:process.env.MARCOSA_REGISTRATION_MODE||'legacy',publicMediaDisabled:emergency==='1'});
  const port=Number(process.env.PORT||8787);
  app.server.listen(port,host,()=>console.log('MARCOSA R28 LAB at http://'+host+':'+app.server.address().port));
 }
