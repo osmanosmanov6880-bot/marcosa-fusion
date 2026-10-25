@@ -141,6 +141,26 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r79.media_incident_kill_switch.test.mjs
           node --test server-lab/test/r79.media_incident_kill_switch.test.mjs
+      - name: R88 real 5-person opt-in cohort maturity and sub-five suppression acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r88.cohort_privacy_minimum.test.mjs
+          node --test server-lab/test/r88.cohort_privacy_minimum.test.mjs
+      - name: R88 localized private moderator metrics actual Chrome 1440 390 360
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r88.privacy_metrics_browser_cdp.mjs
+          node server-lab/test/r88.privacy_metrics_browser_cdp.mjs
+      - name: Keep R88 privacy-preserving beta metrics Chrome screenshots
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r88-private-pilot-ru-en
+          path: qa-r88/
+          retention-days: 7
+          if-no-files-found: warn
       - name: R82 actual bilingual incident banner QA in Chrome 1440 390 360
         shell: bash
         run: |
