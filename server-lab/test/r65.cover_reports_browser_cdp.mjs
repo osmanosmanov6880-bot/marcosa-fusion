@@ -165,11 +165,17 @@ async function main(){
    if(await publicStatus()!==200)throw Error('R65_REPORT_AUTO_HID_COVER');
    await logout();
    await login(second);
+   await cdp.wait("Array.from(document.querySelectorAll('#mod-queue-health-data .pilot-metric')).some(e=>e.textContent.includes('Жалобы на публичные обложки')&&e.textContent.includes('1 открыто'))",'r69-actual-open-media-complaint');
+   await cdp.evalJS("(()=>{document.getElementById('mod-queue-health-panel').open=true;document.getElementById('mod-queue-health-panel').scrollIntoView({block:'center'});return true;})()");
+   await shot('moderation-operations-before');
    await cdp.wait("Array.from(document.querySelectorAll('#mod-cover-reports button')).some(b=>b.textContent.includes('Подтвердить'))",'moderatorSecond');
    await cdp.evalJS("(()=>{document.getElementById('mod-cover-reports-panel').open=true;document.getElementById('mod-cover-reports-panel').scrollIntoView({block:'center'});return true;})()");
    await shot('independent-queue');
    await cdp.evalJS("Array.from(document.querySelectorAll('#mod-cover-reports button')).find(b=>b.textContent.includes('Подтвердить')).click()");
    await cdp.wait("document.getElementById('mod-cover-reports')?.textContent.includes('Новых жалоб')",'takedown');
+   await cdp.evalJS("document.getElementById('mod-queue-health-refresh').click()");
+   await cdp.wait("Array.from(document.querySelectorAll('#mod-queue-health-data .pilot-metric')).some(e=>e.textContent.includes('Жалобы на публичные обложки')&&e.textContent.includes('0 открыто'))",'r69-real-queue-cleared');
+   await shot('moderation-operations-after');
    if(await publicStatus()!==404)throw Error('R65_PUBLIC_TAKEDOWN_NOT_APPLIED');
    await logout();
    await login(owner);
@@ -178,7 +184,7 @@ async function main(){
    if(outsiders.length||cdp.errors.length)throw Error('R65_NETWORK_OR_JS_'+JSON.stringify({outsiders,errors:cdp.errors}));
    console.log('R65 CHROMIUM PASS',size.name,'owner-upload/approve/user-report/independent-takedown/appeal');
   }
-  console.log('R65 COMPLETE: 6 real desktop/mobile browser captures and executable public-cover takedown');
+  console.log('R69 COMPLETE: 10 real desktop/mobile browser captures, including moderator queue before/after independent takedown');
  }finally{
   cdp?.close();
   if(chrome){const done=new Promise(ok=>{if(chrome.exitCode!==null||chrome.signalCode!==null)return ok();chrome.once('exit',ok);setTimeout(ok,2500);});chrome.kill('SIGKILL');await done;}
