@@ -396,8 +396,10 @@ async function worlds(){
    card.append(block);
   }
   const open=node('a','Открыть World ↗','world-open');
-  open.href='#world-'+encodeURIComponent(world.slug);
+  const onServerWorldPage=/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname);
+  open.href=onServerWorldPage?'/w/'+encodeURIComponent(world.slug):'#world-'+encodeURIComponent(world.slug);
   open.addEventListener('click',event=>{
+   if(onServerWorldPage)return; // Full navigation updates server-rendered title/OG metadata.
    event.preventDefault();
    const hash='#world-'+world.slug;
    if(location.hash===hash)run(()=>openWorld(world.slug));
@@ -908,7 +910,7 @@ $('account-export').addEventListener('click',()=>run(async()=>{
 $('world-share').addEventListener('click',()=>run(async()=>{
  const slug=state.currentWorldSlug;
  if(!slug)throw Error('Сначала открой мир для публикации ссылки');
- const link=location.origin+location.pathname+'#world-'+slug;
+ const link=location.origin+'/w/'+encodeURIComponent(slug);
  try{
   await navigator.clipboard.writeText(link);
   notice('Постоянная ссылка на World скопирована');
@@ -921,19 +923,24 @@ function closeWorldAndRestoreFocus(){
  const previousSlug=state.currentWorldSlug;
  $('world-detail').hidden=true;state.currentWorldSlug=null;
  const opener=Array.from(document.querySelectorAll('#world-list .world-open'))
-  .find(link=>link.getAttribute('href')==='#world-'+encodeURIComponent(previousSlug||''));
+  .find(link=>['#world-'+encodeURIComponent(previousSlug||''),'/w/'+encodeURIComponent(previousSlug||'')].includes(link.getAttribute('href')));
  (opener||$('worlds')).focus({preventScroll:true});
 }
 $('world-close').addEventListener('click',()=>{
- // Replace the URL fragment without native hash navigation stealing focus.
- if(location.hash!=='#worlds')history.replaceState(null,'','#worlds');
+ // Leave a server-rendered World without re-opening it on reload.
+ if(/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname))
+  history.replaceState(null,'','/#worlds');
+ else if(location.hash!=='#worlds')history.replaceState(null,'','#worlds');
  closeWorldAndRestoreFocus();
 });
 window.addEventListener('hashchange',()=>{
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
  if(requested)run(()=>openWorld(requested));
- else if(!$('world-detail').hidden)closeWorldAndRestoreFocus();
- else ++state.worldOpenSerial;
+ else if(!$('world-detail').hidden){
+  if(/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname))
+   history.replaceState(null,'','/#worlds');
+  closeWorldAndRestoreFocus();
+ }else ++state.worldOpenSerial;
 });
 document.addEventListener('keydown',event=>{
  if(event.key==='Escape'&&!$('world-detail').hidden
@@ -984,7 +991,8 @@ document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
-  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
+  const route=location.pathname.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
+  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):(route?.[1]||'');
   if(requested)run(()=>openWorld(requested));
  })
  .catch(e=>notice(e.message));
