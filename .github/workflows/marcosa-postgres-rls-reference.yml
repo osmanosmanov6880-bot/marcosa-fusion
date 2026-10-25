@@ -11,6 +11,7 @@ on:
       - "docs/MARCOSA_R51_POSTGRES_NOTIFICATION_SETTINGS_REFERENCE.sql"
       - "docs/MARCOSA_R55_PRIVATE_MEDIA_MANIFEST_REFERENCE.sql"
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
+      - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -24,6 +25,7 @@ on:
       - "docs/MARCOSA_R51_POSTGRES_NOTIFICATION_SETTINGS_REFERENCE.sql"
       - "docs/MARCOSA_R55_PRIVATE_MEDIA_MANIFEST_REFERENCE.sql"
       - "docs/MARCOSA_R58_PRIVATE_MEDIA_APPEALS_REFERENCE.sql"
+      - "docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -128,6 +130,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/80_private_media_appeals.sql
+      - name: R61 private approved-media eligibility with revocable reviewer role
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R61_REVOKABLE_MEDIA_DELIVERY_REFERENCE.sql
+      - name: Prove demotion and privacy remove eligible Storage keys, no browser ACL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/90_revocable_media_delivery.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
