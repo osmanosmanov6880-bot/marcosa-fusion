@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,worldOpenSerial:0,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -426,11 +426,13 @@ async function discover(query){
 }
 async function openWorld(slug){
  if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
+ const serial=++state.worldOpenSerial;
  const [detail,posts,approved]=await Promise.all([
   api('/worlds/'+encodeURIComponent(slug)),
   api('/worlds/'+encodeURIComponent(slug)+'/posts'),
   api('/sponsors/approved')
  ]);
+ if(serial!==state.worldOpenSerial)return; // Ignore stale load after close or newer navigation.
  const world=detail.world;
  state.currentWorldSlug=slug;
  const panel=$('world-detail');
@@ -915,6 +917,7 @@ $('world-share').addEventListener('click',()=>run(async()=>{
  }
 }));
 function closeWorldAndRestoreFocus(){
+ ++state.worldOpenSerial; // Cancel late API responses before moving keyboard focus.
  const previousSlug=state.currentWorldSlug;
  $('world-detail').hidden=true;state.currentWorldSlug=null;
  const opener=Array.from(document.querySelectorAll('#world-list .world-open'))
@@ -930,6 +933,7 @@ window.addEventListener('hashchange',()=>{
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
  if(requested)run(()=>openWorld(requested));
  else if(!$('world-detail').hidden)closeWorldAndRestoreFocus();
+ else ++state.worldOpenSerial;
 });
 document.addEventListener('keydown',event=>{
  if(event.key==='Escape'&&!$('world-detail').hidden
