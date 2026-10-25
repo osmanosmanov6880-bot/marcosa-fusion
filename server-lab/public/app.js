@@ -43,6 +43,12 @@ function syncWorldSettings(){
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
 }
+async function loadSecurity(){
+ if(!state.me)return;
+ const data=await api('/me/security');
+ $('security-sessions').textContent='Активных сессий: '+data.activeSessions;
+ $('security-expiry').textContent='Текущая сессия до: '+new Date(data.currentExpiresAt).toLocaleString('ru-RU');
+}
 async function session(){
  try{
   const result=await api('/auth/me');
@@ -53,6 +59,9 @@ async function session(){
  $('logout').hidden=!state.me;
  $('feed-following').disabled=!state.me;
  if(!state.me){
+  $('security-sessions').textContent='Активные сессии: —';
+  $('security-expiry').textContent='Срок текущего входа: —';
+  $('security-revoke-form').reset();$('security-password-form').reset();
   clear($('creator-insights-list'));
   state.feedScope='all';state.activityCursor=null;
   $('feed-all').setAttribute('aria-pressed','true');
@@ -79,7 +88,7 @@ async function session(){
    editOption.value=world.slug;settings.append(editOption);
   }
   if(state.worlds.length)syncWorldSettings();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
 }
@@ -525,6 +534,23 @@ $('sponsor-form').addEventListener('submit',event=>{
   await api('/sponsors/proposals','POST',values(form));
   form.reset();await mySponsors();
  },'Заявка получена: только ручная проверка, без платежей и размещений');
+});
+$('security-refresh').addEventListener('click',()=>run(loadSecurity,'Состояние входов обновлено'));
+$('security-revoke-form').addEventListener('submit',event=>{
+ event.preventDefault();
+ const form=event.currentTarget;
+ run(async()=>{
+  await api('/me/security/revoke-others','POST',values(form));
+  form.reset();await loadSecurity();
+ },'Остальные сессии завершены');
+});
+$('security-password-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  await api('/me/security/change-password','POST',values(form));
+  form.reset();await session();
+  await Promise.all([worlds(),feed(true),sponsors()]);
+ },'Пароль обновлён. Все сессии завершены — войди с новым паролем.');
 });
 $('account-export').addEventListener('click',()=>run(async()=>{
  const data=await api('/account/export');
