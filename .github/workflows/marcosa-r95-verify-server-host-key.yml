@@ -19,7 +19,7 @@ jobs:
           # /etc/ssh/ssh_host_ed25519_key.pub via an authenticated Contabo VPS
           # console. ssh-keyscan is untrusted *transport*, NOT a trust anchor.
           HOST="169.58.48.38"
-          EXPECTED="SHA256:3VwLDjaMbBL/OAkWPjvaJoOgFlwRk/6g+ZJze+5toZA"
+          EXPECTED="SHA256:3VwLDjaMbBL/0AkWPjvaJo0gF1wRk/6g+ZJze+5toZA"
           umask 077
           FILE="$(mktemp)"
           trap 'rm -f "$FILE"' EXIT
