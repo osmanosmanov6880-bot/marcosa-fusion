@@ -403,9 +403,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     throttle('cover:'+owner.id,12,3600000);
     const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],owner.id);
     check(world,404,'Мир не найден');
+    const body=await readPngBody(req);
     check(req.headers['x-marcosa-rights-attestation']==='rights-v1',428,
      'Перед загрузкой подтвердите, что у вас есть права или разрешение на изображение');
-    const body=await readPngBody(req);
     let safe;
     try{safe=sanitizePngCover(body);}
     catch{throw new HttpError(422,'Обложка должна быть PNG RGB/RGBA без анимации, до 1600 px и 768 KiB');}
