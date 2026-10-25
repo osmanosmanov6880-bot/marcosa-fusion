@@ -2,6 +2,11 @@ name: "MARCOSA | Build, test and deploy STAGING"
 
 on:
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type DEPLOY-MARCOSA-STAGING for a human-requested static STAGING release"
+        required: true
+        type: string
   push:
     branches: [main]
     paths:
@@ -121,15 +126,36 @@ jobs:
           if-no-files-found: error
 
   deploy_staging:
+    # R83: push to main is build-only. SSH publishing is explicit human-requested STAGING only.
     needs: build
     # Staging is permitted from trusted main only. Remote marker + non-root
     # user + host pin enforce the actual release boundary, not repo visibility.
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: marcosa-staging
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify explicit main-branch isolated STAGING intent before touching SSH keys
+        shell: bash
+        env:
+          APPROVAL: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          node --input-type=module -e '
+            import {validateStagingDispatch} from "./ops/staging-deploy-contract.mjs";
+            const p=validateStagingDispatch({
+              repository:process.env.GITHUB_REPOSITORY,
+              eventName:process.env.GITHUB_EVENT_NAME,
+              ref:process.env.GITHUB_REF,
+              sha:process.env.GITHUB_SHA,
+              confirmation:process.env.APPROVAL
+            });
+            if(p.productionAuthorized)throw Error("STAGING cannot authorize production");
+          '
       - uses: actions/download-artifact@v4
         with:
           name: marcosa-site-${{ github.sha }}
@@ -145,6 +171,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
         run: |
           set -euo pipefail
@@ -157,6 +184,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
         run: |
           set -euo pipefail
@@ -164,6 +192,7 @@ jobs:
           : "${DEPLOY_USER:?Missing staging user secret}"
           : "${DEPLOY_KEY:?Missing SSH private key secret}"
           : "${KNOWN_HOSTS:?Missing pinned host key secret}"
+          : "${DEPLOY_HOST_FINGERPRINT:?Missing independently verified host fingerprint}"
           [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]+$ ]] || exit 2
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || { echo "::error::Only marcosa-deploy is permitted"; exit 2; }
           [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]] || exit 2
@@ -173,6 +202,10 @@ jobs:
           printf '%s\n' "$DEPLOY_KEY" > "$HOME/.ssh/marcosa_deploy"
           printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/marcosa_deploy" "$HOME/.ssh/known_hosts"
+          # The upload MUST use the same validated pin as the separate preflight.
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" \
+            --port "$DEPLOY_PORT" --known-hosts "$HOME/.ssh/known_hosts" \
+            --expected "$DEPLOY_HOST_FINGERPRINT"
           ssh-keygen -y -P '' -f "$HOME/.ssh/marcosa_deploy" >/dev/null
           SSH_ARGS=(-i "$HOME/.ssh/marcosa_deploy" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
           SCP_ARGS=(-i "$HOME/.ssh/marcosa_deploy" -P "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$HOME/.ssh/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
