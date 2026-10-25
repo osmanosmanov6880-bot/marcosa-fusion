@@ -70,6 +70,8 @@ test('R74 real owner rights declaration: no silent consent, normalized PNG bindi
   assert.equal(r.status,200);
   assert.equal(r.data.worldCoverRights.length,1);
   assert.equal(r.data.worldCoverRights[0].assetSha256,rights.asset_sha256);
+  assert.equal(r.data.worldCoverRightsHistory.length,1);
+  assert.equal(r.data.worldCoverRightsHistory[0].assetSha256,rights.asset_sha256);
   assert.doesNotMatch(JSON.stringify(r.data.worldCoverRights),/private-owner@example|password_hash|PNG|session/);
   r=await req('/account/export',{cookie:stranger.cookie});
   assert.deepEqual(r.data.worldCoverRights,[]);
@@ -95,6 +97,11 @@ test('R74 real owner rights declaration: no silent consent, normalized PNG bindi
   assert.notEqual(rights.asset_sha256,previousSha);
   assert.equal(rights.asset_sha256,sha(Buffer.from(cover.png)));
   assert.equal(lab.db.prepare('SELECT count(*) AS n FROM world_cover_rights').get().n,1);
+  assert.equal(lab.db.prepare('SELECT count(*) AS n FROM world_cover_rights_history').get().n,2);
+  const evidence=lab.db.prepare('SELECT asset_sha256 FROM world_cover_rights_history ORDER BY id ASC').all();
+  assert.deepEqual(evidence.map(x=>x.asset_sha256),[previousSha,rights.asset_sha256]);
+  const ownerExport=await req('/account/export',{cookie:owner.cookie});
+  assert.deepEqual(ownerExport.data.worldCoverRightsHistory.map(x=>x.assetSha256),[previousSha,rights.asset_sha256]);
   r=await req('/mod'+path+'/review',{method:'POST',cookie:owner.cookie,data:{decision:'approved'}});
   assert.equal(r.status,403,'Owner self approval forbidden even with rights declaration');
   r=await req('/mod'+path+'/review',{method:'POST',cookie:mod.cookie,data:{decision:'approved'}});
@@ -102,6 +109,7 @@ test('R74 real owner rights declaration: no silent consent, normalized PNG bindi
   r=await req(path,{method:'DELETE',cookie:owner.cookie,data:{}});
   assert.equal(r.status,200);
   assert.equal(lab.db.prepare('SELECT count(*) AS n FROM world_cover_rights').get().n,0);
+  assert.equal(lab.db.prepare('SELECT count(*) AS n FROM world_cover_rights_history').get().n,0);
   assert.deepEqual(lab.db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{await lab.close();}
 });
