@@ -795,6 +795,15 @@ $('world-cover-form').addEventListener('submit',event=>{
   $('world-cover-status').textContent='PNG принят · '+saved.width+' × '+saved.height+' px · метаданные удалены · ожидает модерации';
  },'Обложка отправлена на независимую проверку');
 });
+$('world-cover-report-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  const slug=state.currentWorldSlug;
+  if(!slug)throw Error('Выбери публичный World');
+  await api('/worlds/'+encodeURIComponent(slug)+'/cover/report','POST',values(form));
+  form.reset();await loadCoverReports();$('world-cover-report-panel').open=false;
+ },'Жалоба на изображение передана независимому модератору');
+});
 $('world-cover-appeal-form').addEventListener('submit',event=>{
  event.preventDefault();
  const form=event.currentTarget,slug=$('world-cover-select').value,reason=form.elements.reason.value;
