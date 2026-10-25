@@ -8,6 +8,8 @@ on:
       - "ops/test/staging-deploy-contract.test.mjs"
       - "scripts/diagnose-staging-ssh.sh"
       - ".github/workflows/marcosa-staging.yml"
+      - ".github/workflows/marcosa-ssh-preflight.yml"
+      - ".github/workflows/marcosa-staging-rollback.yml"
       - ".github/workflows/marcosa-r83-staging-safety.yml"
   push:
     branches: [main]
@@ -17,6 +19,8 @@ on:
       - "ops/test/staging-deploy-contract.test.mjs"
       - "scripts/diagnose-staging-ssh.sh"
       - ".github/workflows/marcosa-staging.yml"
+      - ".github/workflows/marcosa-ssh-preflight.yml"
+      - ".github/workflows/marcosa-staging-rollback.yml"
       - ".github/workflows/marcosa-r83-staging-safety.yml"
 permissions:
   contents: read

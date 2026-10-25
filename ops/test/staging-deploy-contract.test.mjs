@@ -35,6 +35,23 @@ test('R91: trusted main push and explicitly confirmed manual dispatch only reach
  assert.throws(()=>validateStagingDispatch({...good,eventName:'push',ref:'refs/heads/feature/foo',confirmation:undefined}),Error);
  assert.throws(()=>validateStagingDispatch(),Error);
 });
+test('R92: staging, SSH preflight and manual rollback use only the approved deploy key',()=>{
+ const workflows=['marcosa-staging.yml','marcosa-ssh-preflight.yml','marcosa-staging-rollback.yml'];
+ for(const name of workflows){
+  const workflow=readFileSync('.github/workflows/'+name,'utf8');
+  assert.match(workflow,/secrets\.DEPLOY_SSH_KEY/);
+  assert.doesNotMatch(workflow,/secrets\.MARCOSA_SSH_KEY/);
+  assert.match(workflow,/MARCOSA_STAGING_HOST_FINGERPRINT/);
+  assert.match(workflow,/SHA256:b6e0zrGwnTCu5yo9IZstiPw\+5EGfahHgVpI3TWeccA0/);
+  assert.match(workflow,/169\.58\.48\.38/);
+ }
+ const preflight=readFileSync('scripts/diagnose-staging-ssh.sh','utf8');
+ assert.match(preflight,/WRONG_DEPLOY_KEY/);
+ assert.match(preflight,/WRONG_VPS/);
+ assert.match(preflight,/StrictHostKeyChecking=yes/);
+ const rollback=readFileSync('.github/workflows/marcosa-staging-rollback.yml','utf8');
+ assert.match(rollback,/verify-staging-host-key.mjs/);
+});
 test('R83: provider-supplied full known_hosts is fingerprint-verified on the exact port; first contact cannot establish trust',()=>{
  const type=Buffer.from('ssh-ed25519'),point=Buffer.alloc(32,19),len=n=>{
   const v=Buffer.alloc(4);v.writeUInt32BE(n);return v;

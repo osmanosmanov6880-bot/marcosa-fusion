@@ -29,9 +29,12 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
-          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+          EXPECTED_STAGING_HOST: 169.58.48.38
         run: |
           bash scripts/diagnose-staging-ssh.sh
       - name: Verify intent and perform a staging-only rollback
@@ -40,13 +43,17 @@ jobs:
           REQUEST: ${{ inputs.confirmation }}
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
-          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+          EXPECTED_STAGING_HOST: 169.58.48.38
         run: |
           set -euo pipefail
           [[ "$REQUEST" == "ROLLBACK-STAGING" ]] || exit 2
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          [[ "$DEPLOY_HOST" == "$EXPECTED_STAGING_HOST" ]] || { echo "::error::Wrong rollback target"; exit 2; }
           : "${DEPLOY_HOST:?Missing staging host}"
           : "${DEPLOY_KEY:?Missing key}"
           : "${KNOWN_HOSTS:?Missing host key}"
@@ -58,6 +65,11 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
           chmod 600 "$HOME/.ssh/marcosa_deploy" "$HOME/.ssh/known_hosts"
           ssh-keygen -y -P '' -f "$HOME/.ssh/marcosa_deploy" >/dev/null
+          ACTUAL_DEPLOY_KEY_FP="$(ssh-keygen -y -P '' -f "$HOME/.ssh/marcosa_deploy" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$ACTUAL_DEPLOY_KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || { echo "::error::Invalid rollback key"; exit 2; }
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" \
+            --port "$DEPLOY_PORT" --known-hosts "$HOME/.ssh/known_hosts" \
+            --expected "$DEPLOY_HOST_FINGERPRINT"
           ssh -i "$HOME/.ssh/marcosa_deploy" -p "$DEPLOY_PORT" \
             -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \

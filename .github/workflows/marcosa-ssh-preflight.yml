@@ -7,6 +7,7 @@ on:
     paths:
       - "scripts/diagnose-staging-ssh.sh"
       - ".github/workflows/marcosa-ssh-preflight.yml"
+      - ".github/workflows/marcosa-staging.yml"
 
 permissions:
   contents: read
@@ -29,10 +30,12 @@ jobs:
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
-          DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
           DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+          EXPECTED_STAGING_HOST: 169.58.48.38
         run: |
           set -euo pipefail
           bash -n scripts/diagnose-staging-ssh.sh
