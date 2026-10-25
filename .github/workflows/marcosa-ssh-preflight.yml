@@ -21,6 +21,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment: marcosa-staging
     steps:
       - uses: actions/checkout@v4
       - name: Validate and probe pinned SSH access (READ ONLY)
@@ -30,6 +31,7 @@ jobs:
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.MARCOSA_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.MARCOSA_SSH_KNOWN_HOSTS }}
+          DEPLOY_HOST_FINGERPRINT: ${{ secrets.MARCOSA_STAGING_HOST_FINGERPRINT }}
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
         run: |
           set -euo pipefail

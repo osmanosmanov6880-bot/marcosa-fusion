@@ -10,15 +10,19 @@ const good={
  repository:STAGING_REPO,eventName:'workflow_dispatch',ref:'refs/heads/main',
  sha:'b'.repeat(40),confirmation:STAGING_APPROVAL,environment:'marcosa-staging'
 };
-test('R83: only explicitly confirmed main-dispatch may reach isolated SSH staging',()=>{
+test('R91: trusted main push and explicitly confirmed manual dispatch only reach isolated SSH staging',()=>{
  const actual=validateStagingDispatch(good);
  assert.equal(actual.sourceTrustedForStaging,true);
  assert.equal(actual.destination,'isolated static STAGING only');
  assert.equal(actual.productionAuthorized,false);
  assert.equal(actual.providerHostProvenanceVerified,false);
  assert.equal(actual.requiresIndependentEnvironmentReviewer,true);
+ assert.equal(actual.requiresPinnedHostAndIndependentHttpsReadback,true);
+ const automatic=validateStagingDispatch({...good,eventName:'push',confirmation:undefined});
+ assert.equal(automatic.trigger,'trusted-main-push');
+ assert.equal(automatic.productionAuthorized,false);
  for(const [field,bad] of [
-  ['repository','other/repository'],['eventName','push'],['eventName','pull_request'],
+  ['repository','other/repository'],['eventName','pull_request'],
   ['eventName','schedule'],['ref','refs/heads/feature/ssh'],
   ['ref','refs/tags/v1'],['sha','b'.repeat(7)],['sha','c'.repeat(39)+'X'],
   ['confirmation','DEPLOY-PRODUCTION'],['confirmation',undefined],
@@ -26,6 +30,9 @@ test('R83: only explicitly confirmed main-dispatch may reach isolated SSH stagin
  ]){
   assert.throws(()=>validateStagingDispatch({...good,[field]:bad}),Error,field);
  }
+ assert.throws(()=>validateStagingDispatch({...good,eventName:'push',confirmation:STAGING_APPROVAL}),Error);
+ assert.throws(()=>validateStagingDispatch({...good,eventName:'schedule',confirmation:undefined}),Error);
+ assert.throws(()=>validateStagingDispatch({...good,eventName:'push',ref:'refs/heads/feature/foo',confirmation:undefined}),Error);
  assert.throws(()=>validateStagingDispatch(),Error);
 });
 test('R83: provider-supplied full known_hosts is fingerprint-verified on the exact port; first contact cannot establish trust',()=>{
@@ -49,16 +56,22 @@ test('R83: provider-supplied full known_hosts is fingerprint-verified on the exa
   {knownHosts:record+'\n'+record}
  ])assert.throws(()=>verifyStagingHostPin({hostname,port,knownHosts:record,expected,...options}),Error);
 });
-test('R83: actual workflow has no auto SSH deploy or keyscan, and validates host in both steps',()=>{
+test('R91: workflow auto-delivers trusted main after build and checks pinned SSH plus external hosted bytes',()=>{
  const workflow=readFileSync('.github/workflows/marcosa-staging.yml','utf8');
  const diagnostic=readFileSync('scripts/diagnose-staging-ssh.sh','utf8');
  const contract=readFileSync('ops/staging-deploy-contract.mjs','utf8');
  assert.match(workflow,/workflow_dispatch:\s*\n\s*inputs:/);
- assert.match(workflow,/github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'/);
+ assert.match(workflow,/github.event_name == 'push' \|\| \(github.event_name == 'workflow_dispatch'/);
+ assert.match(workflow,/inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'/);
+ assert.match(workflow,/needs: build/);
+ assert.match(workflow,/Independently verify hosted STAGING HTTPS bytes/);
+ assert.match(workflow,/staging-expected-/);
+ assert.match(workflow,/--manifest-sha256/);
+ assert.match(workflow,/Roll back isolated STAGING when external HTTPS readback fails/);
  assert.match(workflow,/environment: marcosa-staging/);
- assert.equal(workflow.split('node ops\/verify-staging-host-key.mjs').length,2,
+ assert.equal(workflow.split('node ops\/verify-staging-host-key.mjs').length,3,
   'The uploader must verify exactly once and preflight verifies independently');
- assert.equal(workflow.split('MARCOSA_STAGING_HOST_FINGERPRINT').length-1,2);
+ assert.equal(workflow.split('MARCOSA_STAGING_HOST_FINGERPRINT').length-1,3);
  assert.match(diagnostic,/node ops\/verify-staging-host-key.mjs/);
  assert.doesNotMatch(diagnostic,/\bssh-keyscan\s+-/);
  assert.match(workflow,/StrictHostKeyChecking=yes/);
