@@ -47,6 +47,8 @@ class StagingPinTests(unittest.TestCase):
         self.env.update(
             PATH=str(mock)+os.pathsep+os.environ.get("PATH",""),
             DEPLOY_HOST=self.host,
+            EXPECTED_STAGING_HOST=self.host,
+            EXPECTED_DEPLOY_KEY_FP=self.fingerprint,
             DEPLOY_USER="marcosa-deploy",
             DEPLOY_PORT="22",
             DEPLOY_KEY=self.key.read_text(encoding="utf-8"),
