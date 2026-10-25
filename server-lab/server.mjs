@@ -389,6 +389,12 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const items=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' AND w.owner_id<>? ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all(moderator.id);
     send(res,200,{items,scope:'moderator',localOnly:true});return;
    }
+   if(method==='GET'&&route==='/api/mod/cover-audit'){
+    const moderator=requireUser(req);
+    check(moderator.role==='moderator',403,'Доступ только модератору');
+    const items=db.prepare("SELECT a.id,a.decision,a.created_at AS reviewedAt,w.slug,u.username AS reviewer FROM world_cover_review_audit a JOIN worlds w ON w.id=a.world_id LEFT JOIN users u ON u.id=a.reviewed_by ORDER BY a.id DESC LIMIT 50").all();
+    send(res,200,{items,scope:'moderator',production:false});return;
+   }
    const modCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
    if(method==='GET'&&modCover){
     const moderator=requireUser(req);
@@ -541,7 +547,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
-    const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
+    const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.review_status AS reviewStatus,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
     const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
