@@ -90,7 +90,8 @@ function png(seed=19) {
 }
 async function main() {
  const work=mkdtempSync(join(tmpdir(),'marcosa-r60-media-browser-'));
- const lab=createApp({inviteCode:'r60-media-browser-invite-2026'});
+ let simulatedNow=Date.now();
+ const lab=createApp({inviteCode:'r60-media-browser-invite-2026',now:()=>simulatedNow});
  let chrome=null,cdp=null;
  try {
   await new Promise((ok,fail)=>{lab.server.once('error',fail);lab.server.listen(0,'127.0.0.1',ok);});
@@ -125,6 +126,7 @@ async function main() {
    {name:'compact',width:360,height:740,mobile:true}];
   const fixture=png().toString('base64'),replacement=png(41).toString('base64');
   for(const size of sizes) {
+   simulatedNow+=601000; // reset isolated signup limiter for the next independent viewport
    const owner='owner60'+size.name,first='reviewa60'+size.name,second='reviewb60'+size.name;
    await register(owner);await register(first);await register(second);
    lab.db.prepare("UPDATE users SET role='moderator' WHERE username IN (?,?)").run(first,second);
@@ -229,7 +231,7 @@ async function main() {
    if(cdp.errors.length)throw Error('R60_BROWSER_RUNTIME_EXCEPTION '+cdp.errors.slice(0,5).join(';'));
    console.log('R60 CHROMIUM PASS',size.name,'pending/rejected/appealed/reopened/approved/replaced/deleted, guest isolation');
   }
-  console.log('R60 COMPLETE: 21 real desktop/mobile/compact screenshots, real UI upload, two independent moderators, no public pre-approval');
+  console.log('R60 COMPLETE: 24 real desktop/mobile/compact screenshots, real UI upload, two independent moderators, no public pre-approval');
  } finally {
   cdp?.close();
   if(chrome) {
