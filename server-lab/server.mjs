@@ -79,7 +79,7 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_user_blocks_target ON user_blocks(blocked_id,blocker_id)",
  "CREATE TABLE IF NOT EXISTS saved_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, UNIQUE(user_id,post_id))",
  "CREATE INDEX IF NOT EXISTS idx_saved_posts_owner ON saved_posts(user_id,id DESC)",
- "CREATE TABLE IF NOT EXISTS pilot_invites (id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, label TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT REFERENCES users(id) ON DELETE SET NULL, used_at INTEGER, revoked_at INTEGER, CHECK((used_by IS NULL AND used_at IS NULL) OR (used_by IS NOT NULL AND used_at IS NOT NULL)))",
+ "CREATE TABLE IF NOT EXISTS pilot_invites (id TEXT PRIMARY KEY, code_hash TEXT NOT NULL UNIQUE, creator_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, label TEXT NOT NULL DEFAULT '', created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL, used_by TEXT REFERENCES users(id) ON DELETE SET NULL, used_at INTEGER, revoked_at INTEGER, CHECK(used_at IS NOT NULL OR used_by IS NULL))",
  "CREATE INDEX IF NOT EXISTS idx_pilot_invites_creator ON pilot_invites(creator_id,created_at DESC)",
  "CREATE INDEX IF NOT EXISTS idx_pilot_invites_expiry ON pilot_invites(expires_at) WHERE used_at IS NULL AND revoked_at IS NULL"
 ].join(';\n')+';';
@@ -463,7 +463,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     check(registrationMode!=='closed'&&(legacy||ticket),403,'Недействительное или использованное приглашение');
     const email=str(body.email).toLowerCase(),username=str(body.username).toLowerCase();
     const password=body.password;
-    check(email.length<=254&&/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email),400,'Неверная почта');
+    check(email.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email),400,'Неверная почта');
     check(/^[a-z][a-z0-9_]{2,23}$/.test(username),400,'Имя: 3–24 латинских символа');
     check(typeof password==='string'&&password.length>=12&&password.length<=128,400,'Пароль: 12–128 символов');
     const salt=randomBytes(16).toString('hex'),secret=await pwdHash(password,salt);
@@ -514,7 +514,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
      .run(id,hash(code),user.id,label,createdAt,expiresAt);
     send(res,201,{id,code,expiresAt,oneUse:true,disclosure:'Код будет показан только один раз',mode:registrationMode});return;
    }
-   const revokeInvite=route.match(/^\\/api\\/mod\\/invites\\/([0-9a-f-]{36})\\/revoke$/);
+   const revokeInvite=route.match(/^\/api\/mod\/invites\/([0-9a-f-]{36})\/revoke$/);
    if(method==='POST'&&revokeInvite){
     check(user.role==='moderator',403,'Только модератор может отозвать приглашение');
     const ticket=db.prepare('SELECT id,used_at,revoked_at FROM pilot_invites WHERE id=? AND creator_id=?').get(revokeInvite[1],user.id);
