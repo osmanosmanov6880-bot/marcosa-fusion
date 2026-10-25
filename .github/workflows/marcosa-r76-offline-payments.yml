@@ -1,0 +1,40 @@
+name: "MARCOSA | R76 offline signed payment event contract"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/payment-contract/**"
+      - "docs/MARCOSA_R76_OFFLINE_PAYMENTS_RUNBOOK_RU.md"
+      - ".github/workflows/marcosa-r76-offline-payments.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/payment-contract/**"
+      - ".github/workflows/marcosa-r76-offline-payments.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-payment-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Reject real payment connectivity and check isolated signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -f ops/payment-contract/.env
+          node --check ops/payment-contract/stripe-sandbox-contract.mjs
+          node --check ops/payment-contract/stripe-sandbox-contract.test.mjs
+          node --test ops/payment-contract/stripe-sandbox-contract.test.mjs
+      - name: Confirm no production revenue claims or requests
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -F 'realPayments:null,verifiedImpressions:null,netRevenue:null,commercialLaunchAuthorized:false' ops/payment-contract/stripe-sandbox-contract.mjs
+          grep -F "parsed.livemode===false" ops/payment-contract/stripe-sandbox-contract.mjs
+          ! grep -Eq 'api\.stripe\.com|sk_live_|pk_live_|STRIPE_SECRET_KEY|https?\.request\(' ops/payment-contract/stripe-sandbox-contract.mjs
