@@ -138,6 +138,13 @@ async function loadBlocks(){
  }
  if(!data.items.length)list.append(node('p','Ты пока никого не блокировал.','muted'));
 }
+async function loadNotificationSettings(){
+ if(!state.me)return;
+ const res=await api('/me/notification-settings'),form=$('notification-settings-form');
+ for(const name of ['follows','comments','sponsorships'])
+  form.elements[name].checked=res.settings[name];
+ $('notification-settings-status').textContent='Сохранено на сервере · только уведомления в кабинете';
+}
 async function loadSecurity(){
  if(!state.me)return;
  const data=await api('/me/security');
@@ -160,6 +167,8 @@ async function session(){
   clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));
   clear($('onboarding-steps'));$('onboarding-progress').value=0;
   $('onboarding-counter').textContent='0 из 5 шагов';
+  $('notification-settings-form').reset();
+  $('notification-settings-status').textContent='Настройки доступны после входа';
   clear($('blocked-users-list'));
   clear($('saved-list'));$('saved-more').hidden=true;
   state.savedCursor=null;state.savedIds=new Set();
@@ -190,7 +199,7 @@ async function session(){
   }
   if(state.worlds.length)syncWorldSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true),onboarding()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics()]);
   else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));}
  }
@@ -662,6 +671,14 @@ $('sponsor-form').addEventListener('submit',event=>{
 });
 $('saved-more').addEventListener('click',()=>run(()=>saved(false)));
 $('blocks-refresh').addEventListener('click',()=>run(loadBlocks,'Список блокировок обновлён'));
+$('notification-settings-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ const settings=Object.fromEntries(['follows','comments','sponsorships'].map(k=>[k,form.elements[k].checked]));
+ run(async()=>{
+  await api('/me/notification-settings','PATCH',settings);
+  await Promise.all([loadNotificationSettings(),activity(true)]);
+ },'Предпочтения уведомлений сохранены');
+});
 $('security-refresh').addEventListener('click',()=>run(loadSecurity,'Состояние входов обновлено'));
 $('security-revoke-form').addEventListener('submit',event=>{
  event.preventDefault();

@@ -68,6 +68,7 @@ const SCHEMA=[
  "CREATE TABLE IF NOT EXISTS activity_events (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')), world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, read_at INTEGER, CHECK(recipient_id<>actor_id))",
  "CREATE INDEX IF NOT EXISTS idx_activity_owner ON activity_events(recipient_id,id DESC)",
  "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL",
+ "CREATE TABLE IF NOT EXISTS notification_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, follows_enabled INTEGER NOT NULL DEFAULT 1 CHECK(follows_enabled IN (0,1)), comments_enabled INTEGER NOT NULL DEFAULT 1 CHECK(comments_enabled IN (0,1)), sponsors_enabled INTEGER NOT NULL DEFAULT 1 CHECK(sponsors_enabled IN (0,1)), updated_at INTEGER NOT NULL)",
  "CREATE TABLE IF NOT EXISTS moderation_appeals (id INTEGER PRIMARY KEY AUTOINCREMENT, appellant_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(length(reason) BETWEEN 12 AND 1000), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','restored')), decided_by TEXT REFERENCES users(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, decided_at INTEGER, CHECK((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL)))",
  "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_post ON moderation_appeals(post_id) WHERE post_id IS NOT NULL AND status='open'",
  "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_comment ON moderation_appeals(comment_id) WHERE comment_id IS NOT NULL AND status='open'",
@@ -191,8 +192,17 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  function ensureNoBlock(a,b){
   check(!isBlocked(a,b),403,'Взаимодействие между аккаунтами ограничено');
  }
+ function readNotificationSettings(id){
+  const record=db.prepare('SELECT follows_enabled,comments_enabled,sponsors_enabled,updated_at FROM notification_preferences WHERE user_id=?').get(id);
+  return {follows:record?Boolean(record.follows_enabled):true,
+   comments:record?Boolean(record.comments_enabled):true,
+   sponsorships:record?Boolean(record.sponsors_enabled):true,
+   updatedAt:record?.updated_at??null};
+ }
  function recordActivity(recipientId,actorId,kind,{worldId=null,postId=null,sponsorId=null}={}){
   if(recipientId===actorId||isBlocked(recipientId,actorId))return;
+  const key=kind==='new_follow'?'follows':kind==='post_comment'?'comments':'sponsorships';
+  if(readNotificationSettings(recipientId)[key]===false)return;
   db.prepare("INSERT INTO activity_events(recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at) VALUES(?,?,?,?,?,?,?)")
    .run(recipientId,actorId,kind,worldId,postId,sponsorId,now());
   // Local lab retention: bounded private inbox. No third-party analytics or tracking.
@@ -387,6 +397,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
       .all(user.id);
     send(res,200,{items,scope:'self',isPublic:false});return;
    }
+   if(method==='GET'&&route==='/api/me/notification-settings'){
+    const owner=requireUser(req);
+    send(res,200,{settings:readNotificationSettings(owner.id),scope:'self',
+     delivery:'local-inbox-only',email:false,push:false});return;
+   }
    if(method==='GET'&&route==='/api/me/security'){
     const user=requireUser(req);
     const sessionId=getCookie(req.headers.cookie);
@@ -406,12 +421,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
+    const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,savedPosts,comments,sponsorProposals,activity,moderationAppeals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -547,6 +563,20 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const result=db.prepare('UPDATE pilot_invites SET revoked_at=? WHERE id=? AND revoked_at IS NULL')
      .run(now(),ticket.id);
     send(res,200,{revoked:true,changed:Boolean(result.changes)});return;
+   }
+   if(method==='PATCH'&&route==='/api/me/notification-settings'){
+    throttle('notification-settings:'+user.id,30,3600000);
+    const allowed=['follows','comments','sponsorships'];
+    check(Object.keys(body).length>0&&Object.keys(body).every(k=>allowed.includes(k)),
+     400,'Разрешены только три настройки уведомлений');
+    check(Object.values(body).every(v=>typeof v==='boolean'),
+     400,'Значения должны быть true или false');
+    const before=readNotificationSettings(user.id);
+    const next={...before,...body};
+    db.prepare("INSERT INTO notification_preferences(user_id,follows_enabled,comments_enabled,sponsors_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET follows_enabled=excluded.follows_enabled,comments_enabled=excluded.comments_enabled,sponsors_enabled=excluded.sponsors_enabled,updated_at=excluded.updated_at")
+     .run(user.id,Number(next.follows),Number(next.comments),Number(next.sponsorships),now());
+    send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
+     delivery:'local-inbox-only'});return;
    }
    if(method==='POST'&&route==='/api/me/security/revoke-others'){
     throttle('security:'+user.id,12,3600000);

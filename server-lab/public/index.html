@@ -95,6 +95,17 @@
     <div id="saved-list" class="compact-list" aria-live="polite"></div>
     <button id="saved-more" class="ghost small" type="button" hidden>Показать ещё сохранённые</button>
    </details>
+   <details id="notification-settings-panel" class="notification-settings-panel invite-panel">
+    <summary>Управление вниманием и уведомлениями</summary>
+    <p class="muted">Выбирай, о каких новых действиях получать уведомления в личном кабинете. Это не email и не push. Ранее созданные события остаются в твоей истории.</p>
+    <form id="notification-settings-form" class="form-block">
+     <label class="notification-option"><input type="checkbox" name="follows"> Новые подписчики моих миров</label>
+     <label class="notification-option"><input type="checkbox" name="comments"> Комментарии к моим публикациям</label>
+     <label class="notification-option"><input type="checkbox" name="sponsorships"> Рекламные предложения и решения</label>
+     <button type="submit" class="gold">Сохранить предпочтения</button>
+    </form>
+    <p id="notification-settings-status" class="muted" role="status" aria-live="polite">Настройки читаются из личного профиля.</p>
+   </details>
    <section id="appeals-panel" class="appeals-panel" aria-labelledby="appeals-heading">
     <h3 id="appeals-heading">Мои обращения</h3>
     <p class="muted">Если материал скрыт по ошибке, можно запросить независимую проверку. Апелляцию не рассматривает тот, кто скрыл публикацию.</p>
