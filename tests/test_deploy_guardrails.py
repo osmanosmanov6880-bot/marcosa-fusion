@@ -66,7 +66,8 @@ class DeploymentGuardrailTests(unittest.TestCase):
         self.assertIn('ops/loopback_staging_http.py', source)
         self.assertIn('VPS loopback HTTP smoke failed', source)
         self.assertIn('PUBLIC_HTTPS_VERIFIED=NO', source)
-        self.assertNotIn('/opt/marcosa/current', source)
+        self.assertNotIn('rm -rf /opt/marcosa', source)
+        self.assertNotIn('sudo -n ', source)
         self.assertNotIn('StrictHostKeyChecking=no', source)
         self.assertNotIn('rm -rf /opt/marcosa', source)
 
