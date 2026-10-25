@@ -1,0 +1,48 @@
+name: "MARCOSA | R113 real two-origin transfer safety contracts"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/r113_two_origin_cdp.cjs"
+      - "tests/r113_cross_origin_contract.test.cjs"
+      - ".github/workflows/marcosa-r113-cross-origin-qa.yml"
+      - ".github/workflows/marcosa-public-pages.yml"
+      - "site/social-transfer.js"
+      - "site/social.html"
+  pull_request:
+    paths:
+      - "tools/r113_two_origin_cdp.cjs"
+      - "tests/r113_cross_origin_contract.test.cjs"
+      - ".github/workflows/marcosa-r113-cross-origin-qa.yml"
+      - ".github/workflows/marcosa-public-pages.yml"
+      - "site/social-transfer.js"
+      - "site/social.html"
+permissions:
+  contents: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Syntax and loss-resistant private archive contract
+        run: |
+          set -euo pipefail
+          node --check tools/r113_two_origin_cdp.cjs
+          node --check site/social-transfer.js
+          node --test tests/r113_cross_origin_contract.test.cjs tests/social-transfer.test.cjs
+      - name: Confirm independent real Chrome gate in public publishing workflow
+        run: |
+          node --input-type=module <<'NODE'
+          import {strict as assert} from 'node:assert';
+          import {readFileSync} from 'node:fs';
+          const wf=readFileSync('.github/workflows/marcosa-public-pages.yml','utf8');
+          assert.match(wf,/node tools\/r113_two_origin_cdp\.cjs/);
+          assert.match(wf,/node tools\/r110_social_transfer_cdp\.cjs/);
+          assert.match(wf,/uses: actions\/deploy-pages@v4/);
+          assert.match(wf,/verify-public-bytes:\s*\n\s*needs: \[verify-and-build, publish\]/);
+          console.log('R113_DEPLOYMENT_BROWSER_QA_WIRED=PASS');
+          NODE
