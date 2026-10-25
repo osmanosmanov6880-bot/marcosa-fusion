@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -23,6 +23,23 @@ async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
 }
+async function loadSavedIds(){
+ if(!state.me)return;
+ const result=await api('/me/saved/ids');
+ state.savedIds=new Set(result.ids);
+}
+async function saved(reset=true){
+ if(!state.me)return;
+ const params=new URLSearchParams();
+ if(!reset&&state.savedCursor)params.set('cursor',state.savedCursor);
+ const result=await api('/me/saved?'+params.toString());
+ const list=$('saved-list');
+ if(reset)clear(list);
+ for(const post of result.items)list.append(postCard(post));
+ if(reset&&!result.items.length)list.append(node('p','В коллекции пока нет доступных публикаций.','muted'));
+ state.savedCursor=result.nextCursor;
+ $('saved-more').hidden=!state.savedCursor;
+}
 async function loadInsights(){
  if(!state.me)return;
  const data=await api('/me/insights'),wrap=$('creator-insights-list');clear(wrap);
@@ -42,7 +59,6 @@ function syncWorldSettings(){
  if(!world)return;
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
- form.elements.visibility.value=world.visibility||'public';
 }
 async function loadBlocks(){
  if(!state.me)return;
@@ -80,6 +96,8 @@ async function session(){
   $('security-expiry').textContent='Срок текущего входа: —';
   $('security-revoke-form').reset();$('security-password-form').reset();
   clear($('blocked-users-list'));
+  clear($('saved-list'));$('saved-more').hidden=true;
+  state.savedCursor=null;state.savedIds=new Set();
   clear($('creator-insights-list'));
   state.feedScope='all';state.activityCursor=null;
   $('feed-all').setAttribute('aria-pressed','true');
@@ -100,13 +118,14 @@ async function session(){
   const container=$('my-worlds'),choose=$('post-world'),settings=$('world-settings-select');
   clear(container);clear(choose);clear(settings);
   for(const world of state.worlds){
-   const item=node('p',world.title+' / '+world.slug+(world.visibility==='private'?' · ПРИВАТНЫЙ':' · ПУБЛИЧНЫЙ'),'world-own');container.append(item);
+   const item=node('p',world.title+' / '+world.slug,'world-own');container.append(item);
    const option=node('option',world.title);option.value=world.id;choose.append(option);
    const editOption=node('option',world.title+' / '+world.slug);
    editOption.value=world.slug;settings.append(editOption);
   }
   if(state.worlds.length)syncWorldSettings();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks()]);
+  await loadSavedIds();
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true)]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
 }
@@ -129,7 +148,7 @@ async function worlds(){
  const followInfo=state.me?await Promise.all(result.items.map(w=>api('/worlds/'+encodeURIComponent(w.slug)+'/followers'))):[];
  for(const [i,world] of result.items.entries()){
   const card=node('article','','world-card');
-  card.append(node('span','WORLD / '+world.slug+(world.visibility==='private'?' · ПРИВАТНЫЙ':''),'eyebrow'),node('h3',world.title));
+  card.append(node('span','WORLD / '+world.slug,'eyebrow'),node('h3',world.title));
   card.append(node('p',world.description||'Мир автора @'+world.owner));
   const stats=node('p',world.posts_count+' публикаций · '+world.followers_count+' подписчиков','world-stats');
   card.append(stats,node('small','Создан @'+world.owner));
@@ -186,7 +205,7 @@ async function openWorld(slug){
  const panel=$('world-detail');
  $('world-detail-title').textContent=world.title;
  $('world-detail-description').textContent=world.description||'Цифровой мир автора @'+world.owner;
- $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций'+(world.visibility==='private'?' · ПРИВАТНЫЙ ПРОСМОТР':'');
+ $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций';
  const list=$('world-detail-posts');clear(list);
  for(const item of posts.items)list.append(postCard(item));
  if(!posts.items.length)list.append(node('p','Здесь пока нет опубликованных историй.','muted'));
@@ -270,6 +289,20 @@ function postCard(post,own=false){
   const report=node('button','Пожаловаться','ghost small');report.type='button';
   report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;$('report-dialog').showModal();});
   actions.append(report);
+ }
+ if(!own&&state.me){
+  const postId=Number(post.id);
+  const toggle=node('button',state.savedIds.has(postId)?'Сохранено ✓':'Сохранить','ghost small saved-toggle');
+  toggle.type='button';toggle.setAttribute('aria-pressed',String(state.savedIds.has(postId)));
+  toggle.addEventListener('click',()=>run(async()=>{
+   const wasSaved=state.savedIds.has(postId);
+   await api('/posts/'+postId+'/save',wasSaved?'DELETE':'POST',{});
+   if(wasSaved)state.savedIds.delete(postId);else state.savedIds.add(postId);
+   toggle.textContent=wasSaved?'Сохранить':'Сохранено ✓';
+   toggle.setAttribute('aria-pressed',String(!wasSaved));
+   await saved(true);
+  },state.savedIds.has(postId)?'Сохранение обновлено':'Публикация добавлена в твою коллекцию'));
+  actions.append(toggle);
  }
  card.append(actions);
  if(!own||post.status==='published'){
@@ -516,9 +549,9 @@ $('logout').addEventListener('click',()=>run(async()=>{
 $('world-settings-select').addEventListener('change',syncWorldSettings);
 $('world-settings-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
- const {slug,title,description,visibility}=values(form);
+ const {slug,title,description}=values(form);
  run(async()=>{
-  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,visibility});
+  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description});
   await session();await worlds();
  },'Оформление мира сохранено — данные видны посетителям.');
 });
@@ -561,6 +594,7 @@ $('sponsor-form').addEventListener('submit',event=>{
   form.reset();await mySponsors();
  },'Заявка получена: только ручная проверка, без платежей и размещений');
 });
+$('saved-more').addEventListener('click',()=>run(()=>saved(false)));
 $('blocks-refresh').addEventListener('click',()=>run(loadBlocks,'Список блокировок обновлён'));
 $('security-refresh').addEventListener('click',()=>run(loadSecurity,'Состояние входов обновлено'));
 $('security-revoke-form').addEventListener('submit',event=>{
