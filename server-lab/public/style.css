@@ -330,3 +330,8 @@ dialog form{display:grid;gap:17px}
 #world-cover-delete{width:100%;margin:4px 0 10px}
 #world-cover-status{font-size:11px;margin:8px 0}
 @media(max-width:650px){.world-cover-panel button{width:100%;min-height:48px}.world-cover-art{max-height:210px}.world-detail-cover{margin:13px 0 20px}}
+
+/* R56: one consistent share destination, clear focus/contrast on phone. */
+.world-share{display:inline-flex;align-items:center;justify-content:center;margin:14px 0 18px;border-color:#d2b58a66;min-height:44px;letter-spacing:.015em}
+.world-share:focus-visible{outline:2px solid #d6b985;outline-offset:3px}
+@media(max-width:720px){.world-share{width:100%;min-height:48px}}

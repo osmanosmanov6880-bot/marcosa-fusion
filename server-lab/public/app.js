@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -294,8 +294,10 @@ async function worlds(){
   const open=node('a','Открыть World ↗','world-open');
   open.href='#world-'+encodeURIComponent(world.slug);
   open.addEventListener('click',event=>{
-   event.preventDefault();location.hash='world-'+world.slug;
-   run(()=>openWorld(world.slug));
+   event.preventDefault();
+   const hash='#world-'+world.slug;
+   if(location.hash===hash)run(()=>openWorld(world.slug));
+   else location.hash=hash;
   });
   card.append(open);
   wrap.append(card);
@@ -309,21 +311,24 @@ async function discover(query){
  area.append(node('h3','Результаты поиска: '+found.query));
  for(const world of found.worlds){
   const btn=node('button',world.title+' / @'+world.owner+' · '+(state.topicNames.get(world.category)||'Все темы')+' · '+world.posts_count+' историй','ghost discover-hit');
-  btn.type='button';btn.addEventListener('click',()=>run(async()=>{
-   await openWorld(world.slug,world);
-  }));area.append(btn);
+  btn.type='button';btn.addEventListener('click',()=>{
+   const hash='#world-'+world.slug;
+   if(location.hash===hash)run(()=>openWorld(world.slug));
+   else location.hash=hash;
+  });area.append(btn);
  }
  for(const post of found.posts)area.append(postCard(post));
  if(!found.worlds.length&&!found.posts.length)area.append(node('p','По этому запросу нет опубликованных материалов.'));
 }
-async function openWorld(slug,knownWorld=null){
+async function openWorld(slug){
  if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
- const world=knownWorld||state.worldCatalog.find(w=>w.slug===slug);
- if(!world)throw Error('Мир не найден');
- const [posts,approved]=await Promise.all([
+ const [detail,posts,approved]=await Promise.all([
+  api('/worlds/'+encodeURIComponent(slug)),
   api('/worlds/'+encodeURIComponent(slug)+'/posts'),
   api('/sponsors/approved')
  ]);
+ const world=detail.world;
+ state.currentWorldSlug=slug;
  const panel=$('world-detail');
  const cover=$('world-detail-cover');
  cover.hidden=!world.hasCover;
@@ -775,9 +780,25 @@ $('account-export').addEventListener('click',()=>run(async()=>{
  document.body.append(link);link.click();link.remove();
  setTimeout(()=>URL.revokeObjectURL(uri),1500);
 },'Экспорт подготовлен: храните файл в защищённом месте'));
+$('world-share').addEventListener('click',()=>run(async()=>{
+ const slug=state.currentWorldSlug;
+ if(!slug)throw Error('Сначала открой мир для публикации ссылки');
+ const link=location.origin+location.pathname+'#world-'+slug;
+ try{
+  await navigator.clipboard.writeText(link);
+  notice('Постоянная ссылка на World скопирована');
+ }catch{
+  notice('Ссылка на твой World: '+link);
+ }
+}));
 $('world-close').addEventListener('click',()=>{
- $('world-detail').hidden=true;
+ $('world-detail').hidden=true;state.currentWorldSlug=null;
  location.hash='worlds';
+});
+window.addEventListener('hashchange',()=>{
+ const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
+ if(requested)run(()=>openWorld(requested));
+ else{$('world-detail').hidden=true;state.currentWorldSlug=null;}
 });
 for(const [id,scope] of [['feed-all','all'],['feed-following','following']]){
  $(id).addEventListener('click',()=>run(async()=>{
