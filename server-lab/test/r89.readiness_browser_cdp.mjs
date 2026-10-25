@@ -74,7 +74,7 @@ async function devtools(port){
 
 async function main(){
  const work=mkdtempSync(join(tmpdir(),'marcosa-r89-readiness-ui-'));
- const lab=createApp({inviteCode:'r89-ui-only'});let chrome=null,cdp=null;
+ const lab=createApp({inviteCode:'r89-readiness-ui-invite-2026'});let chrome=null,cdp=null;
  try{
   await new Promise(ok=>lab.server.listen(0,'127.0.0.1',ok));
   const base='http://127.0.0.1:'+lab.server.address().port;
@@ -85,7 +85,7 @@ async function main(){
    return{status:response.status,body:await response.json(),
     cookie:response.headers.get('set-cookie')?.split(';')[0]||null};
   }
-  const registered=await send('/auth/register',{username,email,password,inviteCode:'r89-ui-only'});
+  const registered=await send('/auth/register',{username,email,password,inviteCode:'r89-readiness-ui-invite-2026'});
   if(registered.status!==201)throw Error('R89_BROWSER_FIXTURE_REGISTER_'+registered.status);
   lab.db.prepare("UPDATE users SET role='moderator' WHERE username=?").run(username);
   const login=await send('/auth/login',{email,password});
