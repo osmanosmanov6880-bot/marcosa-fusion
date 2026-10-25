@@ -23,11 +23,12 @@ const clear=element=>element.replaceChildren();
 const values=form=>Object.fromEntries(new FormData(form).entries());
 const coverUrl=slug=>'/api/worlds/'+encodeURIComponent(slug)+'/cover';
 const privateCoverUrl=slug=>'/api/me/worlds/'+encodeURIComponent(slug)+'/cover';
-async function sendCover(slug,file){
+async function sendCover(slug,file,confirmedRights){
+ if(confirmedRights!==true)throw Error('Подтвердите законные права на текущую версию PNG');
  if(!file||file.type!=='image/png'||file.size<57||file.size>786432)
   throw Error('Выбери PNG до 768 KiB, без анимации');
  const response=await fetch(coverUrl(slug),{method:'POST',credentials:'same-origin',
-  headers:{'Content-Type':'image/png'},body:file});
+  headers:{'Content-Type':'image/png','X-Marcosa-Rights-Attestation':'rights-v1'},body:file});
  let data;try{data=await response.json();}catch{throw Error('Не удалось получить ответ о загрузке');}
  if(!response.ok)throw Error(data.error||'Обложка не принята');
  return data;
@@ -814,10 +815,11 @@ $('world-settings-select').addEventListener('change',syncWorldSettings);
 $('world-cover-select').addEventListener('change',syncCoverSettings);
 $('world-cover-form').addEventListener('submit',event=>{
  event.preventDefault();
- const form=event.currentTarget,slug=form.elements.slug.value,file=form.elements.cover.files?.[0];
+ const form=event.currentTarget,slug=form.elements.slug.value,file=form.elements.cover.files?.[0],rights=form.elements.rightsAttestation.checked;
  run(async()=>{
-  const saved=await sendCover(slug,file);
-  form.elements.cover.value='';
+  const saved=await sendCover(slug,file,rights);
+   if(saved.rightsDeclarationRecorded!==true)throw Error('Сервер не подтвердил заявление о правах');
+  form.elements.cover.value='';form.elements.rightsAttestation.checked=false;
   await session();await worlds();
   $('world-cover-select').value=slug;syncCoverSettings();
   $('world-cover-status').textContent='PNG принят · '+saved.width+' × '+saved.height+' px · метаданные удалены · ожидает модерации';
