@@ -72,6 +72,7 @@ const SCHEMA=[
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
  "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
+ "CREATE TABLE IF NOT EXISTS world_cover_rights (world_id TEXT PRIMARY KEY REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
  "CREATE TABLE IF NOT EXISTS world_cover_review_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, decision TEXT NOT NULL CHECK(decision IN ('approved','rejected')), created_at INTEGER NOT NULL)",
  
  "CREATE TABLE IF NOT EXISTS world_cover_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE,reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,cover_sha256 TEXT NOT NULL CHECK(length(cover_sha256)=64),reason TEXT NOT NULL CHECK(reason IN ('copyright','privacy','abuse','impersonation','other')),detail TEXT NOT NULL CHECK(length(detail) BETWEEN 12 AND 500),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','dismissed','withdrawn')),reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,decided_at INTEGER,UNIQUE(world_id,reporter_id,cover_sha256))",
@@ -402,6 +403,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     throttle('cover:'+owner.id,12,3600000);
     const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],owner.id);
     check(world,404,'Мир не найден');
+    check(req.headers['x-marcosa-rights-attestation']==='rights-v1',428,
+     'Перед загрузкой подтвердите, что у вас есть права или разрешение на изображение');
     const body=await readPngBody(req);
     let safe;
     try{safe=sanitizePngCover(body);}
@@ -411,9 +414,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      db.prepare("UPDATE world_cover_reports SET status='withdrawn',decided_at=? WHERE world_id=? AND status='open'").run(now(),world.id);
      db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,'pending',NULL,NULL) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at,review_status='pending',reviewed_by=NULL,reviewed_at=NULL")
       .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
+     db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?) ON CONFLICT(world_id) DO UPDATE SET owner_id=excluded.owner_id,asset_sha256=excluded.asset_sha256,statement_version=excluded.statement_version,asserted_at=excluded.asserted_at")
+      .run(world.id,owner.id,hash(safe.png),now());
     });
     send(res,200,{hasCover:true,width:safe.width,height:safe.height,bytes:safe.bytes,
-      type:'image/png',metadataRemoved:true,reviewStatus:'pending',publicVisible:false,slug:coverRoute[1],production:false});
+      type:'image/png',metadataRemoved:true,reviewStatus:'pending',
+      rightsDeclarationRecorded:true,rightsDeclarationIsIndependentProof:false,
+      publicVisible:false,slug:coverRoute[1],production:false});
     return;
    }
    const privateCover=route.match(/^\/api\/me\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
@@ -912,6 +919,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
       canonical=sanitizePngCover(persisted).png.equals(persisted);
      }catch{canonical=false;}
      check(canonical,422,'Материал не прошёл обязательную PNG-нормализацию');
+     const claim=db.prepare("SELECT asset_sha256,owner_id,statement_version FROM world_cover_rights WHERE world_id=?").get(item.world_id);
+     check(claim&&claim.owner_id===item.owner_id&&
+      claim.asset_sha256===hash(Buffer.from(item.png))&&claim.statement_version==='rights-v1',
+      409,'Нет действующего подтверждения прав на текущую версию PNG');
     }
     atomic(()=>{
      const result=db.prepare("UPDATE world_covers SET review_status=?,reviewed_by=?,reviewed_at=? WHERE world_id=? AND review_status='pending'").run(decision,user.id,now(),item.world_id);
