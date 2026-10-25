@@ -95,11 +95,20 @@ then
   ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/rollback-staging.sh || true
   exit 1
 fi
+# R102: independently fetch EVERY approved deployed asset through a real
+# short-lived HTTP server bound solely to VPS loopback, then stop the server.
+# Even a valid on-disk SHA is insufficient if MIME/routing breaks over HTTP.
+if ! ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'python3 -' < ops/loopback_staging_http.py; then
+  echo "::error::VPS loopback HTTP smoke failed; attempting staging-only rollback"
+  ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/rollback-staging.sh || true
+  exit 1
+fi
 {
   echo "### MARCOSA automatic SSH-only staging"
   echo "- SSH filesystem upload and source-pinned digest: PASS"
   echo "- VPS: 169.58.48.38, user marcosa-deploy"
   echo "- Isolated path: /home/marcosa-deploy/marcosa-staging/current"
+  echo "- All 62/manifest assets checked through private localhost HTTP"
   echo "- Source commit: \`$SOURCE_SHA\`"
   echo "- Public HTTPS: NOT VERIFIED; production marcosa.club unchanged"
 } >> "$GITHUB_STEP_SUMMARY"
