@@ -180,9 +180,10 @@ function upgradeWorldCoverReview(db){
   db.exec('ALTER TABLE world_covers ADD COLUMN reviewed_at INTEGER');
  db.exec('CREATE INDEX IF NOT EXISTS idx_world_cover_review_queue ON world_covers(review_status,updated_at)');
 }
-export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now(),publicMediaDisabled=false}={}){
+export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now(),publicMediaDisabled=false,contentWritesDisabled=false}={}){
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  check(typeof publicMediaDisabled==='boolean',400,'Media emergency mode must be a boolean');
+ check(typeof contentWritesDisabled==='boolean',400,'Content freeze must be a boolean');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
  // R78: SQLite has no builtin SHA256. Keep catalog flags consistent with the
@@ -250,6 +251,19 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  function ensureNoBlock(a,b){
   check(!isBlocked(a,b),403,'Взаимодействие между аккаунтами ограничено');
  }
+ // R81: an incident freeze must still permit genuine user safety actions.
+ function safeWhileFrozen(method,route){
+  if(method==='DELETE'&&['/api/account','/api/me/retention-consent'].includes(route))return true;
+  if(method!=='POST')return false;
+  if(['/api/auth/login','/api/auth/logout',
+    '/api/me/security/revoke-others','/api/me/security/change-password',
+    '/api/reports'].includes(route))return true;
+  if(/^\/api\/comments\/[1-9][0-9]{0,14}\/report$/.test(route))return true;
+  if(/^\/api\/worlds\/[a-z][a-z0-9_-]{2,39}\/cover\/report$/.test(route))return true;
+  if(/^\/api\/mod\/(?:posts|comments)\/[1-9][0-9]{0,14}\/hide$/.test(route))return true;
+  if(/^\/api\/mod\/cover-reports\/[1-9][0-9]{0,14}\/resolve$/.test(route))return true;
+  return false;
+ }
  function readNotificationSettings(id){
   const record=db.prepare('SELECT follows_enabled,comments_enabled,sponsors_enabled,updated_at FROM notification_preferences WHERE user_id=?').get(id);
   return {follows:record?Boolean(record.follows_enabled):true,
@@ -280,6 +294,16 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const incoming=new URL(req.url||'/','http://localhost');
    const route=incoming.pathname;
    const query=incoming.searchParams;
+   // Freeze content before ANY mutation branch, including raw PNG uploads.
+   // Keep same-origin policy even when rejecting unsafe changes.
+   if(contentWritesDisabled&&['POST','PATCH','DELETE'].includes(method)&&
+      !safeWhileFrozen(method,route)){
+    originGuard(req,verifiedHost);
+    send(res,503,{error:'Публикация и изменение контента временно приостановлены',
+     contentWrites:'disabled',production:false},
+     {'Retry-After':'60','Cache-Control':'no-store','X-Marcosa-Content-Freeze':'active'});
+    return;
+   }
    // R68: real World metadata HTML for shares. Always noindex in this lab.
    // Read routes accept historical default slugs with underscores; new Worlds use canonical hyphens.
  const worldPage=route.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
@@ -324,7 +348,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const data=await readFile(new URL('../site/marcosa-mark.svg',import.meta.url));
     res.writeHead(200,{'Content-Type':'image/svg+xml; charset=utf-8'});res.end(data);return;
    }
-   if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab',publicMediaDelivery:publicMediaDisabled?'disabled':'enabled'});return;}
+   if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab',publicMediaDelivery:publicMediaDisabled?'disabled':'enabled',contentWrites:contentWritesDisabled?'disabled':'enabled'});return;}
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
    }
@@ -1355,7 +1379,11 @@ if(process.argv[1]&&resolve(process.argv[1])===file){
  if(emergency!==undefined&&!['0','1'].includes(emergency)){
   console.error('MARCOSA_DISABLE_PUBLIC_MEDIA must be 0 or 1; refusing ambiguous configuration.');process.exit(1);
  }
- const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||'',registrationMode:process.env.MARCOSA_REGISTRATION_MODE||'legacy',publicMediaDisabled:emergency==='1'});
+ const freeze=process.env.MARCOSA_FREEZE_CONTENT;
+ if(freeze!==undefined&&!['0','1'].includes(freeze)){
+  console.error('MARCOSA_FREEZE_CONTENT must be 0 or 1; refusing ambiguous configuration');process.exit(1);
+ }
+ const app=createApp({databasePath:process.env.MARCOSA_DB_PATH||':memory:',inviteCode:process.env.MARCOSA_INVITE_CODE||'',registrationMode:process.env.MARCOSA_REGISTRATION_MODE||'legacy',publicMediaDisabled:emergency==='1',contentWritesDisabled:freeze==='1'});
  const port=Number(process.env.PORT||8787);
  app.server.listen(port,host,()=>console.log('MARCOSA R28 LAB at http://'+host+':'+app.server.address().port));
 }
