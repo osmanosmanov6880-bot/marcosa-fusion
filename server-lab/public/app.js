@@ -419,7 +419,7 @@ async function worlds(){
   }
   const open=node('a',localText('worlds.open','Открыть World ↗'),'world-open');
   open.dataset.i18nDynamic='worlds.open';
-  const onServerWorldPage=/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname);
+  const onServerWorldPage=/^\/w\/[a-z][a-z0-9_-]{2,39}$/.test(location.pathname);
   open.href=onServerWorldPage?'/w/'+encodeURIComponent(world.slug):'#world-'+encodeURIComponent(world.slug);
   open.addEventListener('click',event=>{
    if(onServerWorldPage)return; // Full navigation updates server-rendered title/OG metadata.
@@ -450,7 +450,7 @@ async function discover(query){
  if(!found.worlds.length&&!found.posts.length)area.append(node('p','По этому запросу нет опубликованных материалов.'));
 }
 async function openWorld(slug){
- if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
+ if(!/^[a-z][a-z0-9_-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
  const serial=++state.worldOpenSerial;
  const [detail,posts,approved]=await Promise.all([
   api('/worlds/'+encodeURIComponent(slug)),
@@ -951,7 +951,7 @@ function closeWorldAndRestoreFocus(){
 }
 $('world-close').addEventListener('click',()=>{
  // Leave a server-rendered World without re-opening it on reload.
- if(/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname))
+ if(/^\/w\/[a-z][a-z0-9_-]{2,39}$/.test(location.pathname))
   history.replaceState(null,'','/#worlds');
  else if(location.hash!=='#worlds')history.replaceState(null,'','#worlds');
  closeWorldAndRestoreFocus();
@@ -960,7 +960,7 @@ window.addEventListener('hashchange',()=>{
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
  if(requested)run(()=>openWorld(requested));
  else if(!$('world-detail').hidden){
-  if(/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname))
+  if(/^\/w\/[a-z][a-z0-9_-]{2,39}$/.test(location.pathname))
    history.replaceState(null,'','/#worlds');
   closeWorldAndRestoreFocus();
  }else ++state.worldOpenSerial;
@@ -1030,7 +1030,7 @@ document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
-  const route=location.pathname.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
+  const route=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
   const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):(route?.[1]||'');
   if(requested)run(()=>openWorld(requested));
  })
