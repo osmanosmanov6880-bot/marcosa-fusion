@@ -580,8 +580,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
+    const retentionConsent=db.prepare("SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?").get(user.id)||null;
+    const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -705,6 +707,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(await passwordMatches(password,user),401,'Неверная почта или пароль');
     const token=randomBytes(32).toString('hex');
     db.prepare('INSERT INTO sessions(token_hash,user_id,expires_at) VALUES(?,?,?)').run(hash(token),user.id,now()+DAY);
+    // Daily observations are only recorded after explicit active opt-in.
+    db.prepare("INSERT OR IGNORE INTO beta_retention_days(user_id,day_utc,source) SELECT user_id,?,'login' FROM beta_retention_consents WHERE user_id=?")
+     .run(Math.floor(now()/DAY),user.id);
     send(res,200,{authenticated:true},{'Set-Cookie':cookie(token)});return;
    }
    if(method==='POST'&&route==='/api/auth/logout'){
@@ -713,6 +718,21 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if((method==='POST'||method==='DELETE')&&route==='/api/me/retention-consent'){
+    throttle('beta-retention-consent:'+user.id,12,DAY);
+    if(method==='POST'){
+     check(Object.keys(body).length===1&&body.consent===true,400,'Нужно добровольное подтверждение');
+     const stamp=now(),day=Math.floor(stamp/DAY);
+     const created=db.prepare('INSERT OR IGNORE INTO beta_retention_consents(user_id,consented_at,consented_day) VALUES(?,?,?)')
+      .run(user.id,stamp,day);
+     if(created.changes)db.prepare("INSERT INTO beta_retention_days(user_id,day_utc,source) VALUES(?,?,'consent')").run(user.id,day);
+     send(res,200,{consented:true,changed:Boolean(created.changes),source:'voluntary-local-only'});return;
+    }
+    check(Object.keys(body).length===0,400,'Для отзыва согласия не нужны дополнительные данные');
+    // FK CASCADE erases observations and their opt-in evidence.
+    const removed=db.prepare('DELETE FROM beta_retention_consents WHERE user_id=?').run(user.id);
+    send(res,200,{consented:false,changed:Boolean(removed.changes),pastActivityDeleted:true});return;
+   }
    if(method==='POST'&&route==='/api/mod/invites'){
     check(user.role==='moderator',403,'Только модератор выдаёт приглашения');
     throttle('invite:'+user.id,24,3600000);
