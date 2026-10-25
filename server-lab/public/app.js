@@ -441,6 +441,7 @@ async function openWorld(slug){
  $('world-detail-title').textContent=world.title;
  $('world-detail-description').textContent=world.description||'Цифровой мир автора @'+world.owner;
  $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций';
+ $('world-cover-report-panel').hidden=!(state.me&&state.me.username!==world.owner&&world.hasCover);
  const list=$('world-detail-posts');clear(list);
  for(const item of posts.items)list.append(postCard(item));
  if(!posts.items.length)list.append(node('p','Здесь пока нет опубликованных историй.','muted'));
