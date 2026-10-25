@@ -145,6 +145,9 @@ async function main(){
    await cdp.wait("document.getElementById('world-detail')?.hidden===false&&document.activeElement?.id==='world-detail-title'",'R64-deep-link-focus');
    await cdp.evalJS("document.getElementById('world-close').focus()");
    await key('Enter');
+   await pause(150);
+   const closeState=await cdp.evalJS("({hidden:document.getElementById('world-detail')?.hidden,focused:document.activeElement?.id||document.activeElement?.className||document.activeElement?.tagName,hash:location.hash,opener:!!document.querySelector('#world-list a.world-open[href=\"#world-u-a11yowner\"]')})");
+   console.log('R66 CLOSED DEEPLINK FOCUS',size.name,JSON.stringify(closeState));
    await cdp.wait("document.getElementById('world-detail')?.hidden===true&&document.activeElement===(Array.from(document.querySelectorAll('#world-list a.world-open')).find(a=>a.getAttribute('href')==='#world-u-a11yowner')||document.getElementById('worlds'))",'R64-close-button-focus-return');
    const outside=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(outside.length||cdp.errors.length)throw Error('R64_BROWSER_SECURITY_'+size.name+' '+JSON.stringify({outside,errors:cdp.errors}));
