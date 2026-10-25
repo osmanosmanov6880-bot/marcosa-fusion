@@ -54,9 +54,11 @@ CREATE POLICY marcosa_comments_create ON public.marcosa_comments
    AND EXISTS(
     SELECT 1 FROM public.marcosa_posts p
     JOIN public.marcosa_worlds w ON w.id=p.world_id
-    WHERE p.id=post_id AND p.status='published'
+    WHERE p.id=marcosa_comments.post_id AND p.status='published'
       AND w.visibility='public'
-      AND marcosa_authz.interaction_allowed(author_id,w.owner_id)
+      -- Explicitly qualify the OUTER inserted comment author. Using bare
+      -- "author_id" would resolve to p.author_id and break cross-user replies.
+      AND marcosa_authz.interaction_allowed(marcosa_comments.author_id,w.owner_id)
    )
  );
 
