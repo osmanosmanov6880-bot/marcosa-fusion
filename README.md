@@ -1,5 +1,8 @@
 # MARCOSA FUSION · Network OS R4
 
+> **Current deployment boundary (25 Oct 2026):** GitHub `main` automatically builds, checks and delivers its static preview to `/home/marcosa-deploy/marcosa-staging/current` on VPS `169.58.48.38`, with SHA-256 verification and a staging rollback path. The public `marcosa.club` continues to serve a distinct root-owned legacy application at `/opt/marcosa/current`. No automatic production cutover is authorized. See [R99 runbook](docs/MARCOSA_R99_AUTOMATED_SSH_STAGING_RELEASE_RU.md).
+
+
 **Public source release — 23 October 2026. R4 architectural materials, procedural animation, efficient bloom and an on-device GPU/RAF test.**
 
 An open, stateless preview of the MARCOSA discovery layer: 16 independent source-backed products, a catalogue, a 43-film-domain inventory template and browser-only promotional planning. **Not** a replacement for the authenticated MARCOSA platform, Supabase data, or an operational advertising exchange.
@@ -39,7 +42,7 @@ R7 [GitHub Actions run #40014378002](https://github.com/osmanosmanov6880-bot/mar
 ### Deployment policy
 
 - This repository is **Public** by user choice. Public source CI is enabled.
-- Staging SSH deployment is restricted to trusted `main`, a dedicated non-root account, pinned verified host key, explicit environment and on-server approval marker. **As of 23 Oct 2026, the external SSH host-key pin mismatches and VPS staging has not been deployed.** GitHub Pages publication is independent of SSH.
+- Staging SSH deployment is restricted to trusted `main`, a dedicated non-root account, pinned verified host key, explicit environment and on-server approval marker. **As of 25 Oct 2026, the SSH host key was independently verified; isolated non-root staging delivery passed for 62 assets on Contabo (R99, [run #40232174313](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/runs/40232174313)). The real production site remains untouched.** GitHub Pages publication is independent of SSH.
 - No production files, Supabase schemas, authentication flows, messages, Worlds, DNS or OSGARD VPS were modified.
 - Production and any full original-source import require separate secret checks, permission/RLS assessment, live-file comparison, private backups and a tested rollback.
 - Do not commit private SSH keys, passwords, database dumps, `.env`, personal handwritten materials, access tokens or customers' data.

@@ -78,6 +78,14 @@ test('R99: a successful same-run build automatically SSH-stages exact main SHA, 
  assert.match(uploader,/GITHUB_SHA/);
  assert.match(uploader,/TRUSTED_SAME_RUN_BUILD=PASS/);
  assert.match(uploader,/SSH_STAGING_ASSETS_VERIFIED=/);
+ assert.match(uploader,/VPS loopback HTTP smoke failed/);
+ assert.match(uploader,/ops\/loopback_staging_http\.py/);
+ const smoke=readFileSync('ops/loopback_staging_http.py','utf8');
+ assert.match(smoke,/127\.0\.0\.1/);
+ assert.match(smoke,/ThreadingHTTPServer/);
+ assert.match(smoke,/MAX_TOTAL_BYTES/);
+ assert.match(smoke,/VPS_LOOPBACK_HTTP=PASS/);
+ assert.doesNotMatch(smoke,/0\.0\.0\.0/);
  assert.match(uploader,/source ops\/load-pinned-staging-host\.sh/);
  assert.match(uploader,/StrictHostKeyChecking=yes/);
  assert.match(uploader,/PUBLIC_HTTPS_VERIFIED=NO/);

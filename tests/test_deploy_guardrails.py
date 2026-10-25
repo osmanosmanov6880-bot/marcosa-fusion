@@ -63,6 +63,8 @@ class DeploymentGuardrailTests(unittest.TestCase):
         self.assertIn('bash ops/ssh-stage-verified.sh', workflow)
         self.assertIn('sha256sum -c marcosa-site.tar.gz.sha256', source)
         self.assertIn('SSH_STAGING_ASSETS_VERIFIED=', source)
+        self.assertIn('ops/loopback_staging_http.py', source)
+        self.assertIn('VPS loopback HTTP smoke failed', source)
         self.assertIn('PUBLIC_HTTPS_VERIFIED=NO', source)
         self.assertNotIn('/opt/marcosa/current', source)
         self.assertNotIn('StrictHostKeyChecking=no', source)
