@@ -135,6 +135,20 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r79.media_incident_kill_switch.test.mjs
           node --test server-lab/test/r79.media_incident_kill_switch.test.mjs
+      - name: R82 actual bilingual incident banner QA in Chrome 1440 390 360
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r82.incident_banner_cdp.mjs
+          node server-lab/test/r82.incident_banner_cdp.mjs
+      - name: Retain R82 incident RU EN screenshots for independent review
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r82-real-incident-mobile-desktop
+          path: qa-r82/
+          retention-days: 7
+          if-no-files-found: warn
       - name: R71 bilingual UI and user-content isolation in actual desktop/mobile Chromium
         shell: bash
         run: |
