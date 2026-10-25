@@ -51,18 +51,19 @@ jobs:
           node --check server-lab/test/r39.account_security.test.mjs
           node --check server-lab/test/r40.community_blocks.test.mjs
           node --check server-lab/test/r42.bookmarks.test.mjs
-          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs server-lab/test/r34.snapshot.test.mjs server-lab/test/r33.world_insights.test.mjs server-lab/test/r36.loopback_security.test.mjs server-lab/test/r39.account_security.test.mjs server-lab/test/r40.community_blocks.test.mjs server-lab/test/r42.bookmarks.test.mjs
+          node --check server-lab/test/r45.pilot_onboarding.test.mjs
+          node --test server-lab/test/core.test.mjs server-lab/test/r30.community_ads.test.mjs server-lab/test/r30.migration.test.mjs server-lab/test/r31.following_activity.test.mjs server-lab/test/r32.moderation_appeals.test.mjs server-lab/test/r34.snapshot.test.mjs server-lab/test/r33.world_insights.test.mjs server-lab/test/r36.loopback_security.test.mjs server-lab/test/r39.account_security.test.mjs server-lab/test/r40.community_blocks.test.mjs server-lab/test/r42.bookmarks.test.mjs server-lab/test/r45.pilot_onboarding.test.mjs
       - name: Real Chromium — desktop and phones, signup, login, publish
         shell: bash
         run: |
           set -euo pipefail
           node --check server-lab/test/browser-cdp.mjs
           node server-lab/test/browser-cdp.mjs
-      - name: Upload fifteen browser captures including creator insights
+      - name: Upload real browser captures including pilot onboarding and social safety
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: marcosa-r35-creator-insights-and-moderation-qa
+          name: marcosa-r45-pilot-invites-and-onboarding-chrome-qa
           path: qa-r30/
           retention-days: 7
           if-no-files-found: error
