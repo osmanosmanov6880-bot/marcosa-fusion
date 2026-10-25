@@ -875,30 +875,34 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
    if(method==='PATCH'&&worldSettings){
     const slug=worldSettings[1];
-    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>k==='title'||k==='description'),
-     400,'Можно изменять только название и описание');
-    const original=db.prepare('SELECT id,title,description FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
+    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','category'].includes(k)),
+     400,'Можно изменять только название, описание и категорию');
+    const original=db.prepare('SELECT id,title,description,category FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
     check(original,404,'Мир не найден');
     const title=body.title===undefined?original.title:str(body.title);
     const description=body.description===undefined?original.description:str(body.description);
+    const category=body.category===undefined?original.category:body.category;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(description.length<=400,400,'Описание слишком длинное');
-    const result=db.prepare('UPDATE worlds SET title=?,description=? WHERE id=? AND owner_id=?')
-     .run(title,description,original.id,user.id);
+    check(validTopic(category),400,'Неизвестная категория');
+    const result=db.prepare('UPDATE worlds SET title=?,description=?,category=? WHERE id=? AND owner_id=?')
+     .run(title,description,category,original.id,user.id);
     check(result.changes===1,409,'Обновление мира не удалось');
-    send(res,200,{id:original.id,slug,title,description,ownerEditable:true});return;
+    send(res,200,{id:original.id,slug,title,description,category,ownerEditable:true});return;
    }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
+    const category=body.category===undefined?'general':body.category;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(/^[a-z][a-z0-9-]{2,39}$/.test(slug),400,'Неверный адрес мира');
     check(description.length<=400,400,'Описание слишком длинное');
+    check(validTopic(category),400,'Неизвестная категория');
     const n=db.prepare('SELECT count(*) AS n FROM worlds WHERE owner_id=?').get(user.id).n;
     check(n<3,409,'Лимит: три мира');
     const id=randomUUID();
-    try{db.prepare('INSERT INTO worlds(id,owner_id,slug,title,description,created_at) VALUES(?,?,?,?,?,?)').run(id,user.id,slug,title,description,now());}
+    try{db.prepare('INSERT INTO worlds(id,owner_id,slug,title,description,category,created_at) VALUES(?,?,?,?,?,?,?)').run(id,user.id,slug,title,description,category,now());}
     catch{throw new HttpError(409,'Адрес мира занят');}
-    send(res,201,{id,slug,title,description});return;
+    send(res,201,{id,slug,title,description,category});return;
    }
    if(method==='POST'&&route==='/api/posts'){
     throttle('post:'+user.id,25,3600000);
