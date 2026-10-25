@@ -790,6 +790,41 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
      delivery:'local-inbox-only'});return;
    }
+   const reportCover=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/cover\/report$/);
+   if(method==='POST'&&reportCover){
+    check(Object.keys(body).length===2&&typeof body.reason==='string'&&typeof body.detail==='string',400,'Нужно указать причину и описание');
+    const reason=body.reason,detail=str(body.detail);
+    check(['copyright','privacy','abuse','impersonation','other'].includes(reason)&&detail.length>=12&&detail.length<=500,400,'Причина или описание 12–500 символов');
+    const cover=db.prepare("SELECT c.world_id,c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator' WHERE w.slug=? AND c.review_status='approved'").get(reportCover[1]);
+    check(cover&&cover.owner_id!==user.id&&!isBlocked(user.id,cover.owner_id),404,'Публичная обложка недоступна');
+    throttle('cover-report:'+user.id,8,86400000);
+    const digest=hash(Buffer.from(cover.png));
+    check(!db.prepare('SELECT 1 FROM world_cover_reports WHERE world_id=? AND reporter_id=? AND cover_sha256=?').get(cover.world_id,user.id,digest),409,'Жалоба на этот файл уже создана');
+    const id=db.prepare("INSERT INTO world_cover_reports(world_id,reporter_id,cover_sha256,reason,detail,created_at) VALUES(?,?,?,?,?,?)")
+     .run(cover.world_id,user.id,digest,reason,detail,now()).lastInsertRowid;
+    send(res,201,{id:Number(id),status:'open',private:true,production:false});return;
+   }
+   const decideCoverReport=route.match(/^\/api\/mod\/cover-reports\/([1-9][0-9]{0,14})\/resolve$/);
+   if(method==='POST'&&decideCoverReport){
+    check(user.role==='moderator',403,'Доступ только независимому модератору');
+    check(Object.keys(body).length===1&&['upheld','dismissed'].includes(body.decision),400,'Неверное решение');
+    const id=int(decideCoverReport[1]);
+    const claim=db.prepare("SELECT r.id,r.world_id,r.reporter_id,r.cover_sha256,c.png,c.review_status,c.reviewed_by AS originalReviewer,w.owner_id FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN worlds w ON w.id=r.world_id WHERE r.id=? AND r.status='open'").get(id);
+    check(claim,404,'Жалоба закрыта или удалена');
+    check(claim.owner_id!==user.id&&claim.reporter_id!==user.id&&claim.originalReviewer!==user.id,403,'Решение требует другого независимого модератора');
+    check(claim.review_status==='approved'&&claim.cover_sha256===hash(Buffer.from(claim.png)),409,'Файл заменён или больше не публичный');
+    atomic(()=>{
+     const result=db.prepare("UPDATE world_cover_reports SET status=?,reviewed_by=?,decided_at=? WHERE id=? AND status='open'").run(body.decision,user.id,now(),id);
+     check(result.changes===1,409,'Повторное решение запрещено');
+     if(body.decision==='upheld'){
+      const changed=db.prepare("UPDATE world_covers SET review_status='rejected',reviewed_by=?,reviewed_at=? WHERE world_id=? AND review_status='approved'").run(user.id,now(),claim.world_id);
+      check(changed.changes===1,409,'Обложка уже не публична');
+      db.prepare("INSERT INTO world_cover_review_audit(world_id,reviewed_by,decision,created_at) VALUES(?,?,'rejected',?)").run(claim.world_id,user.id,now());
+      db.prepare("UPDATE world_cover_reports SET status='withdrawn',decided_at=? WHERE world_id=? AND id<>? AND status='open'").run(now(),claim.world_id,id);
+     }
+    });
+    send(res,200,{id,decision:body.decision,publicVisible:body.decision==='dismissed',production:false});return;
+   }
    if(method==='POST'&&route==='/api/me/cover-appeals'){
     check(Object.keys(body).length===2&&typeof body.slug==='string'&&typeof body.reason==='string',400,'Укажи World и объяснение');
     const slug=str(body.slug),reason=str(body.reason);
