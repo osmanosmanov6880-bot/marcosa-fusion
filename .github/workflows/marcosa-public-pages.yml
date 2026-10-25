@@ -19,6 +19,8 @@ on:
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
       - "inventory/playable_cinema_r19.json"
+      - "ops/pages-live-readback.mjs"
+      - "tests/pages-live-readback.test.mjs"
       - ".github/workflows/marcosa-public-pages.yml"
   pull_request:
     branches: [main]
@@ -38,6 +40,8 @@ on:
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
       - "inventory/playable_cinema_r19.json"
+      - "ops/pages-live-readback.mjs"
+      - "tests/pages-live-readback.test.mjs"
       - ".github/workflows/marcosa-public-pages.yml"
   workflow_dispatch:
 
@@ -290,6 +294,16 @@ jobs:
           path: qa-r24/
           retention-days: 7
           if-no-files-found: error
+      - name: Run independent public HTTPS readback contract tests
+        run: node --test tests/pages-live-readback.test.mjs
+      - name: Preserve exact trusted build-manifest for external readback
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-build-manifest-${{ github.sha }}
+          path: dist/build-manifest.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Upload static Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
@@ -335,3 +349,33 @@ jobs:
         if: failure()
         run: |
           echo "::notice title=Pages troubleshooting::If this is the first deployment, select GitHub Actions as the Pages Source in repository Settings. Repository secret keys do not enable Pages."
+
+  verify-public-bytes:
+    needs: [verify-and-build, publish]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download trusted manifest from the SAME Pages build run
+        uses: actions/download-artifact@v4
+        with:
+          name: pages-build-manifest-${{ github.sha }}
+      - name: Independently verify ALL published public HTTPS assets by SHA-256
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "osmanosmanov6880-bot/marcosa-fusion" ]] || exit 2
+          [[ "$GITHUB_REF" == "refs/heads/main" ]] || exit 2
+          node ops/pages-live-readback.mjs --manifest build-manifest.json --sha "$GITHUB_SHA"
+          {
+            echo "### R103 public GitHub Pages HTTPS readback"
+            echo "- Verified the reviewed build-manifest against real public hosted bytes."
+            echo "- All static assets checked with SHA-256, HTTPS, host/prefix, redirect and MIME constraints."
+            echo "- This confirms only the GitHub Pages preview, not production marcosa.club."
+          } >> "$GITHUB_STEP_SUMMARY"
