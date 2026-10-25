@@ -568,8 +568,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
-    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
+    const world=db.prepare('SELECT id,owner_id,visibility FROM worlds WHERE slug=?').get(followWrite[1]);
     check(world,404,'Мир не найден');
+    if(world.visibility==='private'&&world.owner_id!==user.id)throw new HttpError(404,'Мир не найден');
     check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
     if(method==='POST')ensureNoBlock(user.id,world.owner_id);
     if(method==='POST'){
@@ -589,8 +590,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
     throttle('comment:'+user.id,25,3600000);
     const postId=int(commentWrite[1]),text=str(body.body);
     check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
-    const post=db.prepare("SELECT author_id,world_id FROM posts WHERE id=? AND status='published'").get(postId);
+    const post=db.prepare("SELECT p.author_id,p.world_id,w.visibility FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published'").get(postId);
     check(post,404,'Публикация недоступна');
+    if(post.visibility==='private'&&post.author_id!==user.id)throw new HttpError(404,'Публикация недоступна');
     ensureNoBlock(user.id,post.author_id);
     const id=atomic(()=>{
      const created=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
@@ -652,8 +654,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
    // There is no billing, impressions ledger, view tracking, or automatic delivery.
    if(method==='POST'&&route==='/api/sponsors/proposals'){
     const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
-    const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
-    check(targetWorld,404,'Выбранный World не найден');
+    const targetWorld=db.prepare("SELECT id,owner_id,visibility FROM worlds WHERE id=?").get(worldId);
+    check(targetWorld&&targetWorld.visibility==='public',404,'Выбранный World не найден');
     check(targetWorld.owner_id!==user.id,403,'Нельзя предложить рекламу собственному World');
     ensureNoBlock(user.id,targetWorld.owner_id);
     check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
@@ -718,18 +720,32 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
    const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
    if(method==='PATCH'&&worldSettings){
     const slug=worldSettings[1];
-    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>k==='title'||k==='description'),
-     400,'Можно изменять только название и описание');
-    const original=db.prepare('SELECT id,title,description FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
+    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','visibility'].includes(k)),
+     400,'Можно изменять только оформление и видимость');
+    const original=db.prepare('SELECT id,title,description,visibility FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
     check(original,404,'Мир не найден');
     const title=body.title===undefined?original.title:str(body.title);
     const description=body.description===undefined?original.description:str(body.description);
+    const visibility=body.visibility===undefined?original.visibility:body.visibility;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(description.length<=400,400,'Описание слишком длинное');
-    const result=db.prepare('UPDATE worlds SET title=?,description=? WHERE id=? AND owner_id=?')
-     .run(title,description,original.id,user.id);
-    check(result.changes===1,409,'Обновление мира не удалось');
-    send(res,200,{id:original.id,slug,title,description,ownerEditable:true});return;
+    check(visibility==='public'||visibility==='private',400,'Видимость: публичный или приватный');
+    const becamePrivate=original.visibility==='public'&&visibility==='private';
+    atomic(()=>{
+     const result=db.prepare('UPDATE worlds SET title=?,description=?,visibility=? WHERE id=? AND owner_id=?')
+      .run(title,description,visibility,original.id,user.id);
+     check(result.changes===1,409,'Обновление мира не удалось');
+     if(becamePrivate){
+      // Revoking public access must also stop ongoing follows and sponsored
+      // placements; do not re-create them automatically upon reopening.
+      db.prepare('DELETE FROM world_follows WHERE world_id=?').run(original.id);
+      db.prepare('DELETE FROM activity_events WHERE world_id=? AND recipient_id<>?').run(original.id,user.id);
+      db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE world_id=? AND status IN ('pending_creator','pending_review','approved')")
+       .run(now(),original.id);
+     }
+    });
+    send(res,200,{id:original.id,slug,title,description,visibility,
+     visibilityChanged:visibility!==original.visibility,ownerEditable:true});return;
    }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
@@ -771,7 +787,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(
    if(method==='POST'&&route==='/api/reports'){
     const postId=int(body.postId),reason=body.reason,detail=str(body.detail);
     check(postId>0&&REASONS.has(reason)&&detail.length<=500,400,'Некорректная жалоба');
-    const post=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(postId);
+    const post=db.prepare("SELECT p.author_id FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published' AND w.visibility='public'").get(postId);
     check(post,404,'Запись не найдена');
     check(post.author_id!==user.id,403,'На собственную запись пожаловаться нельзя');
     try{db.prepare('INSERT INTO reports(post_id,reporter_id,reason,detail,created_at) VALUES(?,?,?,?,?)').run(postId,user.id,reason,detail,now());}
