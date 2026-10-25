@@ -105,8 +105,8 @@ export async function sealSnapshot({backup,manifest,destination,passphrasePath})
   // A mutable SQLite snapshot might change between pre-hash and streaming.
   // Do not publish an archive whose encrypted bytes no longer match its manifest.
   demand(await sha256(src)===data.sha256,'Snapshot changed during encryption');
-  const tag=cipher.getAuthTag(),handle=openSync(temp,'a');
-  try{writeSync(handle,tag);}finally{closeSync(handle);}
+  const tag=cipher.getAuthTag(),tagFd=openSync(temp,'a');
+  try{writeSync(tagFd,tag);}finally{closeSync(tagFd);}
   demand(statSync(temp).size===HEADER_LENGTH+4+raw.length+data.bytes+AUTH_TAG_LENGTH,
    'Encrypted archive length mismatch');
   outputLink(temp,out);temp=null;
