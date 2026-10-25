@@ -1,0 +1,83 @@
+name: "MARCOSA | R107 preflight additive Nginx canary plan on VPS (read-only)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r107-canary-plan.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  canary-plan:
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Prove plan logic offline; no root execution in CI
+        run: |
+          python -m unittest discover -s tests -p 'test_canary_install.py' -v
+          python -m py_compile ops/install_production_canary.py
+      - name: Validate approved Nginx hash and source-integrity on actual Contabo as NONROOT
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+          APPROVED_NGINX_SHA256: 24d71ff2c19d6f2f5a976f1e08e942875a16e3be0e5a86cf5d22c35b0acc956a
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing restricted deploy key}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
+            --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          ssh -i "$TMP/key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "python3 - plan --expect-config-sha256 $APPROVED_NGINX_SHA256" \
+            < ops/install_production_canary.py > canary-plan-r107.json
+          node --input-type=module <<'NODE'
+          import {readFileSync,appendFileSync} from 'node:fs';
+          const p=JSON.parse(readFileSync('canary-plan-r107.json','utf8'));
+          if(p.beforeConfigSha256!=='24d71ff2c19d6f2f5a976f1e08e942875a16e3be0e5a86cf5d22c35b0acc956a' ||
+             !/^[a-f0-9]{64}$/.test(p.afterConfigSha256||'') ||
+             !/^[a-f0-9]{40}$/.test(p.sourceSha||'') ||
+             p.rootReplacementAllowed!==false || p.canaryPath!=='/network-os/' ||
+             p.stagingAssetsVerified<3) throw Error('Unexpected canary readiness report');
+          console.log(JSON.stringify(p,null,2));
+          appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
+            '### R107 — real server additive canary PLAN (READ ONLY)',
+            '- Verified Nginx SHA-256: '+p.beforeConfigSha256,
+            '- Proposed canary-only configuration SHA-256: '+p.afterConfigSha256,
+            '- Source-pinned staging assets checked: '+p.stagingAssetsVerified,
+            '- Live legacy home SHA-256: '+p.liveRootSha256,
+            '- No Nginx configuration changed. No root. No production changes.',
+            '- A separate one-time manual administrative apply remains mandatory.',
+            ''
+          ].join('\n'));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-canary-r107-verified-plan
+          path: canary-plan-r107.json
+          retention-days: 14
+          if-no-files-found: error
