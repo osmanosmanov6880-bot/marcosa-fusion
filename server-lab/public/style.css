@@ -395,3 +395,19 @@ dialog form{display:grid;gap:17px}
 .world-cover-rights span{font-size:12px;line-height:1.55}
 .world-cover-rights:focus-within{outline:2px solid #f2d7ad;outline-offset:2px}
 @media(max-width:720px){.world-cover-rights{padding:15px 12px}.world-cover-rights span{font-size:13px}}
+
+
+/* R82 — real local incident status, a readable operator state rather than decorative alert. */
+.incident-banner{
+ display:flex;align-items:center;gap:16px;margin:-10px 0 29px;padding:17px 22px;
+ border:1px solid #d8b48799;border-radius:12px;
+ background:linear-gradient(110deg,#312921ef,#1b2739ee 72%);
+ box-shadow:0 14px 34px #0004;color:#f8e8d0;font:650 13px/1.65 var(--sans);
+ letter-spacing:.01em;overflow-wrap:anywhere;
+}
+.incident-banner::before{
+ content:"";display:block;flex:none;width:10px;height:10px;
+ border-radius:50%;background:#e8c99e;box-shadow:0 0 0 5px #e8c99e30;
+}
+.incident-banner[hidden]{display:none}
+@media(max-width:720px){.incident-banner{margin:-8px 0 20px;padding:16px;align-items:flex-start;gap:14px;font-size:13px}}
