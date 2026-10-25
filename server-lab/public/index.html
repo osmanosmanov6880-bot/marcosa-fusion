@@ -87,6 +87,11 @@
     <div id="world-cover-appeals-list" class="compact-list" aria-live="polite"></div>
     <p id="world-cover-status" class="muted" role="status" aria-live="polite">Обложка хранится только в локальной испытательной базе.</p>
    </details>
+   <details id="my-cover-reports-panel" class="invite-panel">
+    <summary>Мои обращения по публичным изображениям</summary>
+    <p class="muted">Жалобы на изображения других миров видишь только ты. После проверки независимым модератором обложка может быть скрыта; автор сохраняет право апелляции.</p>
+    <div id="my-cover-reports" class="compact-list" aria-live="polite"></div>
+   </details>
    <details id="onboarding-panel" class="invite-panel onboarding-panel" open>
     <summary>Первые пять шагов в MARCOSA</summary>
     <p class="muted">Прогресс считается по настоящим действиям твоего аккаунта, а не по выдуманным просмотрам.</p>
@@ -199,6 +204,21 @@
    <button id="world-share" class="ghost small world-share" type="button">Скопировать ссылку на этот World</button>
    <p id="world-detail-description" class="muted"></p>
    <p id="world-detail-meta" class="world-detail-meta"></p>
+   <details id="world-cover-report-panel" class="invite-panel" hidden>
+    <summary>Пожаловаться на изображение этого мира</summary>
+    <p class="muted">Обоснованное обращение попадает только в закрытую очередь. Жалоба не скрывает изображение автоматически. Нужен независимый модератор.</p>
+    <form id="world-cover-report-form" class="form-block">
+     <label>Причина<select name="reason" required>
+      <option value="copyright">Предполагаемое нарушение авторских прав</option>
+      <option value="privacy">Нарушение приватности</option>
+      <option value="abuse">Оскорбительный или опасный материал</option>
+      <option value="impersonation">Выдача себя за другое лицо</option>
+      <option value="other">Другая обоснованная причина</option>
+     </select></label>
+     <label>Описание нарушения<textarea name="detail" minlength="12" maxlength="500" rows="3" required placeholder="Опиши конкретную проблему с изображением"></textarea></label>
+     <button type="submit" class="ghost">Передать жалобу на независимую проверку</button>
+    </form>
+   </details>
    <div id="world-detail-sponsor" class="sponsor-list"></div>
    <h3>Истории этого мира</h3>
    <div id="world-detail-posts" class="feed-list"></div>
@@ -265,6 +285,12 @@
     <p class="muted">Рассмотреть может только другой независимый модератор. Принятая апелляция возвращает PNG в очередь, но не публикует его автоматически.</p>
     <div id="mod-cover-appeals-list" class="compact-list" aria-live="polite"></div>
     <button id="mod-cover-appeals-refresh" type="button" class="ghost small">Обновить обращения</button>
+   </details>
+   <details id="mod-cover-reports-panel" class="invite-panel mod-cover-panel">
+    <summary>Жалобы на опубликованные изображения</summary>
+    <p class="muted">Независимая проверка: жалобщик, владелец и первоначальный проверяющий не могут решать эту жалобу. Подтверждённая жалоба немедленно скрывает PNG.</p>
+    <div id="mod-cover-reports" class="compact-list" aria-live="polite"></div>
+    <button id="mod-cover-reports-refresh" type="button" class="ghost small">Обновить очередь жалоб на изображения</button>
    </details>
    <button id="reload-reports" class="ghost" type="button">Обновить модерацию</button>
   </div>
