@@ -76,6 +76,12 @@ test('R57: unreviewed media is private; independent moderator approves and rejec
   assert.equal(r.status,400);
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,origin:'https://attacker.example.org',data:{decision:'approved'}});
   assert.equal(r.status,403);
+  lab.db.prepare('UPDATE world_covers SET png=? WHERE world_id=?')
+   .run(Buffer.from('corrupted-on-disk-png'),alice.world.id);
+  r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
+  assert.equal(r.status,422,'reviewer cannot approve a corrupt persisted image');
+  r=await req(url,{method:'POST',cookie:alice.cookie,mime:'image/png',data:image});
+  assert.equal(r.status,200,'owner can replace corrupt image with valid normalized PNG');
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
   assert.equal(r.status,200);assert.equal(r.data.publicVisible,true);
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
