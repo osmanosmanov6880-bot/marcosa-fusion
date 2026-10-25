@@ -1,0 +1,82 @@
+name: "MARCOSA | R109 independent preview DNS/TLS safety probe (READ ONLY)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/audit_preview_hostname.py"
+      - "tests/test_preview_hostname_readiness.py"
+      - ".github/workflows/marcosa-r109-origin-readiness.yml"
+  pull_request:
+    paths:
+      - "tools/audit_preview_hostname.py"
+      - "tests/test_preview_hostname_readiness.py"
+      - ".github/workflows/marcosa-r109-origin-readiness.yml"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 9 * * *"
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline DNS, hostname/certificate and privacy boundary tests
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_preview_hostname_readiness.py' -v
+          python -m py_compile tools/audit_preview_hostname.py
+  probe:
+    needs: tests
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Probe only preapproved public hostname and IP; NO VPS write, NO SSH credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python tools/audit_preview_hostname.py > r109-origin-readiness.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          r=json.loads(Path('r109-origin-readiness.json').read_text())
+          if (r['format']!='MARCOSA-R109-INDEPENDENT-ORIGIN-READINESS' or
+              r['targetHostname']!='preview.marcosa.club' or
+              r['intendedVpsIp']!='169.58.48.38' or
+              r['readOnly'] is not True or r['productionCutoverAuthorized'] is not False):
+              raise SystemExit('Rejected unsafe independent-origin report')
+          message=[
+              '### R109 independent hostname readiness (DNS / TLS / HTTP, no writes)',
+              '- Domain: preview.marcosa.club',
+              '- DNS points to approved VPS: '+str(r['dnsHasIntendedVps']),
+              '- Valid TLS certificate: '+str(r['validHostnameCertificate']),
+              '- HTTP status: '+str(r['httpStatus']),
+              '- Preview domain network ready: '+str(r['previewHostnameReady']),
+              '- Auth cookie isolation: NOT VERIFIED',
+              '- Separate-origin app installed: NOT VERIFIED',
+              '- Root production changes made: NO',
+              '- Active public preview remains: https://osmanosmanov6880-bot.github.io/marcosa-fusion/',
+              ''
+          ]
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
+              f.write('\n'.join(message))
+          print('R109_DNS_MATCHES_APPROVED_VPS='+str(r['dnsHasIntendedVps']).upper())
+          print('R109_VALID_HOST_CERT='+str(r['validHostnameCertificate']).upper())
+          print('R109_PREVIEW_HOST_READY='+str(r['previewHostnameReady']).upper())
+          print('R109_PRODUCTION_CHANGED=NO')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r109-independent-origin-readiness
+          path: r109-origin-readiness.json
+          retention-days: 7
+          if-no-files-found: error
