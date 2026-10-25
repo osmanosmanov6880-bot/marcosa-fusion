@@ -62,6 +62,7 @@ jobs:
           assert install.index('marker.write_text(MARK)')>install.index('STATE.write_text')
           assert "systemctl" not in promote
           assert 'chmod 777' not in deploy
-          assert '/opt/marcosa/current' not in deploy
+          assert 'rm -rf /opt/marcosa' not in deploy
+          assert 'sudo -n' not in deploy
           print('R106 ROOTLESS_CANARY_DELIVERY_CONTRACT=PASS')
           PY
