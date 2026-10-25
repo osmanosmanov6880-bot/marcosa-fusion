@@ -145,7 +145,7 @@ async function main(){
    await cdp.wait("document.getElementById('world-detail')?.hidden===false&&document.activeElement?.id==='world-detail-title'",'R64-deep-link-focus');
    await cdp.evalJS("document.getElementById('world-close').focus()");
    await key('Enter');
-   await cdp.wait("document.getElementById('world-detail')?.hidden===true&&document.activeElement?.classList.contains('world-open')",'R64-close-button-focus-return');
+   await cdp.wait("document.getElementById('world-detail')?.hidden===true&&document.activeElement===(Array.from(document.querySelectorAll('#world-list a.world-open')).find(a=>a.getAttribute('href')==='#world-u-a11yowner')||document.getElementById('worlds'))",'R64-close-button-focus-return');
    const outside=cdp.requests.filter(url=>/^https?:\/\//.test(url)&&!url.startsWith(base));
    if(outside.length||cdp.errors.length)throw Error('R64_BROWSER_SECURITY_'+size.name+' '+JSON.stringify({outside,errors:cdp.errors}));
    console.log('R64 CHROME ACCESSIBILITY PASS',size.name,'skip/World open/Escape/close/deep-link/reduced-motion');
