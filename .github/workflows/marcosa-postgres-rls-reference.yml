@@ -7,6 +7,7 @@ on:
       - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
       - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
+      - "docs/MARCOSA_R46_POSTGRES_PILOT_INVITES_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
@@ -16,6 +17,7 @@ on:
       - "docs/MARCOSA_R37_POSTGRES_ACTIVITY_APPEALS_REFERENCE.sql"
       - "docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql"
       - "docs/MARCOSA_R43_POSTGRES_BOOKMARKS_REFERENCE.sql"
+      - "docs/MARCOSA_R46_POSTGRES_PILOT_INVITES_REFERENCE.sql"
       - "tests/postgres/**"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
@@ -88,6 +90,14 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/40_rls_saved_posts.sql
+      - name: Apply R46 secret-free pilot invitation table to disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R46_POSTGRES_PILOT_INVITES_REFERENCE.sql
+      - name: Verify private invite grants, 3 identities and atomic redemption
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/50_rls_pilot_invites.sql
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
