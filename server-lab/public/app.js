@@ -1014,6 +1014,11 @@ $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all
 window.addEventListener('marcosa:locale-change',()=>{
  // Locale changes update application-owned controls only; never translate user data.
  if(!state.me)$('identity').textContent=localText('auth.guest','Гость');
+ const knownReady=[
+  'Локальный сервер готов. Данные настоящие, но изолированы от production.',
+  'Local server ready. Data is real but isolated from production.'
+ ];
+ if(knownReady.includes($('notice').textContent))notice(localText('notice.ready',knownReady[0]));
  for(const el of document.querySelectorAll('[data-i18n-dynamic]')){
   el.textContent=localText(el.dataset.i18nDynamic,el.textContent);
  }
