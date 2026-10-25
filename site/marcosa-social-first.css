@@ -286,8 +286,9 @@ html[data-m-world="social"] #so-draft{scroll-margin-top:30px!important}
 }
 
 /* R110 private cross-origin portability — coherent with the dark editorial rail. */
-.s110-transfer{margin-top:24px;padding:21px 19px;border:1px solid rgba(202,194,232,.22);
- border-radius:16px;background:linear-gradient(135deg,rgba(48,43,70,.58),rgba(19,21,38,.68));
+.s110-transfer{position:relative;z-index:1;isolation:isolate;
+ margin-top:24px;padding:21px 19px;border:1px solid rgba(202,194,232,.22);
+ border-radius:16px;background:linear-gradient(135deg,#29243d,#171726);
  box-shadow:inset 0 1px rgba(255,255,255,.06)}
 .s110-transfer-eyebrow{font:600 10px/1.4 var(--d25-ui,system-ui);letter-spacing:.16em;color:#bdb4d5}
 .s110-transfer h3{margin:7px 0 9px;font:400 25px/1.1 var(--d25-serif,Georgia,serif);color:#f3eefb}

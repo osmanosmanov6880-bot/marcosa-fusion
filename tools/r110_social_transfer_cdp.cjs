@@ -157,8 +157,11 @@ async function main(){
     exportedAt:'2026-10-26T00:00:00.000Z'
    };
    await cdp.evaluate('('+importBackup.toString()+')('+JSON.stringify(imported)+')');
-   await cdp.wait("document.getElementById('so-transfer-feedback').textContent.includes('Импортировано 1 закладок')",'import-feedback');
+   await cdp.wait("document.getElementById('so-transfer-feedback').textContent.includes('Добавлена 1 закладка')",'import-feedback');
    const end=await cdp.evaluate('('+inspectImport.toString()+')()');
+   const surface=await cdp.evaluate("(()=>({zIndex:getComputedStyle(document.querySelector('.s110-transfer')).zIndex,background:getComputedStyle(document.querySelector('.s110-transfer')).backgroundImage}))()");
+   if(surface.zIndex==='auto'||surface.background.includes('rgba(48, 43, 70, 0.58)'))
+    throw Error('R112_TRANSFER_VISUAL_BACKGROUND_NOT_ISOLATED');
    if(end.saved.length!==2||!end.saved.includes('atlas')||!end.saved.includes('signal')||
     end.count!=='2'||end.draft!=='R110 исходная личная заметка'||
     !end.warning.includes('не перезаписан')||end.overflow>6||!end.buttonVisible)

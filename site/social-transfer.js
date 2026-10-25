@@ -124,7 +124,10 @@
     persist(root.localStorage,merged);
     if(typeof root.dispatchEvent==='function'&&typeof root.Event==='function')
      root.dispatchEvent(new root.Event('marcosa:social-transfer'));
-    announce('Импортировано '+merged.added+' закладок. '+
+    const qty=merged.added;
+    const resultText=qty===1?'Добавлена 1 закладка. ':
+     qty>=2&&qty<=4?'Добавлены '+qty+' закладки. ':'Добавлено '+qty+' закладок. ';
+    announce(resultText+
      (merged.conflict?'Существующий черновик сохранён, отличный текст из архива не перезаписан.':
      merged.importedDraft?'Черновик из архива восстановлен.':'Существующий черновик оставлен без изменений.'),false);
    }catch(error){announce(error.message||'Невозможно импортировать архив',true);}

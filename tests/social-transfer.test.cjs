@@ -86,6 +86,9 @@ test('R110: UI is wired into the real Social document and existing feed refreshe
  assert.ok(code.includes("root.dispatchEvent(new root.Event('marcosa:social-transfer'))"));
  assert.ok(code.includes('root.confirm('));
  assert.ok(css.includes('.s110-transfer-actions button:focus-visible'));
+ assert.match(css,/background:linear-gradient\(135deg,#29243d,#171726\)/);
+ assert.ok(code.includes('Добавлена 1 закладка.'));
+ assert.ok(code.includes("qty>=2&&qty<=4"));
  assert.ok(css.includes('@media(max-width:380px)'));
  for(const unsafe of ['fetch(', 'XMLHttpRequest', 'sendBeacon(', 'WebSocket(', 'innerHTML', 'eval(', 'insertAdjacentHTML'])
   assert.ok(!code.includes(unsafe),'no network or HTML parsing in importer: '+unsafe);
