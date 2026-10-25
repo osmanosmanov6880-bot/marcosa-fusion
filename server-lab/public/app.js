@@ -3,6 +3,8 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,worldOpenSerial:0,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const i18n=()=>window.MARCOSA_LOCALE;
+const localText=(key,fallback)=>i18n()?.t(key)||fallback;
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -39,9 +41,9 @@ async function loadTopics(){
  state.topicNames=new Map(data.items.map(item=>[item.id,item.title]));
  for(const [id,withAll] of [['world-edit-category',false],['world-new-category',false],['discover-category',true]]){
   const picker=$(id);clear(picker);
-  if(withAll){const all=node('option','Все тематики');all.value='';picker.append(all);}
+  if(withAll){const all=node('option',localText('topics.all','Все тематики'));all.value='';all.dataset.localeTopic='all';picker.append(all);}
   for(const item of data.items){
-   const option=node('option',item.title);option.value=item.id;picker.append(option);
+   const option=node('option',localText('topics.'+item.id,item.title));option.value=item.id;option.dataset.localeTopic=item.id;picker.append(option);
   }
  }
 }
@@ -306,7 +308,7 @@ async function session(){
   const result=await api('/auth/me');
   state.me=result.user;state.worlds=result.worlds;
  }catch{state.me=null;state.worlds=[];}
- $('identity').textContent=state.me?'@'+state.me.username:'Гость';
+ $('identity').textContent=state.me?'@'+state.me.username:localText('auth.guest','Гость');
  document.body.dataset.mSession=state.me?'member':'guest';
  $('logout').hidden=!state.me;
  $('feed-following').disabled=!state.me;
@@ -415,7 +417,8 @@ async function worlds(){
    },'Автор заблокирован'));
    card.append(block);
   }
-  const open=node('a','Открыть World ↗','world-open');
+  const open=node('a',localText('worlds.open','Открыть World ↗'),'world-open');
+  open.dataset.i18nDynamic='worlds.open';
   const onServerWorldPage=/^\/w\/[a-z][a-z0-9-]{2,39}$/.test(location.pathname);
   open.href=onServerWorldPage?'/w/'+encodeURIComponent(world.slug):'#world-'+encodeURIComponent(world.slug);
   open.addEventListener('click',event=>{
@@ -1008,10 +1011,20 @@ $('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очере
 $('mod-cover-appeals-refresh').addEventListener('click',()=>run(reviewCoverAppeals,'Очередь апелляций обновлена'));
 $('mod-cover-reports-refresh').addEventListener('click',()=>run(reviewCoverReports,'Очередь жалоб на изображения обновлена'));
 $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports(),moderatorQueueHealth()]);}));
+window.addEventListener('marcosa:locale-change',()=>{
+ // Locale changes update application-owned controls only; never translate user data.
+ if(!state.me)$('identity').textContent=localText('auth.guest','Гость');
+ for(const el of document.querySelectorAll('[data-i18n-dynamic]')){
+  el.textContent=localText(el.dataset.i18nDynamic,el.textContent);
+ }
+ for(const el of document.querySelectorAll('option[data-locale-topic]')){
+  el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
+ }
+});
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
-  notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
+  notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
   const route=location.pathname.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
   const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):(route?.[1]||'');
   if(requested)run(()=>openWorld(requested));
