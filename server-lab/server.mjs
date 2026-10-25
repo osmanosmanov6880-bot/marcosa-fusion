@@ -273,7 +273,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const route=incoming.pathname;
    const query=incoming.searchParams;
    // R68: real World metadata HTML for shares. Always noindex in this lab.
-   const worldPage=route.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
+   // Read routes accept historical default slugs with underscores; new Worlds use canonical hyphens.
+ const worldPage=route.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='GET'&&worldPage){
     const viewer=who(req)?.id||'';
     const world=db.prepare("SELECT w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId,"
@@ -368,7 +369,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    }
    // Direct permanent World lookup, even after catalog pagination excludes it.
    // The same account-block rules as catalog/search apply to this endpoint.
-   const worldDetail=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
+   const worldDetail=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='GET'&&worldDetail){
     const viewer=who(req)?.id||'';
     const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
@@ -382,7 +383,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(world,404,'Мир не найден');
     send(res,200,{world,scope:'public-world',production:false});return;
    }
-   const coverRoute=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   const coverRoute=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover$/);
    if(coverRoute&&method==='GET'){
     const source=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(coverRoute[1]);
     check(source,404,'Мир не найден');
@@ -416,7 +417,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
       type:'image/png',metadataRemoved:true,reviewStatus:'pending',publicVisible:false,slug:coverRoute[1],production:false});
     return;
    }
-   const privateCover=route.match(/^\/api\/me\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   const privateCover=route.match(/^\/api\/me\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover$/);
    if(method==='GET'&&privateCover){
     const owner=requireUser(req);
     const image=db.prepare('SELECT c.png FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND w.owner_id=?')
@@ -467,7 +468,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const items=db.prepare("SELECT a.id,a.decision,a.created_at AS reviewedAt,w.slug,u.username AS reviewer FROM world_cover_review_audit a JOIN worlds w ON w.id=a.world_id LEFT JOIN users u ON u.id=a.reviewed_by ORDER BY a.id DESC LIMIT 50").all();
     send(res,200,{items,scope:'moderator',production:false});return;
    }
-   const modCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   const modCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover$/);
    if(method==='GET'&&modCover){
     const moderator=requireUser(req);
     check(moderator.role==='moderator',403,'Доступ только модератору');
@@ -480,7 +481,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      'Cross-Origin-Resource-Policy':'same-origin'});
     res.end(item.png);return;
    }
-   const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
+   const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9_-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
@@ -488,7 +489,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,cursor,21),20));return;
    }
    // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
-   const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/followers$/);
+   const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/followers$/);
    if(method==='GET'&&followRead){
     const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followRead[1]);
     check(world,404,'Мир не найден');
@@ -831,7 +832,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
      delivery:'local-inbox-only'});return;
    }
-   const reportCover=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/cover\/report$/);
+   const reportCover=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover\/report$/);
    if(method==='POST'&&reportCover){
     check(Object.keys(body).length===2&&typeof body.reason==='string'&&typeof body.detail==='string',400,'Нужно указать причину и описание');
     const reason=body.reason,detail=str(body.detail);
@@ -869,7 +870,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='POST'&&route==='/api/me/cover-appeals'){
     check(Object.keys(body).length===2&&typeof body.slug==='string'&&typeof body.reason==='string',400,'Укажи World и объяснение');
     const slug=str(body.slug),reason=str(body.reason);
-    check(/^[a-z][a-z0-9-]{2,39}$/.test(slug)&&reason.length>=12&&reason.length<=1000,400,'Объяснение: 12–1000 символов');
+    check(/^[a-z][a-z0-9_-]{2,39}$/.test(slug)&&reason.length>=12&&reason.length<=1000,400,'Объяснение: 12–1000 символов');
     const source=db.prepare("SELECT c.world_id,c.png,c.reviewed_by,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='rejected'").get(slug);
     check(source&&source.owner_id===user.id,404,'Отклонённая обложка не найдена');
     check(!db.prepare("SELECT 1 FROM world_cover_appeals WHERE world_id=? AND status='open'").get(source.world_id),409,'Апелляция уже рассматривается');
@@ -898,7 +899,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{id,decision:body.decision,publicVisible:false,
      nextReviewRequired:body.decision==='reopened',independentReview:true});return;
    }
-   const reviewCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9-]{2,39})\/cover\/review$/);
+   const reviewCover=route.match(/^\/api\/mod\/worlds\/([a-z][a-z0-9_-]{2,39})\/cover\/review$/);
    if(method==='POST'&&reviewCover){
     check(user.role==='moderator',403,'Только модератор рассматривает обложки');
     check(Object.keys(body).length===1&&(body.decision==='approved'||body.decision==='rejected'),400,'Неверное решение');
@@ -1062,7 +1063,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,result.changes?201:200,{username:target.username,blocked:true,changed:Boolean(result.changes)});return;
    }
    // R30 real community: follow relationships are per signed-in user.
-   const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/follow$/);
+   const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
     const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
     check(world,404,'Мир не найден');
@@ -1211,7 +1212,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    }
    // R38: a creator can update their World presentation, never its immutable
    // slug, internal ownership, or other people's content.
-   const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
+   const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='PATCH'&&worldSettings){
     const slug=worldSettings[1];
     check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','category'].includes(k)),
