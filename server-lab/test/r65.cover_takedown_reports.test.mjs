@@ -73,6 +73,14 @@ test('R65: published PNG reports revoke approved cover only after independent de
   assert.equal(res.status,200);assert.equal(res.data.items.length,1);
   assert.equal(res.data.items[0].slug,owner.world.slug);
   assert.doesNotMatch(JSON.stringify(res.data),/password|png|token_hash|salt|reporter_id|reporter65/);
+  // Revoking the original approving moderator makes the previously public
+  // asset ineligible for complaint adjudication as well as public delivery.
+  lab.db.prepare("UPDATE users SET role='member' WHERE username='firstmod65'").run();
+  res=await req('/mod/cover-reports',{cookie:second.cookie});
+  assert.equal(res.status,200);assert.equal(res.data.items.length,0,'revoked approval cannot appear in live complaint queue');
+  res=await req('/mod/cover-reports/'+reportId+'/resolve',{method:'POST',cookie:second.cookie,data:{decision:'upheld'}});
+  assert.equal(res.status,404,'revoked prior approval cannot be adjudicated as public');
+  lab.db.prepare("UPDATE users SET role='moderator' WHERE username='firstmod65'").run();
   res=await req('/mod/cover-reports/'+reportId+'/resolve',{method:'POST',cookie:first.cookie,data:{decision:'upheld'}});
   assert.equal(res.status,403,'original reviewer cannot issue takedown');
   res=await req('/mod/cover-reports/'+reportId+'/resolve',{method:'POST',cookie:reporter.cookie,data:{decision:'upheld'}});
