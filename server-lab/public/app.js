@@ -19,6 +19,7 @@ const node=(tag,text='',cls='')=>{
  if(cls)el.className=cls;
  el.textContent=String(text);return el;
 };
+const systemNode=(tag,key,text,cls='')=>{const el=node(tag,localText(key,text),cls);el.dataset.i18nDynamic=key;return el;};
 const clear=element=>element.replaceChildren();
 const values=form=>Object.fromEntries(new FormData(form).entries());
 const coverUrl=slug=>'/api/worlds/'+encodeURIComponent(slug)+'/cover';
@@ -153,7 +154,7 @@ async function reviewCoverReports(){
   }
   list.append(card);
  }
- if(!result.items.length)list.append(node('p','Новых жалоб на изображения нет.','muted'));
+ if(!result.items.length)list.append(systemNode('p','dynamic.cover.reports.empty','Новых жалоб на изображения нет.','muted'));
 }
 async function reviewCoverAppeals(){
  if(!state.me||state.me.role!=='moderator')return;
@@ -224,7 +225,7 @@ async function pilotInvites(){
   }
   list.append(row);
  }
- if(!result.items.length)list.append(node('p','Одноразовых приглашений ещё не было.','muted'));
+ if(!result.items.length)list.append(systemNode('p','dynamic.invites.empty','Одноразовых приглашений ещё не было.','muted'));
 }
 async function loadSavedIds(){
  if(!state.me)return;
@@ -239,7 +240,7 @@ async function saved(reset=true){
  const list=$('saved-list');
  if(reset)clear(list);
  for(const post of result.items)list.append(postCard(post));
- if(reset&&!result.items.length)list.append(node('p','В коллекции пока нет доступных публикаций.','muted'));
+ if(reset&&!result.items.length)list.append(systemNode('p','dynamic.saved.empty','В коллекции пока нет доступных публикаций.','muted'));
  state.savedCursor=result.nextCursor;
  $('saved-more').hidden=!state.savedCursor;
 }
@@ -289,7 +290,7 @@ async function loadBlocks(){
   },'Блокировка снята'));
   row.append(remove);list.append(row);
  }
- if(!data.items.length)list.append(node('p','Ты пока никого не блокировал.','muted'));
+ if(!data.items.length)list.append(systemNode('p','dynamic.blocks.empty','Ты пока никого не блокировал.','muted'));
 }
 async function loadNotificationSettings(){
  if(!state.me)return;
@@ -402,14 +403,15 @@ async function worlds(){
   card.append(stats,node('small','Создан @'+world.owner));
   if(state.me&&world.owner!==state.me.username){
    const following=followInfo[i]?.followed===true;
-   const btn=node('button',following?'✓ Подписан':'Подписаться',following?'ghost small following':'ghost small world-follow');
+   const btn=systemNode('button',following?'dynamic.world.following':'dynamic.world.follow',following?'✓ Подписан':'Подписаться',following?'ghost small following':'ghost small world-follow');
    btn.type='button';btn.setAttribute('aria-pressed',String(following));
    btn.addEventListener('click',()=>run(async()=>{
     await api('/worlds/'+encodeURIComponent(world.slug)+'/follow',following?'DELETE':'POST',{});
     await Promise.all([worlds(),onboarding()]);
-   },following?'Подписка отменена':'Подписка сохранена'));
+   },following?localText('dynamic.world.unfollowedStatus','Подписка отменена'):localText('dynamic.world.followedStatus','Подписка сохранена')));
    card.append(btn);
-   const block=node('button','Заблокировать @'+world.owner,'ghost small block-user');
+   const block=node('button',localText('dynamic.world.block','Заблокировать @')+world.owner,'ghost small block-user');
+    block.dataset.i18nDynamicPrefix='dynamic.world.block';block.dataset.i18nSuffix=world.owner;
    block.type='button';
    block.addEventListener('click',()=>run(async()=>{
     if(!confirm('Заблокировать @'+world.owner+'? Подписки, уведомления и рекламные договорённости между вами будут остановлены.'))return;
@@ -432,7 +434,7 @@ async function worlds(){
   card.append(open);
   wrap.append(card);
  }
- if(!result.items.length)wrap.append(node('p','Пока нет миров. Их создают приглашённые пользователи.'));
+ if(!result.items.length)wrap.append(systemNode('p','dynamic.worlds.empty','Пока нет миров. Их создают приглашённые пользователи.'));
 }
 async function discover(query){
  const category=$('discover-category').value;
@@ -448,7 +450,7 @@ async function discover(query){
   });area.append(btn);
  }
  for(const post of found.posts)area.append(postCard(post));
- if(!found.worlds.length&&!found.posts.length)area.append(node('p','По этому запросу нет опубликованных материалов.'));
+ if(!found.worlds.length&&!found.posts.length)area.append(systemNode('p','dynamic.discover.empty','По этому запросу нет опубликованных материалов.'));
 }
 async function openWorld(slug){
  if(!/^[a-z][a-z0-9_-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
@@ -472,15 +474,15 @@ async function openWorld(slug){
  $('world-cover-report-panel').hidden=!(state.me&&state.me.username!==world.owner&&world.hasCover);
  const list=$('world-detail-posts');clear(list);
  for(const item of posts.items)list.append(postCard(item));
- if(!posts.items.length)list.append(node('p','Здесь пока нет опубликованных историй.','muted'));
- if(posts.nextCursor)list.append(node('p','Показаны последние 20 историй.','muted'));
+ if(!posts.items.length)list.append(systemNode('p','dynamic.stories.empty','Здесь пока нет опубликованных историй.','muted'));
+ if(posts.nextCursor)list.append(systemNode('p','dynamic.stories.more','Показаны последние 20 историй.','muted'));
  const spons=$('world-detail-sponsor');clear(spons);
  for(const proposal of approved.items.filter(x=>x.world===slug)){
   const card=node('article','','sponsor-item');
   card.append(node('span',proposal.disclosure,'pilot-disclosure'));
   card.append(node('strong',proposal.brand_name));
   card.append(node('p',proposal.headline,'sponsor-headline'));
-  const link=node('a','Открыть сайт ↗','sponsor-link');
+  const link=systemNode('a','dynamic.site.open','Открыть сайт ↗','sponsor-link');
   link.href=proposal.landing_url;link.rel='noopener noreferrer';link.target='_blank';
   card.append(link);spons.append(card);
  }
@@ -496,7 +498,7 @@ async function discussion(postId,region){
   const row=node('div','','comment-item');
   row.append(node('strong','@'+item.username),node('p',item.body,'comment-copy'));
   if(state.me&&item.username!==state.me.username){
-   const report=node('button','Пожаловаться','ghost small');report.type='button';
+   const report=systemNode('button','dynamic.report.button','Пожаловаться','ghost small');report.type='button';
    report.addEventListener('click',()=>{
     state.reportComment=item.id;state.reportPost=null;
     $('report-dialog').showModal();
@@ -504,7 +506,7 @@ async function discussion(postId,region){
    row.append(report);
   }
   if(state.me&&item.username===state.me.username){
-   const remove=node('button','Удалить','ghost small');remove.type='button';
+   const remove=systemNode('button','dynamic.delete.button','Удалить','ghost small');remove.type='button';
    remove.addEventListener('click',()=>run(async()=>{
     await api('/comments/'+item.id,'DELETE',{});
     await discussion(postId,region);
@@ -513,15 +515,15 @@ async function discussion(postId,region){
   }
   region.append(row);
  }
- if(!list.items.length)region.append(node('p','Будь первым участником обсуждения.','muted'));
- if(list.nextCursor)region.append(node('p','Показаны последние 20 комментариев.','muted'));
+ if(!list.items.length)region.append(systemNode('p','dynamic.comments.empty','Будь первым участником обсуждения.','muted'));
+ if(list.nextCursor)region.append(systemNode('p','dynamic.comments.more','Показаны последние 20 комментариев.','muted'));
  if(!state.me)return;
  const form=node('form','','comment-form');
- const label=node('label','Твой ответ'),input=node('textarea');
+ const label=systemNode('label','dynamic.comments.reply','Твой ответ'),input=node('textarea');
  input.name='body';input.maxLength=800;input.required=true;input.rows=2;
- input.placeholder='Ответить по существу, до 800 символов';
+ input.placeholder=localText('dynamic.comments.placeholder','Ответить по существу, до 800 символов');input.dataset.i18nPlaceholder='dynamic.comments.placeholder';
  label.append(input);
- const sendBtn=node('button','Отправить ответ','gold small');sendBtn.type='submit';
+ const sendBtn=systemNode('button','dynamic.comments.send','Отправить ответ','gold small');sendBtn.type='submit';
  form.append(label,sendBtn);region.append(form);
  form.addEventListener('submit',event=>{
   event.preventDefault();const entry=event.currentTarget;
@@ -538,32 +540,33 @@ function postCard(post,own=false){
  const actions=node('div','','post-actions');
  if(own){
   if(post.status!=='hidden'){
-   const toggle=node('button',post.status==='draft'?'Опубликовать':'Снять с публикации','ghost small');
+   const toggle=systemNode('button',post.status==='draft'?'dynamic.posts.publish':'dynamic.posts.unpublish',post.status==='draft'?'Опубликовать':'Снять с публикации','ghost small');
    toggle.type='button';toggle.addEventListener('click',()=>run(async()=>{
     await api('/posts/'+post.id,'PATCH',{status:post.status==='draft'?'published':'draft'});
     await Promise.all([myPosts(),feed(true)]);
    },'Статус записи изменён'));actions.append(toggle);
   }
-  const remove=node('button','Удалить','ghost small');remove.type='button';
+  const remove=systemNode('button','dynamic.delete.button','Удалить','ghost small');remove.type='button';
   remove.addEventListener('click',()=>run(async()=>{
    if(!confirm('Удалить запись без возможности восстановления?'))return;
    await api('/posts/'+post.id,'DELETE',{});
    await Promise.all([myPosts(),feed(true)]);
   },'Действие обработано'));actions.append(remove);
  }else if(state.me&&post.username!==state.me.username){
-  const report=node('button','Пожаловаться','ghost small');report.type='button';
+  const report=systemNode('button','dynamic.report.button','Пожаловаться','ghost small');report.type='button';
   report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;$('report-dialog').showModal();});
   actions.append(report);
  }
  if(!own&&state.me){
   const postId=Number(post.id);
-  const toggle=node('button',state.savedIds.has(postId)?'Сохранено ✓':'Сохранить','ghost small saved-toggle');
+  const toggle=systemNode('button',state.savedIds.has(postId)?'dynamic.posts.saved':'dynamic.posts.save',state.savedIds.has(postId)?'Сохранено ✓':'Сохранить','ghost small saved-toggle');
   toggle.type='button';toggle.setAttribute('aria-pressed',String(state.savedIds.has(postId)));
   toggle.addEventListener('click',()=>run(async()=>{
    const wasSaved=state.savedIds.has(postId);
    await api('/posts/'+postId+'/save',wasSaved?'DELETE':'POST',{});
    if(wasSaved)state.savedIds.delete(postId);else state.savedIds.add(postId);
-   toggle.textContent=wasSaved?'Сохранить':'Сохранено ✓';
+   toggle.dataset.i18nDynamic=wasSaved?'dynamic.posts.save':'dynamic.posts.saved';
+    toggle.textContent=localText(toggle.dataset.i18nDynamic,wasSaved?'Сохранить':'Сохранено ✓');
    toggle.setAttribute('aria-pressed',String(!wasSaved));
    await Promise.all([saved(true),onboarding()]);
   },state.savedIds.has(postId)?'Сохранение обновлено':'Публикация добавлена в твою коллекцию'));
@@ -571,7 +574,8 @@ function postCard(post,own=false){
  }
  card.append(actions);
  if(!own||post.status==='published'){
-  const thread=node('details','','discussion'),summary=node('summary','Обсуждение · '+Number(post.comments_count||0));
+  const thread=node('details','','discussion'),commentCount=Number(post.comments_count||0),summary=node('summary',localText('dynamic.discussion.title','Обсуждение')+' · '+commentCount);
+   summary.dataset.i18nDynamicPrefix='dynamic.discussion.title';summary.dataset.i18nSuffix=' · '+commentCount;
   const region=node('div','','comment-region');thread.append(summary,region);
   thread.addEventListener('toggle',()=>{if(thread.open)run(()=>discussion(post.id,region));});
   card.append(thread);
@@ -611,7 +615,7 @@ async function appeals(){
   entry.append(node('strong',status),node('p',item.reason),node('small',new Date(item.created_at).toLocaleString('ru-RU')));
   history.append(entry);
  }
- if(!data.appeals.length)history.append(node('p','Обращений ещё не было.','muted'));
+ if(!data.appeals.length)history.append(systemNode('p','dynamic.appeals.empty','Обращений ещё не было.','muted'));
 }
 async function reviewAppeals(){
  if(!state.me||state.me.role!=='moderator')return;
@@ -652,7 +656,7 @@ async function activity(reset=true){
   line.append(node('small',new Date(event.created_at).toLocaleString('ru-RU')+(event.read_at?'':' · НОВОЕ')));
   target.append(line);
  }
- if(reset&&!result.items.length)target.append(node('p','Пока нет событий от других участников.','muted'));
+ if(reset&&!result.items.length)target.append(systemNode('p','dynamic.activity.empty','Пока нет событий от других участников.','muted'));
  $('activity-count').textContent=result.unreadCount+' новых';
  state.activityCursor=result.nextCursor;
  $('activity-more').hidden=!state.activityCursor;
@@ -665,18 +669,22 @@ async function feed(reset=true){
  for(const post of result.items)wrap.append(postCard(post));
  state.cursor=result.nextCursor;
  $('more').hidden=!state.cursor;
- if(reset&&!result.items.length)wrap.append(node('p',state.feedScope==='following'?'В подписках пока нет опубликованных записей. Подпишись на интересный World.':'Пока нет публичных публикаций. Создай первую запись в своём мире.'));
+ if(reset&&!result.items.length){
+  const key=state.feedScope==='following'?'dynamic.feed.following.empty':'dynamic.feed.public.empty';
+  const message=state.feedScope==='following'?'В подписках пока нет опубликованных записей. Подпишись на интересный World.':'Пока нет публичных публикаций. Создай первую запись в своём мире.';
+  wrap.append(systemNode('p',key,message));
+ }
 }
 async function myPosts(){
  const result=await api('/me/posts'),wrap=$('my-posts');clear(wrap);
  for(const post of result.items)wrap.append(postCard(post,true));
- if(!result.items.length)wrap.append(node('p','Черновиков пока нет.'));
+ if(!result.items.length)wrap.append(systemNode('p','dynamic.drafts.empty','Черновиков пока нет.'));
 }
 async function sponsors(){
  const result=await api('/sponsors/approved');
  const panel=$('sponsor-showcase');clear(panel);
  if(!result.items.length){
-  panel.append(node('p','Одобренных пилотных заявок нет. Показы рекламы и оплаты не ведутся.','muted'));
+  panel.append(systemNode('p','dynamic.sponsors.empty','Одобренных пилотных заявок нет. Показы рекламы и оплаты не ведутся.','muted'));
   return;
  }
  for(const proposal of result.items){
@@ -685,7 +693,7 @@ async function sponsors(){
   card.append(node('strong',proposal.brand_name));
   card.append(node('p',proposal.headline,'sponsor-headline'));
   card.append(node('small','Тема: '+proposal.world+' · без реальных платежей'));
-  const link=node('a','Открыть сайт бренда ↗','sponsor-link');
+  const link=systemNode('a','dynamic.sponsors.openBrand','Открыть сайт бренда ↗','sponsor-link');
   link.href=proposal.landing_url;
   link.target='_blank';link.rel='noopener noreferrer';
   card.append(link);panel.append(card);
@@ -701,7 +709,7 @@ async function receivedSponsors(){
   card.append(node('p',x.headline));
   card.append(node('small','Заявитель @'+x.applicant+' · '+x.landing_url));
   if(['pending_creator','pending_review','approved'].includes(x.status)){
-   const withdraw=node('button','Отозвать согласие','ghost small');withdraw.type='button';
+   const withdraw=systemNode('button','dynamic.sponsors.withdrawConsent','Отозвать согласие','ghost small');withdraw.type='button';
    withdraw.addEventListener('click',()=>run(async()=>{
     await api('/sponsors/'+x.id+'/withdraw','POST',{});
     await Promise.all([receivedSponsors(),sponsors()]);
@@ -718,7 +726,7 @@ async function receivedSponsors(){
   }
   panel.append(card);
  }
- if(!data.items.length)panel.append(node('p','Владельцам твоих миров заявок пока нет.','muted'));
+ if(!data.items.length)panel.append(systemNode('p','dynamic.sponsors.received.empty','Владельцам твоих миров заявок пока нет.','muted'));
 }
 async function mySponsors(){
  if(!state.me)return;
@@ -727,7 +735,7 @@ async function mySponsors(){
   const row=node('div','','sponsor-status');
   row.append(node('strong',x.brand_name+' · '+x.world),node('span','Статус: '+x.status));
   if(['pending_creator','pending_review','approved'].includes(x.status)){
-   const withdraw=node('button','Отозвать заявку','ghost small');withdraw.type='button';
+   const withdraw=systemNode('button','dynamic.sponsors.withdrawRequest','Отозвать заявку','ghost small');withdraw.type='button';
    withdraw.addEventListener('click',()=>run(async()=>{
     await api('/sponsors/'+x.id+'/withdraw','POST',{});
     await Promise.all([mySponsors(),sponsors()]);
@@ -736,7 +744,7 @@ async function mySponsors(){
   }
   list.append(row);
  }
- if(!data.items.length)list.append(node('p','Заявок пока нет.','muted'));
+ if(!data.items.length)list.append(systemNode('p','dynamic.sponsors.mine.empty','Заявок пока нет.','muted'));
 }
 async function reviewSponsors(){
  if(!state.me||state.me.role!=='moderator')return;
@@ -756,7 +764,7 @@ async function reviewSponsors(){
   }
   panel.append(card);
  }
- if(!data.items.length)panel.append(node('p','Нет ожидающих заявок.','muted'));
+ if(!data.items.length)panel.append(systemNode('p','dynamic.sponsors.review.empty','Нет ожидающих заявок.','muted'));
 }
 async function reports(){
  if(!state.me||state.me.role!=='moderator')return;
@@ -764,27 +772,27 @@ async function reports(){
  for(const item of result.items){
   const row=node('article','','report');
   row.append(node('strong','Пост #'+item.post_id+' · '+item.reason),node('p',item.detail||'Без комментария'));
-  const hide=node('button','Скрыть запись','ghost small');hide.type='button';
+  const hide=systemNode('button','dynamic.moderation.hidePost','Скрыть запись','ghost small');hide.type='button';
   hide.addEventListener('click',()=>run(async()=>{
    await api('/mod/posts/'+item.post_id+'/hide','POST',{});
    await Promise.all([reports(),feed(true)]);
   },'Публикация скрыта'));row.append(hide);wrap.append(row);
  }
- if(!result.items.length)wrap.append(node('p','Новых жалоб нет.'));
+ if(!result.items.length)wrap.append(systemNode('p','dynamic.moderation.reports.empty','Новых жалоб нет.'));
  const commentData=await api('/mod/comment-reports');
  const commentPanel=$('comment-report-list');clear(commentPanel);
  for(const item of commentData.items){
   const row=node('article','','report');
   row.append(node('strong','Комментарий #'+item.comment_id+' · '+item.reason));
   row.append(node('p',item.body));
-  const hide=node('button','Скрыть оскорбительный комментарий','ghost small');
+  const hide=systemNode('button','dynamic.moderation.hideComment','Скрыть оскорбительный комментарий','ghost small');
   hide.type='button';hide.addEventListener('click',()=>run(async()=>{
    await api('/mod/comments/'+item.comment_id+'/hide','POST',{});
    await Promise.all([reports(),feed(true)]);
   },'Комментарий скрыт'));
   row.append(hide);commentPanel.append(row);
  }
- if(!commentData.items.length)commentPanel.append(node('p','Нет новых жалоб на комментарии.','muted'));
+ if(!commentData.items.length)commentPanel.append(systemNode('p','dynamic.moderation.comments.empty','Нет новых жалоб на комментарии.','muted'));
 
 }
 $('discover-form').addEventListener('submit',event=>{
@@ -1023,6 +1031,12 @@ window.addEventListener('marcosa:locale-change',()=>{
  if(knownReady.includes($('notice').textContent))notice(localText('notice.ready',knownReady[0]));
  for(const el of document.querySelectorAll('[data-i18n-dynamic]')){
   el.textContent=localText(el.dataset.i18nDynamic,el.textContent);
+ }
+ for(const el of document.querySelectorAll('[data-i18n-dynamic-prefix]')){
+  el.textContent=localText(el.dataset.i18nDynamicPrefix,'')+el.dataset.i18nSuffix;
+ }
+ for(const el of document.querySelectorAll('[data-i18n-placeholder]')){
+  el.placeholder=localText(el.dataset.i18nPlaceholder,el.placeholder);
  }
  for(const el of document.querySelectorAll('option[data-locale-topic]')){
   el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
