@@ -403,14 +403,15 @@ async function worlds(){
   card.append(stats,node('small','Создан @'+world.owner));
   if(state.me&&world.owner!==state.me.username){
    const following=followInfo[i]?.followed===true;
-   const btn=node('button',following?'✓ Подписан':'Подписаться',following?'ghost small following':'ghost small world-follow');
+   const btn=systemNode('button',following?'dynamic.world.following':'dynamic.world.follow',following?'✓ Подписан':'Подписаться',following?'ghost small following':'ghost small world-follow');
    btn.type='button';btn.setAttribute('aria-pressed',String(following));
    btn.addEventListener('click',()=>run(async()=>{
     await api('/worlds/'+encodeURIComponent(world.slug)+'/follow',following?'DELETE':'POST',{});
     await Promise.all([worlds(),onboarding()]);
-   },following?'Подписка отменена':'Подписка сохранена'));
+   },following?localText('dynamic.world.unfollowedStatus','Подписка отменена'):localText('dynamic.world.followedStatus','Подписка сохранена')));
    card.append(btn);
-   const block=node('button','Заблокировать @'+world.owner,'ghost small block-user');
+   const block=node('button',localText('dynamic.world.block','Заблокировать @')+world.owner,'ghost small block-user');
+    block.dataset.i18nDynamicPrefix='dynamic.world.block';block.dataset.i18nSuffix=world.owner;
    block.type='button';
    block.addEventListener('click',()=>run(async()=>{
     if(!confirm('Заблокировать @'+world.owner+'? Подписки, уведомления и рекламные договорённости между вами будут остановлены.'))return;
@@ -573,7 +574,8 @@ function postCard(post,own=false){
  }
  card.append(actions);
  if(!own||post.status==='published'){
-  const thread=node('details','','discussion'),summary=node('summary','Обсуждение · '+Number(post.comments_count||0));
+  const thread=node('details','','discussion'),commentCount=Number(post.comments_count||0),summary=node('summary',localText('dynamic.discussion.title','Обсуждение')+' · '+commentCount);
+   summary.dataset.i18nDynamicPrefix='dynamic.discussion.title';summary.dataset.i18nSuffix=' · '+commentCount;
   const region=node('div','','comment-region');thread.append(summary,region);
   thread.addEventListener('toggle',()=>{if(thread.open)run(()=>discussion(post.id,region));});
   card.append(thread);
@@ -1029,6 +1031,9 @@ window.addEventListener('marcosa:locale-change',()=>{
  if(knownReady.includes($('notice').textContent))notice(localText('notice.ready',knownReady[0]));
  for(const el of document.querySelectorAll('[data-i18n-dynamic]')){
   el.textContent=localText(el.dataset.i18nDynamic,el.textContent);
+ }
+ for(const el of document.querySelectorAll('[data-i18n-dynamic-prefix]')){
+  el.textContent=localText(el.dataset.i18nDynamicPrefix,'')+el.dataset.i18nSuffix;
  }
  for(const el of document.querySelectorAll('[data-i18n-placeholder]')){
   el.placeholder=localText(el.dataset.i18nPlaceholder,el.placeholder);
