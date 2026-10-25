@@ -629,6 +629,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
     const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.review_status AS reviewStatus,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
+    const worldCoverRights=db.prepare("SELECT w.slug,r.asset_sha256 AS assetSha256,r.statement_version AS statementVersion,r.asserted_at AS declaredAt FROM world_cover_rights r JOIN worlds w ON w.id=r.world_id WHERE r.owner_id=? AND w.owner_id=? ORDER BY w.slug").all(user.id,user.id);
     const coverAppeals=db.prepare("SELECT w.slug,a.reason,a.status,a.created_at AS createdAt,a.decided_at AS decidedAt FROM world_cover_appeals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id ASC").all(user.id);
     const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
@@ -639,7 +640,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     const coverReports=db.prepare("SELECT r.reason,r.detail,r.status,r.created_at AS createdAt,r.decided_at AS decidedAt,w.slug FROM world_cover_reports r JOIN worlds w ON w.id=r.world_id WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
