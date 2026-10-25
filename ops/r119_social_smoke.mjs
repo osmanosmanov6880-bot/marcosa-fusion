@@ -133,6 +133,14 @@ export async function runSocialSmoke({releaseSha}={}) {
     assert.equal(exportAlpha.data.posts.length,2);
     assert.equal(exportBeta.data.posts.length,0);
     noCredentials(exportAlpha.data);noCredentials(exportBeta.data);
+    // A real logout must invalidate its own cookie while the other user's
+    // session remains valid; deletion below tests a distinct revocation path.
+    const betaLogout=await request('/api/auth/logout',{
+      method:'POST',cookie:account.r119beta.cookie,json:{},
+    });
+    assert.equal(betaLogout.status,200);
+    assert.equal((await request('/api/auth/me',{cookie:account.r119beta.cookie})).status,401);
+    assert.equal((await request('/api/auth/me',{cookie:account.r119alpha.cookie})).status,200);
     const deleted=await request('/api/account',{method:'DELETE',
       cookie:account.r119alpha.cookie,json:{confirm:'DELETE',password},
     });
