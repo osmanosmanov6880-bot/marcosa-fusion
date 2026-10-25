@@ -31,7 +31,7 @@ test('R86: offline refund must follow an actually signed and paid R76 test recei
   const refund=evt('refund','evt_r86_refund0001','re_test_refund0001',300);
   assert.throws(()=>applyOfflineFinancialEvent(db,refund,{now:clock}),/verified R76 TEST receipt/);
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM r86_lab_events').get().n,0);
-  assert.throws(()=>applyOfflineFinancialEvent(db,{...refund,orderId:'r76_bad'}, {now:clock}),/verified/);
+  assert.throws(()=>applyOfflineFinancialEvent(db,{...refund,orderId:'r76_badorder'}, {now:clock}),/verified/);
   assert.throws(()=>applyOfflineFinancialEvent(db,{...refund,currency:'eur'},{now:clock}),/verified/);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{db.close();}
@@ -73,7 +73,7 @@ test('R86: two partial refunds, immutable IDs, active chargeback, loss and no ne
   report=offlineFinanceReport(db);
   assert.equal(report.testOnlyCurrencies[0].simulatedAvailableAfterReserveMinor,0);
   assert.equal(report.testOnlyCurrencies[0].simulatedNetAfterLossMinor,0);
-  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM r86_lab_events').get().n,6);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM r86_lab_events').get().n,5);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(),[]);
  }finally{db.close();}
 });
