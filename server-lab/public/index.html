@@ -88,6 +88,29 @@
     <div id="appeal-list" class="compact-list"></div>
     <details class="appeals-history"><summary>История обращений</summary><div id="appeal-history" class="compact-list"></div></details>
    </section>
+   <details id="security-panel" class="security-panel invite-panel">
+    <summary>Безопасность аккаунта</summary>
+    <p class="muted">Управляй своими входами и паролем. Эта версия работает только в локальной защищённой лаборатории MARCOSA.</p>
+    <div class="security-status" role="status" aria-live="polite">
+     <span id="security-sessions">Активные сессии: —</span>
+     <span id="security-expiry">Срок текущего входа: —</span>
+     <span class="security-caveat">Проверка электронной почты и восстановление пароля ещё не подключены.</span>
+    </div>
+    <button id="security-refresh" type="button" class="ghost small">Обновить безопасность</button>
+    <form id="security-revoke-form" class="form-block">
+     <h4>Завершить другие входы</h4>
+     <p class="muted">Этот браузер останется в системе. Остальные сессии будут отозваны.</p>
+     <label>Текущий пароль<input name="currentPassword" type="password" maxlength="128" autocomplete="current-password" required></label>
+     <button type="submit" class="ghost">Выйти на других устройствах</button>
+    </form>
+    <form id="security-password-form" class="form-block">
+     <h4>Изменить пароль</h4>
+     <p class="muted">После смены пароля все устройства, включая это, будут выведены из аккаунта.</p>
+     <label>Текущий пароль<input name="currentPassword" type="password" maxlength="128" autocomplete="current-password" required></label>
+     <label>Новый пароль (12–128 символов)<input name="newPassword" type="password" minlength="12" maxlength="128" autocomplete="new-password" required></label>
+     <button type="submit" class="gold">Обновить пароль и завершить все сессии</button>
+    </form>
+   </details>
    <button id="account-export" type="button" class="ghost export-button">Выгрузить мои данные (JSON)</button>
    <details class="danger-panel">
     <summary>Удалить локальный аккаунт и все данные</summary>
