@@ -871,8 +871,9 @@ function closeWorldAndRestoreFocus(){
  (opener||$('worlds')).focus({preventScroll:true});
 }
 $('world-close').addEventListener('click',()=>{
+ // Replace the URL fragment without native hash navigation stealing focus.
+ if(location.hash!=='#worlds')history.replaceState(null,'','#worlds');
  closeWorldAndRestoreFocus();
- location.hash='worlds';
 });
 window.addEventListener('hashchange',()=>{
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
