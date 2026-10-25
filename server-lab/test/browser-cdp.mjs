@@ -69,7 +69,8 @@ async function devtools(port){
 }
 async function main(){
  const work=mkdtempSync(join(tmpdir(),'marcosa-r28-browser-'));
- const lab=createApp({inviteCode:'r28-browser-invite-that-is-long'});
+ let labNow=Date.now();
+ const lab=createApp({inviteCode:'r28-browser-invite-that-is-long',now:()=>labNow});
  let chrome=null,cdp=null;
  try{
   await new Promise((resolve,reject)=>{
@@ -114,6 +115,7 @@ async function main(){
    {name:'compact',width:360,height:740,mobile:true}
   ];
   for(const size of sizes){
+   labNow+=601000;
    console.log('R30 BROWSER SCREEN:',size.name);
    cdp.errors.length=0;cdp.requests.length=0;
    await cdp.call('Emulation.setDeviceMetricsOverride',{
