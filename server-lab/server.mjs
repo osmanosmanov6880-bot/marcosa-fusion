@@ -69,7 +69,9 @@ const SCHEMA=[
  'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
- "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
+ "CREATE TABLE IF NOT EXISTS world_cover_review_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, decision TEXT NOT NULL CHECK(decision IN ('approved','rejected')), created_at INTEGER NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_world_cover_review_queue ON world_covers(review_status,updated_at)",
  'CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 2000), status TEXT NOT NULL CHECK(status IN (\'draft\',\'published\',\'hidden\')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_posts_public ON posts(status,id DESC)',
  'CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(author_id,id DESC)',
@@ -153,10 +155,21 @@ function upgradeWorldTopics(db){
  }
  db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_category ON worlds(category,created_at DESC)');
 }
+function upgradeWorldCoverReview(db){
+ const cols=new Set(db.prepare('PRAGMA table_info(world_covers)').all().map(x=>x.name));
+ if(!cols.has('review_status'))
+  db.exec("ALTER TABLE world_covers ADD COLUMN review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected'))");
+ if(!cols.has('reviewed_by'))
+  db.exec('ALTER TABLE world_covers ADD COLUMN reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL');
+ if(!cols.has('reviewed_at'))
+  db.exec('ALTER TABLE world_covers ADD COLUMN reviewed_at INTEGER');
+ db.exec('CREATE INDEX IF NOT EXISTS idx_world_cover_review_queue ON world_covers(review_status,updated_at)');
+}
 export function createApp({databasePath=':memory:',inviteCode='',registrationMode='legacy',now=()=>Date.now()}={}){
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeWorldCoverReview(db);
  upgradeWorldTopics(db);
  upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
@@ -168,7 +181,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
-  myWorlds:db.prepare('SELECT id,slug,title,description,category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  myWorlds:db.prepare('SELECT id,slug,title,description,category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover,(SELECT review_status FROM world_covers c WHERE c.world_id=worlds.id) AS coverStatus FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
@@ -284,7 +297,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -306,7 +319,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
 FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
@@ -319,7 +332,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&worldDetail){
     const viewer=who(req)?.id||'';
     const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
-     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,
+     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,
      u.username AS owner,
      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
