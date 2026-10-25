@@ -19,6 +19,7 @@ on:
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
       - "tools/r110_social_transfer_cdp.cjs"
+      - "tools/r113_two_origin_cdp.cjs"
       - "inventory/playable_cinema_r19.json"
       - "ops/pages-live-readback.mjs"
       - "tests/pages-live-readback.test.mjs"
@@ -41,6 +42,7 @@ on:
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
       - "tools/r110_social_transfer_cdp.cjs"
+      - "tools/r113_two_origin_cdp.cjs"
       - "inventory/playable_cinema_r19.json"
       - "ops/pages-live-readback.mjs"
       - "tests/pages-live-readback.test.mjs"
@@ -112,6 +114,7 @@ jobs:
           node --check site/social-journal.js
           node --check site/social-transfer.js
           node --check tools/r110_social_transfer_cdp.cjs
+          node --check tools/r113_two_origin_cdp.cjs
           node --check tools/r21_brand_cdp.cjs
           node --check tools/r22_reference_cdp.cjs
           node --check site/marcosa-gateway.js
@@ -208,6 +211,8 @@ jobs:
           node tools/r24_nocturne_cdp.cjs
           node tools/r25_director_cdp.cjs
           node tools/r110_social_transfer_cdp.cjs
+          node tools/r113_two_origin_cdp.cjs
+          node --test tests/r113_cross_origin_contract.test.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
