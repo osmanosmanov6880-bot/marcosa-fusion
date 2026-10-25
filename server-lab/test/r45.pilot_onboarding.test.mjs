@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,rmSync,chmodSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
+import {fileURLToPath} from 'node:url';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createApp} from '../server.mjs';
@@ -39,9 +40,10 @@ test('R45: persisted one-use pilot invites, moderator-only issuance, replay resi
   assert.equal(x.status,201);
   await app.close();app=null;
   chmodSync(databasePath,0o600);
-  const boot=spawnSync(process.execPath,['server-lab/tools/bootstrap-moderator.mjs',databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
+  const tool=fileURLToPath(new URL('../tools/bootstrap-moderator.mjs',import.meta.url));
+  const boot=spawnSync(process.execPath,[tool,databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
   assert.equal(boot.status,0,'manual operator bootstrap should succeed: '+boot.stderr);
-  const repeat=spawnSync(process.execPath,['server-lab/tools/bootstrap-moderator.mjs',databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
+  const repeat=spawnSync(process.execPath,[tool,databasePath,'operator45','--confirm-offline'],{encoding:'utf8'});
   assert.equal(repeat.status,1,'second bootstrap must fail closed');
 
   await start('single-use');
