@@ -388,3 +388,10 @@ dialog form{display:grid;gap:17px}
 .locale-choice select:focus-visible{outline:3px solid #ffe3ad;outline-offset:2px}
 @media(max-width:720px){.head-actions{gap:7px}.locale-choice select{width:119px;min-height:44px}.locale-choice span{font-size:10px}}
 @media(max-width:380px){.topbar{gap:8px}.head-actions{width:100%;justify-content:space-between}.locale-choice{flex-direction:row;align-items:center;gap:6px}.locale-choice select{width:135px}}
+
+/* R74: explicit, never-prechecked per-upload media rights statement. */
+.world-cover-rights{display:flex!important;align-items:flex-start;gap:12px;padding:13px 12px;background:#263349;border:1px solid #e4bf937a;border-radius:9px;color:#f3e7d3!important}
+.world-cover-rights input{flex:none;width:21px;height:21px;min-width:21px;margin:2px 0 0;accent-color:#ddbb89}
+.world-cover-rights span{font-size:12px;line-height:1.55}
+.world-cover-rights:focus-within{outline:2px solid #f2d7ad;outline-offset:2px}
+@media(max-width:720px){.world-cover-rights{padding:15px 12px}.world-cover-rights span{font-size:13px}}
