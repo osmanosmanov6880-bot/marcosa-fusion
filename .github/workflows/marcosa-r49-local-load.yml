@@ -1,0 +1,55 @@
+name: "MARCOSA | R49 real local read-load QA"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - "ops/local-read-load.mjs"
+      - "ops/test/local-read-load.test.mjs"
+      - ".github/workflows/marcosa-r49-local-load.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - "ops/local-read-load.mjs"
+      - "ops/test/local-read-load.test.mjs"
+      - ".github/workflows/marcosa-r49-local-load.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  disposable-read-load:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check test source and reject unsafe settings
+        run: |
+          set -euo pipefail
+          node --check ops/local-read-load.mjs
+          node --check ops/test/local-read-load.test.mjs
+          node --test ops/test/local-read-load.test.mjs
+      - name: Generate actual 480-request concurrent SQLite/HTTP QA
+        env:
+          MARCOSA_LOAD_READS: "480"
+          MARCOSA_LOAD_CONCURRENCY: "12"
+          MARCOSA_LOAD_P95_BUDGET_MS: "1500"
+        run: |
+          set -euo pipefail
+          node ops/local-read-load.mjs
+      - name: Upload measured latency evidence (never production metrics)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r49-local-qa-proof
+          path: qa-r49/local-read-load.json
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Assert local only and no deployment permissions
+        run: |
+          set -euo pipefail
+          ! grep -q 'server-lab/' tools/build_webroot.py
+          ! grep -q 'StrictHostKeyChecking=no' .github/workflows/marcosa-staging.yml
