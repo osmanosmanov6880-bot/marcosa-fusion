@@ -726,13 +726,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      delivery:'local-inbox-only'});return;
    }
    if(method==='POST'&&route==='/api/me/cover-appeals'){
-    throttle('cover-appeal:'+user.id,5,86400000);
     check(Object.keys(body).length===2&&typeof body.slug==='string'&&typeof body.reason==='string',400,'Укажи World и объяснение');
     const slug=str(body.slug),reason=str(body.reason);
     check(/^[a-z][a-z0-9-]{2,39}$/.test(slug)&&reason.length>=12&&reason.length<=1000,400,'Объяснение: 12–1000 символов');
     const source=db.prepare("SELECT c.world_id,c.png,c.reviewed_by,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='rejected'").get(slug);
     check(source&&source.owner_id===user.id,404,'Отклонённая обложка не найдена');
     check(!db.prepare("SELECT 1 FROM world_cover_appeals WHERE world_id=? AND status='open'").get(source.world_id),409,'Апелляция уже рассматривается');
+    throttle('cover-appeal:'+user.id,5,86400000);
     const id=db.prepare("INSERT INTO world_cover_appeals(world_id,owner_id,cover_sha256,original_reviewer,reason,created_at) VALUES(?,?,?,?,?,?)")
      .run(source.world_id,user.id,hash(Buffer.from(source.png)),source.reviewed_by,reason,now()).lastInsertRowid;
     send(res,201,{id:Number(id),status:'open',slug,private:true});return;
