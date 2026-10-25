@@ -137,6 +137,7 @@ jobs:
                 scope:"127.0.0.1_ephemeral_synthetic_sqlite_memory",
                 realVpsExecution:true,
                 syntheticTwoAccountHttpAuthAndOwnership:true,
+                syntheticTwoAccountFollowAndCommentVerified:true,
                 crossTenantWriteDenied:true,
                 logoutDeletionForeignKeyIntegrity:true,
                 noCustomerDatabaseOrRealUsers:true,
