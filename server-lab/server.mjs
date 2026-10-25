@@ -313,6 +313,22 @@ FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND 
 ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{items,category:category||null});return;
    }
+   // Direct permanent World lookup, even after catalog pagination excludes it.
+   // The same account-block rules as catalog/search apply to this endpoint.
+   const worldDetail=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})$/);
+   if(method==='GET'&&worldDetail){
+    const viewer=who(req)?.id||'';
+    const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
+     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,
+     u.username AS owner,
+     (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
+     (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
+     FROM worlds w JOIN users u ON u.id=w.owner_id
+     WHERE w.slug=? AND ${visibleOwner('u.id')} LIMIT 1`)
+     .get(worldDetail[1],viewer,viewer);
+    check(world,404,'Мир не найден');
+    send(res,200,{world,scope:'public-world',production:false});return;
+   }
    const coverRoute=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
    if(coverRoute&&method==='GET'){
     const source=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(coverRoute[1]);
