@@ -69,8 +69,6 @@ async function devtools(port){
 }
 async function main(){
  const work=mkdtempSync(join(tmpdir(),'marcosa-r28-browser-'));
- // Advance only the disposable lab clock between viewport cohorts.
- // This tests authentic rate-limit expiration; application limits stay intact.
  let labNow=Date.now();
  const lab=createApp({inviteCode:'r28-browser-invite-that-is-long',now:()=>labNow});
  let chrome=null,cdp=null;
@@ -117,7 +115,7 @@ async function main(){
    {name:'compact',width:360,height:740,mobile:true}
   ];
   for(const size of sizes){
-   labNow+=601000; // different 10-minute signup windows, no throttle bypass
+   labNow+=601000;
    console.log('R30 BROWSER SCREEN:',size.name);
    cdp.errors.length=0;cdp.requests.length=0;
    await cdp.call('Emulation.setDeviceMetricsOverride',{
@@ -238,6 +236,11 @@ async function main(){
    if(await claimPilot()!==201||await claimPilot()!==403)throw Error('R45_BROWSER_INVITE_REPLAY_PROTECTION_FAILED_'+size.name);
    await cdp.evalJS("(()=>{document.getElementById('invite-clear').click();document.getElementById('invite-refresh').click();return true;})()");
    await cdp.wait("document.getElementById('invite-list')?.textContent.includes('Использован')",'r45-used-pilot-visible');
+   await cdp.evalJS("(()=>{document.getElementById('pilot-metrics-panel').open=true;document.getElementById('pilot-metrics-refresh').click();return true;})()");
+   await cdp.wait("Array.from(document.querySelectorAll('#pilot-metrics-data .pilot-metric')).some(x=>x.textContent.includes('Регистраций по одноразовым кодам')&&x.querySelector('strong')?.textContent==='"+(sizes.indexOf(size)+1)+"')",'r47-pilot-metrics');
+   await cdp.evalJS("document.getElementById('pilot-metrics-panel').scrollIntoView({behavior:'instant',block:'center'})");
+   await pause(140);
+   await screenshot('pilot-evidence');
    if(await cdp.evalJS("document.getElementById('issued-invite-code').textContent.length")!==0)throw Error('R45_BROWSER_CODE_NOT_CLEARED_'+size.name);
    await cdp.evalJS("document.getElementById('mod-invites-panel').scrollIntoView({behavior:'instant',block:'center'})");
    await pause(140);
@@ -263,7 +266,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R45 BROWSER QA COMPLETE: 30 Chrome screenshots, creator onboarding, one-use invites and account/World flows on desktop/phones');
+  console.log('R47 BROWSER QA COMPLETE: 33 Chrome screenshots, creator onboarding, one-use invites and account/World flows on desktop/phones');
  }finally{
   cdp?.close();
   if(chrome){
