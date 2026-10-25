@@ -81,6 +81,10 @@ test('R57: unreviewed media is private; independent moderator approves and rejec
   r=await req('/mod'+url+'/review',{method:'POST',cookie:moderator.cookie,data:{decision:'approved'}});
   assert.equal(r.status,404,'can't review a consumed pending decision');
   r=await req(url);assert.equal(r.status,200);
+  lab.db.prepare("UPDATE users SET role='member' WHERE username='reviewer57'").run();
+  r=await req(url);assert.equal(r.status,404,'revoked reviewer cannot keep public image live');
+  lab.db.prepare("UPDATE users SET role='moderator' WHERE username='reviewer57'").run();
+  r=await req(url);assert.equal(r.status,200,'only active independent moderator approval is public');
   r=await req('/worlds/'+alice.world.slug);
   assert.equal(r.data.world.hasCover,1);
   r=await req(url,{method:'POST',cookie:alice.cookie,mime:'image/png',data:image});
