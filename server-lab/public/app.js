@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,worldOpenSerial:0,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
 const notice=message=>{$('notice').textContent=message;};
 async function api(path,method='GET',data){
  const config={method,credentials:'same-origin',headers:{}};
@@ -426,11 +426,13 @@ async function discover(query){
 }
 async function openWorld(slug){
  if(!/^[a-z][a-z0-9-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
+ const serial=++state.worldOpenSerial;
  const [detail,posts,approved]=await Promise.all([
   api('/worlds/'+encodeURIComponent(slug)),
   api('/worlds/'+encodeURIComponent(slug)+'/posts'),
   api('/sponsors/approved')
  ]);
+ if(serial!==state.worldOpenSerial)return; // Ignore stale load after close or newer navigation.
  const world=detail.world;
  state.currentWorldSlug=slug;
  const panel=$('world-detail');
@@ -459,6 +461,7 @@ async function openWorld(slug){
  panel.hidden=false;
  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  panel.scrollIntoView({behavior:reduce?'instant':'smooth',block:'start'});
+ $('world-detail-title').focus({preventScroll:true});
 }
 async function discussion(postId,region){
  const list=await api('/posts/'+postId+'/comments');
@@ -913,14 +916,31 @@ $('world-share').addEventListener('click',()=>run(async()=>{
   notice('Ссылка на твой World: '+link);
  }
 }));
-$('world-close').addEventListener('click',()=>{
+function closeWorldAndRestoreFocus(){
+ ++state.worldOpenSerial; // Cancel late API responses before moving keyboard focus.
+ const previousSlug=state.currentWorldSlug;
  $('world-detail').hidden=true;state.currentWorldSlug=null;
- location.hash='worlds';
+ const opener=Array.from(document.querySelectorAll('#world-list .world-open'))
+  .find(link=>link.getAttribute('href')==='#world-'+encodeURIComponent(previousSlug||''));
+ (opener||$('worlds')).focus({preventScroll:true});
+}
+$('world-close').addEventListener('click',()=>{
+ // Replace the URL fragment without native hash navigation stealing focus.
+ if(location.hash!=='#worlds')history.replaceState(null,'','#worlds');
+ closeWorldAndRestoreFocus();
 });
 window.addEventListener('hashchange',()=>{
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
  if(requested)run(()=>openWorld(requested));
- else{$('world-detail').hidden=true;state.currentWorldSlug=null;}
+ else if(!$('world-detail').hidden)closeWorldAndRestoreFocus();
+ else ++state.worldOpenSerial;
+});
+document.addEventListener('keydown',event=>{
+ if(event.key==='Escape'&&!$('world-detail').hidden
+    &&$('world-detail').contains(document.activeElement)
+    &&!$('report-dialog')?.open){
+  event.preventDefault();$('world-close').click();
+ }
 });
 for(const [id,scope] of [['feed-all','all'],['feed-following','following']]){
  $(id).addEventListener('click',()=>run(async()=>{
@@ -960,6 +980,7 @@ $('mod-cover-refresh').addEventListener('click',()=>run(reviewCovers,'Очере
 $('mod-cover-appeals-refresh').addEventListener('click',()=>run(reviewCoverAppeals,'Очередь апелляций обновлена'));
 $('mod-cover-reports-refresh').addEventListener('click',()=>run(reviewCoverReports,'Очередь жалоб на изображения обновлена'));
 $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);}));
+document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
 loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice('Локальный сервер готов. Данные настоящие, но изолированы от production.');
