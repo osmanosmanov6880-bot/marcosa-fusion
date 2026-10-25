@@ -1,0 +1,80 @@
+name: "MARCOSA | R108 real Nginx static canary and origin-isolation audit"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "ops/install_production_canary.py"
+      - "tests/test_r108_nginx_route.py"
+      - "tools/audit_canary_origin.py"
+      - "tests/test_canary_origin_audit.py"
+      - ".github/workflows/marcosa-r108-nginx-origin-audit.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "ops/install_production_canary.py"
+      - "tests/test_r108_nginx_route.py"
+      - "tools/audit_canary_origin.py"
+      - "tests/test_canary_origin_audit.py"
+      - ".github/workflows/marcosa-r108-nginx-origin-audit.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  real-isolated-nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Nginx into EPHEMERAL runner only
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v nginx >/dev/null; then
+            sudo apt-get update -qq
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq nginx
+          fi
+          nginx -v
+          test -s /etc/nginx/mime.types
+      - name: Test actual Nginx alias, MIME, 308, 404, legacy API and atomic rollback boundary
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_r108_nginx_route.py' -v
+      - name: Audit real source for root-relative URL and same-origin storage hazards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_canary_origin_audit.py' -v
+          python tools/audit_canary_origin.py site > canary-origin-r108.json
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          report=json.loads(Path('canary-origin-r108.json').read_text())
+          if report['format']!='MARCOSA-R108-ORIGIN-RISK' or report['filesAudited']<15:
+              raise SystemExit('Invalid source audit')
+          if report['safeToEnableSameOriginProductionAutomatically'] or report['productionCutoverAuthorized']:
+              raise SystemExit('Static source audit must never authorize production')
+          message=[
+            '### R108 — real isolated Nginx test + origin safety audit',
+            '- Nginx served isolated canary and kept legacy/API intact: PASS',
+            '- Static source files audited: '+str(report['filesAudited']),
+            '- Root-relative references found: '+str(report['rootRelativeUrlReferences']),
+            '- Local storage / IndexedDB use: '+str(report['storageApis']),
+            '- Same-origin auth/storage isolation: NOT PROVEN',
+            '- Automatic root activation: NOT AUTHORIZED',
+            '- Preferred origin: independent HTTPS hostname or GitHub Pages preview',
+            ''
+          ]
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f: f.write('\n'.join(message))
+          print('R108_SOURCE_ORIGIN_AUDIT=PASS')
+          print('SAME_ORIGIN_PRODUCTION_NOT_AUTHORIZED=YES')
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r108-static-origin-risk-report
+          path: canary-origin-r108.json
+          retention-days: 14
+          if-no-files-found: error
