@@ -74,7 +74,9 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_appeals_appellant ON moderation_appeals(appellant_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS moderation_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE, appeal_id INTEGER REFERENCES moderation_appeals(id) ON DELETE SET NULL, action TEXT NOT NULL CHECK(action IN ('hide','upheld','restored')), created_at INTEGER NOT NULL, CHECK((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL)))",
  "CREATE INDEX IF NOT EXISTS idx_audit_post ON moderation_audit(post_id,id DESC)",
- "CREATE INDEX IF NOT EXISTS idx_audit_comment ON moderation_audit(comment_id,id DESC)"
+ "CREATE INDEX IF NOT EXISTS idx_audit_comment ON moderation_audit(comment_id,id DESC)",
+ "CREATE TABLE IF NOT EXISTS user_blocks (blocker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY(blocker_id,blocked_id), CHECK(blocker_id<>blocked_id))",
+ "CREATE INDEX IF NOT EXISTS idx_user_blocks_target ON user_blocks(blocked_id,blocker_id)"
 ].join(';\n')+';';
 
 
@@ -126,13 +128,18 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
  db.exec(SCHEMA);
  upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
+ // Parameters in this expression are always bound to a trusted current
+ // session identity (or empty string for anonymous guests).
+ // A block is an account interaction/filter, NOT private-world access control.
+ const visibleOwner=(column)=>"NOT EXISTS (SELECT 1 FROM user_blocks bl WHERE (bl.blocker_id=? AND bl.blocked_id="+column+") OR (bl.blocker_id="+column+" AND bl.blocked_id=?))";
  const stmt={
   email:db.prepare('SELECT * FROM users WHERE email=?'),
+  blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
   myWorlds:db.prepare('SELECT id,slug,title,description FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
-  feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND p.id<? ORDER BY p.id DESC LIMIT ?")
+  feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
  function throttle(key,max,duration){
   const current=now(),a=rateMap.get(key);
@@ -172,8 +179,14 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
   try{const result=action();db.exec('COMMIT');return result;}
   catch(error){db.exec('ROLLBACK');throw error;}
  }
+ function isBlocked(a,b){
+  return Boolean(stmt.blocking.get(a,b,b,a));
+ }
+ function ensureNoBlock(a,b){
+  check(!isBlocked(a,b),403,'Взаимодействие между аккаунтами ограничено');
+ }
  function recordActivity(recipientId,actorId,kind,{worldId=null,postId=null,sponsorId=null}={}){
-  if(recipientId===actorId)return;
+  if(recipientId===actorId||isBlocked(recipientId,actorId))return;
   db.prepare("INSERT INTO activity_events(recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at) VALUES(?,?,?,?,?,?,?)")
    .run(recipientId,actorId,kind,worldId,postId,sponsorId,now());
   // Local lab retention: bounded private inbox. No third-party analytics or tracking.
@@ -213,44 +226,50 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный размер страницы');
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
-    send(res,200,{...page(stmt.following.all(user.id,cursor,limit+1),limit),scope:'following'});return;
+    send(res,200,{...page(stmt.following.all(user.id,user.id,user.id,cursor,limit+1),limit),scope:'following'});return;
    }
    if(method==='GET'&&route==='/api/posts'){
     const limit=Number(query.get('limit')||12);
     check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный размер страницы');
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
-    send(res,200,page(stmt.feed.all(cursor,limit+1),limit));return;
+    const viewer=who(req)?.id||'';
+    send(res,200,page(stmt.feed.all(viewer,viewer,cursor,limit+1),limit));return;
    }
    if(method==='GET'&&route==='/api/discover'){
     // Parameterized search; returns no drafts, hidden posts or private member data.
     const raw=str(query.get('q')).normalize('NFC');
     check(raw.length>=2&&raw.length<=72,400,'Поиск: от 2 до 72 символов');
+    const viewer=who(req)?.id||'';
     const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
-      WHERE instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0
-      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw);
+      WHERE (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
+      AND ${visibleOwner('u.id')}
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer);
     const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
       (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
       FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
       WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
-      ORDER BY p.id DESC LIMIT 12`).all(raw);
+      AND ${visibleOwner('u.id')}
+      ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer);
     send(res,200,{query:raw,worlds,posts,limit:12});return;
    }
    if(method==='GET'&&route==='/api/worlds'){
     const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id ORDER BY w.created_at DESC LIMIT 30`).all();
+FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')}
+ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     send(res,200,{items});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
-    send(res,200,page(stmt.byWorld.all(worldRoute[1],cursor,21),20));return;
+    const viewer=who(req)?.id||'';
+    send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,cursor,21),20));return;
    }
    // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
    const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/followers$/);
