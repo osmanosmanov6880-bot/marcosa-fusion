@@ -20,10 +20,15 @@ export const STAGING=[
 export const BETA=[
  ...STAGING,
  'existing_supabase_project',
+ 'real_auth_recovery_mfa_moderators',
+ 'media_storage_private_acl',
+ 'media_quarantine_scan_and_review',
+ 'media_signed_delivery_revocation',
  'auth_verified_email_and_recovery',
  'rls_real_jwt_isolation',
  'moderation_appeal_privacy',
  'data_export_deletion',
+ 'media_export_deletion_verified',
  'invite_closed_beta',
  'privacy_consent',
  'incident_response'
@@ -36,6 +41,8 @@ export const PUBLIC=[
  'advertiser_legal_verification',
  'verified_ad_delivery',
  'payment_refunds_and_ledger',
+ 'payment_webhook_idempotency',
+ 'content_rights_and_takedown',
  'real_beta_cohort_evidence',
  'independent_security_review'
 ];
