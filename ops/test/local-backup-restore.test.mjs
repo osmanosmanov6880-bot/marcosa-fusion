@@ -13,6 +13,7 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
  let app=null,copy=null;
  try{
   app=createApp({databasePath:live});
+  await new Promise(ok=>app.server.listen(0,'127.0.0.1',ok));
   const a='11111111-2222-4333-8444-555555555555',reviewer='33333333-4444-4555-8666-777777777777',w='aaaa-bbbb';
   const insert=app.db.prepare("INSERT INTO users(id,email,username,salt,password_hash,role,created_at) VALUES(?,?,?,?,?,?,?)");
   insert.run(a,'owner@example.invalid','owner_r67','0'.repeat(32),'a'.repeat(128),'member',123);
@@ -37,6 +38,7 @@ test('R67 real SQLite snapshot preserves users, binary covers, moderation and co
   assert.equal(restoredInfo.verification.foreignKeyViolations,0);
   await app.close();app=null;
   copy=createApp({databasePath:restored});
+  await new Promise(ok=>copy.server.listen(0,'127.0.0.1',ok));
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM users').get().n,2);
   assert.ok(copy.db.prepare('SELECT png FROM world_covers').get().png.equals(blob));
   assert.equal(copy.db.prepare('SELECT count(*) AS n FROM beta_retention_days').get().n,1);
