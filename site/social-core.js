@@ -97,6 +97,20 @@
    text.value='';counter();if(success)showPrivateNote('');
    info.textContent=success?'Локальный черновик удалён. Публикаций не было.':'Браузер не разрешил удалить сохранение.';
   });
+  // Import occurs only on a user gesture; refresh the existing feed without
+  // a page reload and without communicating with any server.
+  root.addEventListener('marcosa:social-transfer',()=>{
+   const importedSaved=read(KEY_SAVED,[]);
+   saved=Array.isArray(importedSaved)?
+    Array.from(new Set(importedSaved.filter(id=>Object.prototype.hasOwnProperty.call(LABELS,id)))):[];
+   const importedDraft=read(KEY_DRAFT,'');
+   if(typeof importedDraft==='string'&&doc.activeElement!==text){
+    text.value=importedDraft.slice(0,700);
+    showPrivateNote(text.value);
+    counter();
+   }
+   bookmarks();render();
+  });
   counter();bookmarks();render();
   root.MarcosaSocial=Object.freeze({localOnly:true,sourceCardCount:cards.length});
  }
