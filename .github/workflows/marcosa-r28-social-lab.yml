@@ -123,6 +123,12 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r77.dynamic_locale_keys.test.mjs
           node --test server-lab/test/r77.dynamic_locale_keys.test.mjs
+      - name: R79 independent incident-switch and multi-route privacy test
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r79.media_incident_kill_switch.test.mjs
+          node --test server-lab/test/r79.media_incident_kill_switch.test.mjs
       - name: R71 bilingual UI and user-content isolation in actual desktop/mobile Chromium
         shell: bash
         run: |
