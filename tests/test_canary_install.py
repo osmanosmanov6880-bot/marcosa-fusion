@@ -139,6 +139,13 @@ class CanaryInstallTests(unittest.TestCase):
         self.assertGreater(code.index('marker.write_text(MARK)'),code.index('STATE.write_text'))
         self.assertIn('disabled.write_text("MARCOSA-CANARY-DISABLED-v1',code)
 
+    def test_readonly_plan_does_not_touch_private_root_state(self):
+        from unittest.mock import patch, MagicMock
+        fake=MagicMock()
+        with patch.object(mod.os,"geteuid",return_value=1001), patch.object(mod,"STATE",fake):
+            self.assertFalse(mod.root_recovery_active())
+            fake.exists.assert_not_called()
+
     def test_script_never_gives_ci_root_rights(self):
         code=(ROOT/"ops/install_production_canary.py").read_text()
         self.assertIn('os.geteuid()!=0',code)

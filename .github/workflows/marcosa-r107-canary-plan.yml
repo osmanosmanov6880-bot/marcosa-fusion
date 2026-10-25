@@ -4,6 +4,8 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/marcosa-r107-canary-plan.yml"
+      - "ops/install_production_canary.py"
+      - "tests/test_canary_install.py"
   workflow_dispatch:
 permissions:
   contents: read

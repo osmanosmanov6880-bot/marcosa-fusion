@@ -265,6 +265,12 @@ def check_host() -> None:
         raise ValueError("Legacy production root must remain root owned")
 
 
+def root_recovery_active() -> bool:
+    # Never touch /root during non-root read-only PLAN. The privileged APPLY
+    # checks this same root state as part of its fail-closed preflight.
+    return os.geteuid() == 0 and STATE.exists()
+
+
 def do_plan(expect: str) -> dict:
     if not SHA64.fullmatch(expect):
         raise ValueError("Pinned expected Nginx SHA256 required")
@@ -274,7 +280,7 @@ def do_plan(expect: str) -> dict:
         raise ValueError("Nginx configuration changed since R104 read-only audit")
     patched=prepare_nginx_patch(existing.decode("utf8"))
     sha,files=verify_stage(STAGING)
-    if CANARY.exists() or STATE.exists() or SNIPPET.exists():
+    if CANARY.exists() or root_recovery_active() or SNIPPET.exists():
         raise ValueError("Canary installation already exists; no overwriting allowed")
     return {"sourceSha":sha,"stagingAssetsVerified":len(files),
             "liveRootSha256":sha_file(LEGACY/"index.html",5_000_000),
