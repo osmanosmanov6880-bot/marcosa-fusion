@@ -709,10 +709,15 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='POST'&&reviewCover){
     check(user.role==='moderator',403,'Только модератор рассматривает обложки');
     check(Object.keys(body).length===1&&(body.decision==='approved'||body.decision==='rejected'),400,'Неверное решение');
-    const item=db.prepare("SELECT c.world_id,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(reviewCover[1]);
+    const item=db.prepare("SELECT c.world_id,c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(reviewCover[1]);
     check(item,404,'Материал уже рассмотрен или удалён');
     check(item.owner_id!==user.id,403,'Нельзя одобрять обложку собственного мира');
     const decision=body.decision;
+    if(decision==='approved'){
+     let canonical=false;
+     try{canonical=sanitizePngCover(item.png).png.equals(item.png);}catch{canonical=false;}
+     check(canonical,422,'Материал не прошёл обязательную PNG-нормализацию');
+    }
     atomic(()=>{
      const result=db.prepare("UPDATE world_covers SET review_status=?,reviewed_by=?,reviewed_at=? WHERE world_id=? AND review_status='pending'").run(decision,user.id,now(),item.world_id);
      check(result.changes===1,409,'Решение уже принято');
