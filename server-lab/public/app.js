@@ -43,6 +43,22 @@ function syncWorldSettings(){
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
 }
+async function loadBlocks(){
+ if(!state.me)return;
+ const data=await api('/me/blocks');
+ const list=$('blocked-users-list');clear(list);
+ for(const person of data.items){
+  const row=node('div','','blocked-user');
+  row.append(node('strong','@'+person.username));
+  const remove=node('button','Разблокировать','ghost small unblock-user');remove.type='button';
+  remove.addEventListener('click',()=>run(async()=>{
+   await api('/users/'+encodeURIComponent(person.username)+'/block','DELETE',{});
+   await Promise.all([loadBlocks(),worlds(),feed(true),sponsors()]);
+  },'Блокировка снята'));
+  row.append(remove);list.append(row);
+ }
+ if(!data.items.length)list.append(node('p','Ты пока никого не блокировал.','muted'));
+}
 async function loadSecurity(){
  if(!state.me)return;
  const data=await api('/me/security');
@@ -62,6 +78,7 @@ async function session(){
   $('security-sessions').textContent='Активные сессии: —';
   $('security-expiry').textContent='Срок текущего входа: —';
   $('security-revoke-form').reset();$('security-password-form').reset();
+  clear($('blocked-users-list'));
   clear($('creator-insights-list'));
   state.feedScope='all';state.activityCursor=null;
   $('feed-all').setAttribute('aria-pressed','true');
@@ -88,7 +105,7 @@ async function session(){
    editOption.value=world.slug;settings.append(editOption);
   }
   if(state.worlds.length)syncWorldSettings();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals()]);
  }
 }
@@ -124,6 +141,14 @@ async function worlds(){
     await worlds();
    },following?'Подписка отменена':'Подписка сохранена'));
    card.append(btn);
+   const block=node('button','Заблокировать @'+world.owner,'ghost small block-user');
+   block.type='button';
+   block.addEventListener('click',()=>run(async()=>{
+    if(!confirm('Заблокировать @'+world.owner+'? Подписки, уведомления и рекламные договорённости между вами будут остановлены.'))return;
+    await api('/users/'+encodeURIComponent(world.owner)+'/block','POST',{});
+    await Promise.all([worlds(),feed(true),loadBlocks(),sponsors()]);
+   },'Автор заблокирован'));
+   card.append(block);
   }
   const open=node('a','Открыть World ↗','world-open');
   open.href='#world-'+encodeURIComponent(world.slug);
@@ -535,6 +560,7 @@ $('sponsor-form').addEventListener('submit',event=>{
   form.reset();await mySponsors();
  },'Заявка получена: только ручная проверка, без платежей и размещений');
 });
+$('blocks-refresh').addEventListener('click',()=>run(loadBlocks,'Список блокировок обновлён'));
 $('security-refresh').addEventListener('click',()=>run(loadSecurity,'Состояние входов обновлено'));
 $('security-revoke-form').addEventListener('submit',event=>{
  event.preventDefault();
