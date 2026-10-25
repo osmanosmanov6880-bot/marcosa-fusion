@@ -363,3 +363,12 @@ dialog form{display:grid;gap:17px}
 #mod-cover-appeals-list button,#mod-cover-appeals-refresh{min-height:44px}
 #mod-cover-appeals-refresh{width:100%}
 @media(max-width:650px){#mod-cover-appeals-list button{width:100%;min-height:48px}#world-cover-appeal-form{padding:12px}}
+
+/* R65: quiet reporting controls; every action is real and auditable. */
+#world-cover-report-panel{padding:18px 16px;margin:18px 0;background:#102238;border:1px solid #c3a9824e;border-radius:10px}
+#world-cover-report-panel summary{font-size:13px;font-weight:650;line-height:1.65}
+#world-cover-report-panel .form-block{gap:12px}
+#world-cover-report-form textarea{min-height:94px;resize:vertical}
+#world-cover-report-form button,#mod-cover-reports-panel button{min-height:44px}
+#my-cover-reports{display:grid;gap:8px;margin:10px 0}
+@media(max-width:720px){#world-cover-report-panel{padding:15px 12px}#world-cover-report-form button{width:100%;min-height:48px}}
