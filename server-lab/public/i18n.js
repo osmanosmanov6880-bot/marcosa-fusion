@@ -248,6 +248,9 @@ const CATALOG=Object.freeze({
  "report.comment":["Комментарий","Comment"],
  "report.cancel":["Отмена","Cancel"],
  "report.submit":["Отправить жалобу","Submit report"],
+ 'incident.content':['Временная защита: создание и изменение контента приостановлены. Можно читать публикации, войти, защитить аккаунт, пожаловаться, выгрузить или удалить свои данные.','Temporary protection: posting and content changes are paused. You can still read, sign in, secure your account, report abuse, export or delete your data.'],
+ 'incident.media':['Временная защита: публичные изображения недоступны. Авторы сохраняют доступ к личным изображениям после входа.','Temporary protection: public images are unavailable. Creators can still see their own private images after signing in.'],
+ 'incident.both':['Временная защита: публикации и публичные изображения приостановлены. Чтение, безопасность аккаунта, жалобы и удаление данных остаются доступными.','Temporary protection: publishing and public images are paused. Reading, account safety, abuse reporting and data deletion remain available.'],
  'notice.connecting':['Проверка соединения…','Connecting to local server…'],
  'notice.ready':['Локальный сервер готов. Данные настоящие, но изолированы от production.','Local server ready. Data is real but isolated from production.']
 });
