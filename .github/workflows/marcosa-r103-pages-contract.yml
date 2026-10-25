@@ -1,0 +1,45 @@
+name: "MARCOSA | R103 public Pages HTTP verifier contracts"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r103-pages-contract.yml"
+      - ".github/workflows/marcosa-public-pages.yml"
+      - "ops/pages-live-readback.mjs"
+      - "tests/pages-live-readback.test.mjs"
+  pull_request:
+    paths:
+      - ".github/workflows/marcosa-r103-pages-contract.yml"
+      - ".github/workflows/marcosa-public-pages.yml"
+      - "ops/pages-live-readback.mjs"
+      - "tests/pages-live-readback.test.mjs"
+permissions:
+  contents: read
+jobs:
+  fast-readback-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test SHA, MIME, redirect, host/prefix and HTTPS contract offline
+        run: |
+          node --check ops/pages-live-readback.mjs
+          node --test tests/pages-live-readback.test.mjs
+      - name: Confirm public Pages depends on successful same-run publication
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import {strict as assert} from 'node:assert';
+          const wf=readFileSync('.github/workflows/marcosa-public-pages.yml','utf8');
+          assert.match(wf,/verify-public-bytes:\s*\n\s*needs: \[verify-and-build, publish\]/);
+          assert.match(wf,/pages-build-manifest-\$\{\{ github.sha \}\}/);
+          assert.match(wf,/node ops\/pages-live-readback\.mjs --manifest build-manifest\.json --sha "\$GITHUB_SHA"/);
+          assert.match(wf,/uses: actions\/deploy-pages@v4/);
+          const script=readFileSync('ops/pages-live-readback.mjs','utf8');
+          assert.match(script,/https:\/\/osmanosmanov6880-bot\.github\.io/);
+          assert.match(script,/redirect:'manual'/);
+          assert.match(script,/productionAuthorized:false/);
+          NODE
