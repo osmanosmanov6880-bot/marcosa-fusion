@@ -265,6 +265,13 @@
     <div id="invite-list" class="compact-list" aria-live="polite"></div>
     <button id="invite-refresh" type="button" class="ghost small">Обновить список без секретов</button>
    </details>
+   <details id="mod-queue-health-panel" class="invite-panel pilot-metrics">
+    <summary>Контроль открытых очередей модерации</summary>
+    <p class="muted">Только реальные записи SQLite. Ориентиры 24/72 часа не являются юридическими сроками или SLA. Без имён жалобщиков, текстов жалоб и персональных данных.</p>
+    <div id="mod-queue-health-data" class="pilot-metrics-grid" aria-live="polite"></div>
+    <p id="mod-queue-health-status" class="pilot-metrics-note" role="status" aria-live="polite">Нет данных до входа модератора.</p>
+    <button id="mod-queue-health-refresh" type="button" class="ghost small">Обновить реальные очереди</button>
+   </details>
    <details id="pilot-metrics-panel" class="invite-panel pilot-metrics">
     <summary>Пилот: проверенные показатели</summary>
     <p class="muted">D7/D30 считаются только для добровольной пригласительной когорты после 7/30 дней и честных событий входа. До созревания когорты указано «не измерено».</p>
