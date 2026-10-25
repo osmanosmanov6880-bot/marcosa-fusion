@@ -392,7 +392,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&route==='/api/mod/cover-queue'){
     const moderator=requireUser(req);
     check(moderator.role==='moderator',403,'Доступ только модератору');
-    const items=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' AND w.owner_id<>? ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all(moderator.id);
+    const candidates=db.prepare("SELECT w.slug,w.title,u.username AS owner,c.width,c.height,c.byte_size AS bytes,c.updated_at AS uploadedAt,c.review_status AS status,c.png,(SELECT original_reviewer FROM world_cover_appeals a WHERE a.world_id=c.world_id AND a.status='reopened' ORDER BY a.id DESC LIMIT 1) AS appealReviewer,(SELECT cover_sha256 FROM world_cover_appeals a WHERE a.world_id=c.world_id AND a.status='reopened' ORDER BY a.id DESC LIMIT 1) AS appealDigest FROM world_covers c JOIN worlds w ON w.id=c.world_id JOIN users u ON u.id=w.owner_id WHERE c.review_status='pending' AND w.owner_id<>? ORDER BY c.updated_at ASC,w.slug ASC LIMIT 30").all(moderator.id);
+    const items=candidates.filter(x=>!(x.appealReviewer===moderator.id&&x.appealDigest===hash(Buffer.from(x.png))))
+     .map(({slug,title,owner,width,height,bytes,uploadedAt,status})=>({slug,title,owner,width,height,bytes,uploadedAt,status}));
     send(res,200,{items,scope:'moderator',localOnly:true});return;
    }
    if(method==='GET'&&route==='/api/me/cover-appeals'){
@@ -418,8 +420,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&modCover){
     const moderator=requireUser(req);
     check(moderator.role==='moderator',403,'Доступ только модератору');
-    const item=db.prepare("SELECT c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(modCover[1]);
+    const item=db.prepare("SELECT c.world_id,c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(modCover[1]);
     check(item&&item.owner_id!==moderator.id,404,'Материал не найден в независимой очереди');
+    const appeal=db.prepare("SELECT original_reviewer,cover_sha256 FROM world_cover_appeals WHERE world_id=? AND status='reopened' ORDER BY id DESC LIMIT 1").get(item.world_id);
+    check(!appeal||appeal.original_reviewer!==moderator.id||appeal.cover_sha256!==hash(Buffer.from(item.png)),404,'Материал недоступен прежнему проверяющему');
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':item.png.length,
      'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff',
      'Cross-Origin-Resource-Policy':'same-origin'});
