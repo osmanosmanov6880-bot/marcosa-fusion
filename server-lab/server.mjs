@@ -764,8 +764,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const item=db.prepare("SELECT c.world_id,c.png,w.owner_id FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.slug=? AND c.review_status='pending'").get(reviewCover[1]);
     check(item,404,'Материал уже рассмотрен или удалён');
     check(item.owner_id!==user.id,403,'Нельзя одобрять обложку собственного мира');
-    const recheck=db.prepare("SELECT original_reviewer FROM world_cover_appeals WHERE world_id=? AND status='reopened' ORDER BY id DESC LIMIT 1").get(item.world_id);
-    check(!recheck||recheck.original_reviewer!==user.id,403,'После апелляции требуется новый независимый проверяющий');
+    const recheck=db.prepare("SELECT original_reviewer,cover_sha256 FROM world_cover_appeals WHERE world_id=? AND status='reopened' ORDER BY id DESC LIMIT 1").get(item.world_id);
+    check(!recheck||recheck.cover_sha256!==hash(Buffer.from(item.png))||recheck.original_reviewer!==user.id,
+     403,'После апелляции требуется новый независимый проверяющий');
     const decision=body.decision;
     if(decision==='approved'){
      let canonical=false;
