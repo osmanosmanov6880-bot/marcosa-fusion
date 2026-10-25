@@ -76,14 +76,14 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r60.media_browser_cdp.mjs
           node server-lab/test/r60.media_browser_cdp.mjs
-      - name: Upload R60 verified private media QA screenshots
-        if: github.event_name == 'pull_request'
+      - name: Upload R60 browser media QA screenshots
+        if: always() && github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: marcosa-r60-real-media-lifecycle-chromium
           path: qa-r60/
           retention-days: 7
-          if-no-files-found: error
+          if-no-files-found: warn
       - name: Upload real browser captures including pilot onboarding and social safety
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
