@@ -201,6 +201,17 @@ async function main(){
    await cdp.wait("document.getElementById('my-sponsors').textContent.includes('revoked')",'r30-consent-revocation');
    const revoked=await cdp.evalJS("document.getElementById('my-sponsors').textContent.includes('revoked')");
    if(!revoked)throw Error('R30_SPONSOR_REVOCATION_NOT_REFLECTED_'+size.name);
+   // R40: actual blocker UI changes persisted server-side World catalogue and
+   // creates no fake relationships. Unblock must restore visibility, not follows.
+   await cdp.evalJS("(()=>{const card=Array.from(document.querySelectorAll('#world-list .world-card')).find(x=>x.textContent.includes('u-r30host'));if(!card)return false;window.confirm=()=>true;card.querySelector('button.block-user').click();return true;})()");
+   await cdp.wait("document.getElementById('blocked-users-list')?.textContent.includes('@r30host')",'r40-block-author');
+   await cdp.wait("!document.getElementById('world-list')?.textContent.includes('u-r30host')",'r40-hide-blocked-world');
+   await cdp.evalJS("(()=>{document.getElementById('blocks-panel').open=true;document.getElementById('blocks-panel').scrollIntoView({behavior:'instant',block:'center'});return true;})()");
+   await pause(140);
+   await screenshot('account-blocks');
+   await cdp.evalJS("document.querySelector('#blocked-users-list button.unblock-user').click()");
+   await cdp.wait("document.getElementById('world-list')?.textContent.includes('u-r30host')",'r40-unblock-visible-world');
+   await cdp.wait("document.getElementById('blocked-users-list')?.textContent.includes('пока никого не блокировал')",'r40-unblock-inbox-clear');
    // R39: genuine browser security controls, no DOM-only simulation.
    await cdp.evalJS("(()=>{document.getElementById('security-panel').open=true;document.getElementById('security-refresh').click();return true;})()");
    await cdp.wait("document.getElementById('security-sessions')?.textContent.includes('Активных сессий: 1')",'r39-real-session-count');
@@ -222,7 +233,7 @@ async function main(){
    if(cdp.errors.length)throw Error('BROWSER_JS_ERRORS '+cdp.errors.slice(0,5).join(' | '));
    console.log('R30 BROWSER PASS',size.name,JSON.stringify({public:initial,authenticated:audit,external:0}));
   }
-  console.log('R39 BROWSER QA COMPLETE: 21 Chrome screenshots, real World Studio and security rotation on desktop/phones');
+  console.log('R40 BROWSER QA COMPLETE: 24 Chrome screenshots, real blocking/unblocking, creator studio and rotated passwords on all screens');
  }finally{
   cdp?.close();
   if(chrome){
