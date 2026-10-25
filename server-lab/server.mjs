@@ -715,7 +715,12 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const decision=body.decision;
     if(decision==='approved'){
      let canonical=false;
-     try{canonical=sanitizePngCover(item.png).png.equals(item.png);}catch{canonical=false;}
+     try{
+      // Node 22 node:sqlite returns BLOB as Uint8Array, not a Buffer.
+      // Normalize the in-memory representation before validating the PNG.
+      const persisted=Buffer.from(item.png);
+      canonical=sanitizePngCover(persisted).png.equals(persisted);
+     }catch{canonical=false;}
      check(canonical,422,'Материал не прошёл обязательную PNG-нормализацию');
     }
     atomic(()=>{
