@@ -67,13 +67,39 @@ test('R68 real share HTML: safe metadata, noindex, blocked users, older worlds a
   const pixels=png();
   app.db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(w.id,pixels,2,2,pixels.length,100,'approved',reviewer,101);
+  // R78: catalogue, search, direct World, binary and OG must agree on rights.
+  const detail=async target=>(await req('/api/worlds/'+target)).json().world;
+  const discovery=async term=>(await req('/api/discover?q='+encodeURIComponent(term))).json().worlds;
+  const catalog=async ()=>(await req('/api/worlds')).json().items;
+  assert.equal((await detail(slug)).hasCover,0,'No claim must disable direct World cover flag');
+  assert.equal((await discovery('Creative')).find(x=>x.slug===slug)?.hasCover,0,
+   'No claim must disable search cover flag');
+  const archiveSlug='r68-archive-35';
+  const archiveId=app.db.prepare('SELECT id FROM worlds WHERE slug=?').get(archiveSlug).id;
+  app.db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?)")
+   .run(archiveId,pixels,2,2,pixels.length,100,'approved',reviewer,101);
+  assert.equal((await catalog()).find(x=>x.slug===archiveSlug)?.hasCover,0,
+   'No claim must disable first-page catalog cover flag');
   // R74: historical approved covers must NOT acquire a fake rights statement.
   assert.doesNotMatch((await req(link)).body,/<meta property="og:image"/);
   assert.equal((await req('/api/worlds/'+slug+'/cover')).status,404);
   app.db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?)")
    .run(w.id,w.owner_id,createHash('sha256').update(pixels).digest('hex'),Date.now());
+  assert.equal((await detail(slug)).hasCover,1,'Current SHA claim enables direct World cover flag');
+  assert.equal((await discovery('Creative')).find(x=>x.slug===slug)?.hasCover,1,
+   'Current SHA claim enables search cover flag');
+  app.db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?)")
+   .run(archiveId,w.owner_id,createHash('sha256').update(pixels).digest('hex'),Date.now());
+  assert.equal((await catalog()).find(x=>x.slug===archiveSlug)?.hasCover,1,
+   'Matching SHA enables first-page catalog thumbnail flag');
+  app.db.prepare('UPDATE world_cover_rights SET asset_sha256=? WHERE world_id=?').run('0'.repeat(64),archiveId);
+  assert.equal((await catalog()).find(x=>x.slug===archiveSlug)?.hasCover,0,
+   'Forged digest must disable first-page catalog thumbnail flag');
   assert.match((await req(link)).body,/<meta property="og:image"/);
   app.db.prepare("UPDATE users SET role='member' WHERE id=?").run(reviewer);
+  assert.equal((await detail(slug)).hasCover,0,'Reviewer demotion revokes World cover flag');
+  assert.equal((await discovery('Creative')).find(x=>x.slug===slug)?.hasCover,0,
+   'Reviewer demotion revokes search cover flag');
   assert.doesNotMatch((await req(link)).body,/<meta property="og:image"/);
   app.db.prepare("UPDATE world_covers SET review_status='rejected' WHERE world_id=?").run(w.id);
   assert.doesNotMatch((await req(link)).body,/<meta property="og:image"/);
