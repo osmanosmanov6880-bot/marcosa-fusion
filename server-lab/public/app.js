@@ -87,7 +87,13 @@ async function pilotMetrics(){
 }
 async function reviewCovers(){
  if(!state.me||state.me.role!=='moderator')return;
- const result=await api('/mod/cover-queue'),target=$('mod-cover-list');clear(target);
+ const [result,audit]=await Promise.all([api('/mod/cover-queue'),api('/mod/cover-audit')]);
+ const target=$('mod-cover-list');clear(target);
+ const history=$('mod-cover-audit');clear(history);
+ for(const item of audit.items){
+  history.append(node('p',item.slug+' · '+(item.decision==='approved'?'Одобрено':'Отклонено')+' · '+(item.reviewer?'@'+item.reviewer:'проверяющий удалён')+' · '+new Date(item.reviewedAt).toLocaleString('ru-RU'),'audit-row'));
+ }
+ if(!audit.items.length)history.append(node('p','Решений по изображениям пока нет.','muted'));
  for(const item of result.items){
   const row=node('article','','mod-cover-item');
   row.append(node('strong',item.title+' · @'+item.owner),node('small',item.width+' × '+item.height+' px · ожидает рассмотрения'));
@@ -224,7 +230,7 @@ async function session(){
   $('world-cover-preview').hidden=true;
   $('world-cover-preview').removeAttribute('src');
   $('world-cover-delete').disabled=true;
-  clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));
+  clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-cover-audit'));
   clear($('onboarding-steps'));$('onboarding-progress').value=0;
   $('onboarding-counter').textContent='0 из 5 шагов';
   $('notification-settings-form').reset();
