@@ -43,7 +43,7 @@ export async function encryptedRecoveryDrill({database,destination,passphrasePat
   completed=true;
   return{ok:true,archive:out,format:ARCHIVE_FORMAT,encrypted:true,
    isolatedRecoveryPassed:true,sha256Matches:true,
-   sourceDatabaseUnmodified:true,producedBytes:statSync(out).size,
+   sourceDatabaseOpenedReadOnly:true,producedBytes:statSync(out).size,
    sqliteVerification:verification,
    scope:'local SQLite only; not PostgreSQL PITR or offsite DR'};
  }finally{
