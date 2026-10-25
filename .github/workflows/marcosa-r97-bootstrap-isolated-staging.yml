@@ -1,0 +1,76 @@
+name: "MARCOSA | R97 bootstrap restricted STAGING on verified VPS"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r97-bootstrap-isolated-staging.yml"
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type BOOTSTRAP-ISOLATED-STAGING to provision the dedicated nonproduction directory"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: marcosa-staging-bootstrap
+  cancel-in-progress: false
+jobs:
+  bootstrap:
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirmation == 'BOOTSTRAP-ISOLATED-STAGING')
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify dedicated deploy key and pinned SSH server, create only isolated STAGING directories
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          source ops/load-pinned-staging-host.sh
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || { echo "::error::Only marcosa-deploy can bootstrap"; exit 2; }
+          : "${DEPLOY_KEY:?Missing dedicated SSH private deploy key}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || { echo "::error::Deploy private key does not match approved public key"; exit 2; }
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          ssh -i "$TMP/key" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          [[ "$(id -un)" == "marcosa-deploy" && "$HOME" == "/home/marcosa-deploy" ]] || exit 2
+          ROOT="$HOME/marcosa-staging"
+          for p in "$ROOT" "$ROOT/incoming" "$ROOT/releases" "$ROOT/.staging-approved"; do
+            [[ ! -L "$p" ]] || { echo "STAGING_BOOTSTRAP=REFUSED_SYMLINK"; exit 2; }
+          done
+          [[ ! -e "$ROOT" || -d "$ROOT" ]] || exit 2
+          install -d -m 750 "$ROOT" "$ROOT/incoming" "$ROOT/releases"
+          MARKER="$ROOT/.staging-approved"
+          if [[ -e "$MARKER" ]]; then
+            [[ -f "$MARKER" && ! -L "$MARKER" ]] || exit 2
+            [[ "$(tr -d '\r\n' < "$MARKER")" == "MARCOSA-STAGING-APPROVED-v1" ]] || exit 2
+          else
+            printf 'MARCOSA-STAGING-APPROVED-v1\n' > "$MARKER"
+            chmod 600 "$MARKER"
+          fi
+          [[ -w "$ROOT/incoming" && -w "$ROOT/releases" ]] || exit 2
+          echo "STAGING_BOOTSTRAP=PASS"
+          echo "STAGING_PATH=$ROOT"
+          echo "TARGET_HOST=$(hostname)"
+          echo "RUN_AS=$(id -un)"
+          echo "Nginx public server roots (read only):"
+          grep -Eh '^\s*(server_name|root|alias|location|listen)\b' /etc/nginx/sites-available/marcosa 2>/dev/null | head -n 35 || true
+          echo "PRODUCTION_UNCHANGED=YES"
+          REMOTE
