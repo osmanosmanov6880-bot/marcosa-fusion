@@ -67,7 +67,6 @@ jobs:
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           : "${DEPLOY_KEY:?Missing SSH-only restricted deployment key}"
           SOURCE_SHA="54bff8c46e4fb285dff5fbd39422ab84f85a87ff"
-          EXPECTED_MANIFEST_SHA256="$(node -p 'JSON.parse(require("node:fs").readFileSync("staging-expected-"+process.env.SOURCE_SHA+".json","utf8")).buildManifestSha256' SOURCE_SHA="$SOURCE_SHA")"
           # The runner's source SHA is an explicit argument, NOT an inferred live version.
           EXPECTED_MANIFEST_SHA256="$(node -p 'JSON.parse(require("node:fs").readFileSync("staging-expected-54bff8c46e4fb285dff5fbd39422ab84f85a87ff.json","utf8")).buildManifestSha256')"
           [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]] || exit 2
