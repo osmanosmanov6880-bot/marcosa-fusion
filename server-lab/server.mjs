@@ -184,6 +184,10 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  check(['legacy','single-use','closed'].includes(registrationMode),400,'Unknown local registration policy');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ // R78: SQLite has no builtin SHA256. Keep catalog flags consistent with the
+ // exact normalized PNG bytes actually authorized by the delivery endpoint.
+ db.function('marcosa_sha256',{deterministic:true},blob=>
+  blob instanceof Uint8Array?hash(Buffer.from(blob)):null);
  upgradeWorldCoverReview(db);
  upgradeWorldTopics(db);
  upgradeLegacySponsorStatuses(db);
@@ -346,7 +350,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -368,7 +372,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
 FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
@@ -381,7 +385,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&worldDetail){
     const viewer=who(req)?.id||'';
     const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
-     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,
+     EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,
      u.username AS owner,
      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
