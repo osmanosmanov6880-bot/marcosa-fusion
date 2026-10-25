@@ -90,6 +90,23 @@ async function moderatorQueueHealth(){
  $('mod-queue-health-status').textContent=value+' · '+new Date(report.generatedAt).toLocaleString('ru-RU')
   +' · только локальная SQLite. Это не договорной SLA.';
 }
+async function operatorReadiness(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const response=await fetch('/api/mod/readiness',{credentials:'same-origin',cache:'no-store'});
+ if(response.status!==200&&response.status!==503)throw Error('Диагностика базы недоступна');
+ const report=await response.json();
+ const kind=!report.readReady?'failed':report.writeReady&&report.publicMediaReady?'ok':'degraded';
+ const keys={ok:'ops.readiness.ok',degraded:'ops.readiness.degraded',failed:'ops.readiness.failed'};
+ const fallback={
+  ok:'SQLite: целостность и связи подтверждены. Режимы действуют только в локальной лаборатории.',
+  degraded:'SQLite целостна, но публикация или изображения ограничены.',
+  failed:'Обнаружена проблема целостности SQLite. Восстановление требует независимой проверки.'
+ };
+ const target=$('mod-readiness-status');
+ target.dataset.ready=String(report.readReady);
+ target.dataset.i18nDynamic=keys[kind];
+ target.textContent=localText(keys[kind],fallback[kind]);
+}
 async function pilotMetrics(){
  if(!state.me||state.me.role!=='moderator')return;
  const report=await api('/mod/pilot-metrics');
@@ -1020,6 +1037,7 @@ $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
 $('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
 $('mod-queue-health-refresh').addEventListener('click',()=>run(moderatorQueueHealth,'Реальные очереди пересчитаны из SQLite'));
+$('mod-readiness-refresh').addEventListener('click',()=>run(operatorReadiness));
 $('retention-enable').addEventListener('click',()=>run(async()=>{
  await api('/me/retention-consent','POST',{consent:true});await loadRetentionConsent();
 },'Согласие сохранено. До этого дня посещения не учитывались.'));
