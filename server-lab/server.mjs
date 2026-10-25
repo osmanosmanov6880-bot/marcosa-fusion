@@ -12,6 +12,7 @@ import {dirname,resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {promisify} from 'node:util';
 import {scrypt,randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
+import {sanitizePngCover,MAX_COVER_BYTES} from './media/safe-png.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -40,6 +41,19 @@ const passwordMatches=async(password,record)=>{
  const digest=await pwdHash(password,record?.salt||'00000000000000000000000000000000');
  return Boolean(record)&&timingSafeEqual(Buffer.from(digest,'hex'),Buffer.from(record.password_hash,'hex'));
 };
+async function readPngBody(req){
+ const mime=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+ check(mime==='image/png',415,'Для обложки разрешён только PNG');
+ check(!req.headers['content-encoding'],415,'Сжатое тело не поддерживается');
+ const declared=Number(req.headers['content-length']||0);
+ check(Number.isFinite(declared)&&declared>=0&&declared<=MAX_COVER_BYTES,413,'Размер обложки слишком велик');
+ const chunks=[];let total=0;
+ for await(const part of req){
+  total+=part.length;check(total<=MAX_COVER_BYTES,413,'Размер обложки слишком велик');
+  chunks.push(part);
+ }
+ return Buffer.concat(chunks);
+}
 async function readJSON(req){
  check(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()==='application/json',415,'Нужен application/json');
  const chunks=[];let length=0;
@@ -55,6 +69,7 @@ const SCHEMA=[
  'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
+ "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL)",
  'CREATE TABLE IF NOT EXISTS posts (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, author_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 2000), status TEXT NOT NULL CHECK(status IN (\'draft\',\'published\',\'hidden\')), created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_posts_public ON posts(status,id DESC)',
  'CREATE INDEX IF NOT EXISTS idx_posts_owner ON posts(author_id,id DESC)',
@@ -153,7 +168,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
-  myWorlds:db.prepare('SELECT id,slug,title,description,category FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  myWorlds:db.prepare('SELECT id,slug,title,description,category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
@@ -269,7 +284,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -291,12 +306,42 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id) AS hasCover,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
 FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
 ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{items,category:category||null});return;
+   }
+   const coverRoute=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/cover$/);
+   if(coverRoute&&method==='GET'){
+    const source=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(coverRoute[1]);
+    check(source,404,'Мир не найден');
+    const viewer=who(req)?.id||'';
+    check(!viewer||!isBlocked(viewer,source.owner_id),404,'Обложка недоступна');
+    const image=db.prepare('SELECT png FROM world_covers WHERE world_id=?').get(source.id);
+    check(image,404,'Обложка не найдена');
+    res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
+      'Content-Disposition':'inline','Cache-Control':'private, no-store',
+      'X-Content-Type-Options':'nosniff','Cross-Origin-Resource-Policy':'same-origin'});
+    res.end(image.png);return;
+   }
+   if(coverRoute&&method==='POST'){
+    originGuard(req,verifiedHost);
+    throttle('mut:'+clientIp(req),180,60000);
+    const owner=requireUser(req);
+    throttle('cover:'+owner.id,12,3600000);
+    const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],owner.id);
+    check(world,404,'Мир не найден');
+    const body=await readPngBody(req);
+    let safe;
+    try{safe=sanitizePngCover(body);}
+    catch{throw new HttpError(422,'Обложка должна быть PNG RGB/RGBA без анимации, до 1600 px и 768 KiB');}
+    db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at")
+     .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
+    send(res,200,{hasCover:true,width:safe.width,height:safe.height,bytes:safe.bytes,
+      type:'image/png',metadataRemoved:true,slug:coverRoute[1],production:false});
+    return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
    if(method==='GET'&&worldRoute){
@@ -439,13 +484,14 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
+    const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
     const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -595,6 +641,12 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
      .run(user.id,Number(next.follows),Number(next.comments),Number(next.sponsorships),now());
     send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
      delivery:'local-inbox-only'});return;
+   }
+   if(method==='DELETE'&&coverRoute){
+    const world=db.prepare('SELECT id FROM worlds WHERE slug=? AND owner_id=?').get(coverRoute[1],user.id);
+    check(world,404,'Мир не найден');
+    const removed=db.prepare('DELETE FROM world_covers WHERE world_id=?').run(world.id);
+    send(res,200,{hasCover:false,removed:Boolean(removed.changes),slug:coverRoute[1]});return;
    }
    if(method==='POST'&&route==='/api/me/security/revoke-others'){
     throttle('security:'+user.id,12,3600000);
