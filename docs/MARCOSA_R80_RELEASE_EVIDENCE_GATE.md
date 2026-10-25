@@ -1,5 +1,30 @@
-# MARCOSA R80 — production evidence gate
+# MARCOSA R80 — безопасная приёмка мирового релиза
 
-The local release checker is **not** proof of a deployed service. It rejects an empty or incomplete ten-part external release checklist, demands HTTPS evidence references, and returns a nonzero exit code. Evidence URLs are self-reported and require an independent human security/legal review. A syntactically complete JSON file alone cannot authorize a production launch. Real Supabase, HTTPS staging, private media, verified SSH, paid operations and real cohorts remain separate release blockers.
+**Окончательный вердикт программы никогда не равен разрешению на production.**
+R80 — тонкая исполняемая оболочка над уже принятым механизмом R48
+(`ops/check-release-gate.mjs`), без второго слабого формата доказательств.
 
-Run `node --test ops/test/release-evidence-gate.test.mjs`, then `node ops/release-evidence-gate.mjs evidence.json`. Never place credentials, SSH secrets or personal user data in the evidence file.
+Проверяется **полный публичный профиль R48**, а не только десять выбранных полей.
+Обязательны SHA конкретного кандидатного коммита, действительные HTTPS-ссылки на
+доказательства, имена проверяющих, временная актуальность и статус
+`approval.status=pending`. Полный комплект возвращает только
+`READY_FOR_INDEPENDENT_REVIEW`, `readyForIndependentReview=true`,
+`productionReady=false` и `productionAuthorized=false`.
+
+Исполняемая проверка:
+
+```bash
+node --test ops/test/release-evidence-gate.test.mjs
+node ops/release-evidence-gate.mjs ops/release-evidence.json --sha EXACT_40_HEX_COMMIT
+```
+
+CLI возвращает код 2 для `BLOCKED` и код 0 лишь при наличии правильно
+оформленного набора для **дополнительной ручной проверки**. Нулевой код
+не авторизует деплой, платные операции, выдачу персональных данных или запуск
+публичной регистрации. Объявить выпуск безопасным можно только после
+действительной верификации артефактов, проверенного SSH, изолированной облачной
+инфраструктуры, Restore DR, юридической и security-приёмки и независимого
+решения уполномоченного владельца. Наличие ссылок в JSON ничего этого не доказывает.
+
+Секреты, токены, персональные данные и приватные SSH-ключи не помещаются в
+файл доказательств. Мировой выпуск остаётся закрытым по Issue #55.
