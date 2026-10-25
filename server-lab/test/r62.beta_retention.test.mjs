@@ -50,8 +50,8 @@ test('R62: opt-in UTC D7/D30 from invited users only, explicit erasure, owner is
   out=await req('/me/retention-consent',{method:'POST',cookie:memberCookie,data:{consent:true}});
   assert.equal(out.status,200);assert.equal(out.data.changed,false,'repeat does not reset cohort');
   const day0=Math.floor(clock/DAY);
-  assert.deepEqual(lab.db.prepare('SELECT day_utc,source FROM beta_retention_days WHERE user_id=?').all(invited.id),
-   [{day_utc:day0,source:'consent'}]);
+  assert.deepEqual(lab.db.prepare('SELECT day_utc,source FROM beta_retention_days WHERE user_id=?').all(invited.id)
+    .map(({day_utc,source})=>({day_utc,source})),[{day_utc:day0,source:'consent'}]);
   out=await req('/me/retention-consent',{method:'POST',cookie:plainCookie,data:{consent:true}});
   assert.equal(out.status,200,'noninvited also controls their private data');
   out=await req('/mod/pilot-metrics',{cookie:modCookie});
