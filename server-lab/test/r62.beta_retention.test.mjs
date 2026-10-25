@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApp} from '../server.mjs';
 
-test('R62: opt-in UTC D7/D30 from invited users only, explicit erasure, owner isolation',async()=>{
+test('R62/R88: opt-in UTC D7/D30 with under-five suppression, erasure and owner isolation',async()=>{
  let clock=Date.parse('2026-01-01T11:00:00Z');
  const DAY=86400000,lab=createApp({inviteCode:'r62-safe-local-invite-2026',now:()=>clock});
  await new Promise(ok=>lab.server.listen(0,'127.0.0.1',ok));
@@ -56,7 +56,9 @@ test('R62: opt-in UTC D7/D30 from invited users only, explicit erasure, owner is
   assert.equal(out.status,200,'noninvited also controls their private data');
   out=await req('/mod/pilot-metrics',{cookie:modCookie});
   assert.equal(out.status,200);assert.equal(out.data.retentionD7,null);assert.equal(out.data.retentionD30,null);
-  assert.equal(out.data.retentionEvidence.consentingInvited,1,'non-invited users are not pilot cohort');
+  assert.equal(out.data.retentionEvidence.consentingInvited,null,'single participant opted-in state is private');
+  assert.equal(out.data.retentionEvidence.consentCountSuppressed,true);
+  assert.equal(out.data.retentionEvidence.minimumDisclosureEligible,5);
   assert.equal(out.data.production,false);assert.equal(out.data.paidRevenue,null);
 
   clock+=6*DAY;
@@ -67,18 +69,19 @@ test('R62: opt-in UTC D7/D30 from invited users only, explicit erasure, owner is
   plainCookie=await login(plain);
   modCookie=await login(mod);
   out=await req('/mod/pilot-metrics',{cookie:modCookie});
-  assert.equal(out.status,200);assert.equal(out.data.retentionD7,1);
-  assert.deepEqual(out.data.retentionEvidence.d7,{eligible:1,returned:1,rate:1});
+  assert.equal(out.status,200);assert.equal(out.data.retentionD7,null);
+  assert.deepEqual(out.data.retentionEvidence.d7,{eligible:null,returned:null,rate:null,suppressed:true});
   assert.equal(out.data.retentionD30,null,'an immature cohort is unmeasured, not zero');
 
   clock+=23*DAY;
   modCookie=await login(mod);
   out=await req('/mod/pilot-metrics',{cookie:modCookie});
-  assert.equal(out.data.retentionD30,0,'eligible but not returned is a real zero');
-  assert.deepEqual(out.data.retentionEvidence.d30,{eligible:1,returned:0,rate:0});
+  assert.equal(out.data.retentionD30,null,'one eligible member is suppressed, never reported as zero');
+  assert.deepEqual(out.data.retentionEvidence.d30,{eligible:null,returned:null,rate:null,suppressed:true});
   memberCookie=await login(invited);
   out=await req('/mod/pilot-metrics',{cookie:modCookie});
-  assert.equal(out.data.retentionD30,1);
+  assert.equal(out.data.retentionD30,null);
+  assert.equal(out.data.retentionEvidence.d30.suppressed,true);
   const exported=await req('/account/export',{cookie:memberCookie});
   assert.ok(exported.data.retentionConsent);
   assert.deepEqual(exported.data.retentionDays.map(x=>x.dayUtc),[day0,day0+6,day0+7,day0+30]);
