@@ -163,7 +163,7 @@ async function main() {
      +"const dt=new DataTransfer();dt.items.add(new File([source],'creator-owned.png',{type:'image/png'}));"
      +"document.getElementById('world-cover-panel').open=true;"
      +"document.getElementById('world-cover-file').files=dt.files;"
-     +"document.getElementById('world-cover-form').requestSubmit();return source.length;})()";
+     +"document.getElementById('world-cover-rights').checked=true;document.getElementById('world-cover-form').requestSubmit();return source.length;})()";
     const sizeUploaded=await cdp.evalJS(expression);
     if(sizeUploaded<57)throw Error('R60_INVALID_FIXTURE');
     await cdp.wait("document.getElementById('world-cover-status')?.textContent.includes('ожидает модерации')",'r60-owner-upload-pending');
