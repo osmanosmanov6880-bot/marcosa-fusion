@@ -14,6 +14,15 @@ async function api(path,method='GET',data){
  if(!res.ok)throw Error(result.error||'Сервер недоступен');
  return result;
 }
+async function refreshIncidentBanner(){
+ const status=await api('/health'),banner=$('incident-banner');
+ const media=status.publicMediaDelivery==='disabled',content=status.contentWrites==='disabled';
+ const key=media&&content?'incident.both':content?'incident.content':media?'incident.media':null;
+ if(!key){banner.hidden=true;banner.textContent='';delete banner.dataset.i18nDynamic;return;}
+ banner.dataset.i18nDynamic=key;
+ banner.textContent=localText(key,'Временная защита MARCOSA: некоторые действия приостановлены.');
+ banner.hidden=false;
+}
 const node=(tag,text='',cls='')=>{
  const el=document.createElement(tag);
  if(cls)el.className=cls;
@@ -1043,7 +1052,7 @@ window.addEventListener('marcosa:locale-change',()=>{
  }
 });
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
-loadTopics().then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
+Promise.all([loadTopics(),refreshIncidentBanner()]).then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
   const route=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
