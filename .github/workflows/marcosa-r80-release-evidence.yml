@@ -1,0 +1,32 @@
+name: MARCOSA | R80 production evidence gate
+on:
+  pull_request:
+    paths:
+      - 'ops/release-evidence-gate.mjs'
+      - 'ops/test/release-evidence-gate.test.mjs'
+      - '.github/workflows/marcosa-r80-release-evidence.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'ops/release-evidence-gate.mjs'
+      - 'ops/test/release-evidence-gate.test.mjs'
+permissions:
+  contents: read
+jobs:
+  fail-closed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --check ops/release-evidence-gate.mjs
+      - run: node --test ops/test/release-evidence-gate.test.mjs
+      - name: Reject empty production evidence
+        shell: bash
+        run: |
+          printf '{}' > /tmp/marcosa-empty-evidence.json
+          if node ops/release-evidence-gate.mjs /tmp/marcosa-empty-evidence.json; then
+            echo 'Empty evidence must never pass!'
+            exit 1
+          fi
