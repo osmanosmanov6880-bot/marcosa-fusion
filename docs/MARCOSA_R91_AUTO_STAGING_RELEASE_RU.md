@@ -32,3 +32,15 @@ GitHub environment `marcosa-staging` должен оставаться защи�
 Workflow `.github/workflows/marcosa-staging.yml` должен завершить `build`, `deploy_staging` и шаг `Independently verify hosted STAGING HTTPS bytes`. Доказательство должно содержать полный `GITHUB_SHA`, `reviewedBuildManifestSha256`, три сравнения `index.html`, `network.js`, `network.css` и `verified:true`; эти значения подтверждают только **статический STAGING**, не пользовательскую API/БД/production.
 
 Примечание об аккаунтах: репозиторий принадлежит GitHub `osmanosmanov6880-bot`; подключённый `HADJAL001` имеет к нему только чтение. Email GitHub не заменяет ни сервер, ни домен, ни права публикации.
+
+## R92 — правильный GitHub SSH-ключ и подтверждение целевого VPS
+
+После восстановления доступа к Contabo `vmi3625032 / 169.58.48.38` администратор создал отдельный SSH-ключ `marcosa_github_actions` от имени `marcosa-deploy`. Его закрытая часть добавлена в repository secret `DEPLOY_SSH_KEY`, а сервер хранит соответствующий публичный ключ в `authorized_keys`. Верифицируемый отпечаток публичной части: `SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0`.
+
+Три SSH workflow теперь используют **только** `DEPLOY_SSH_KEY`, а не устаревший `MARCOSA_SSH_KEY`, проверяют указанный отпечаток ключа и требуют строго целевой VPS `169.58.48.38`. Старые репозиторные секреты не удалять до инвентаризации. Скрипт ручного отката также проверяет независимый `MARCOSA_STAGING_HOST_FINGERPRINT`, pinned known_hosts и целевой сервер перед любым действием.
+
+**Для настоящего STAGING ещё необходимо**: актуальный `MARCOSA_STAGING_HOST=169.58.48.38`; независимая верификация host ED25519 fingerprint от Contabo, занесённого в secret `MARCOSA_STAGING_HOST_FINGERPRINT`; полная запись `169.58.48.38 ssh-ed25519 ...` в `MARCOSA_SSH_KNOWN_HOSTS`; заранее одобренная staging-директория с `incoming/`, `releases/`, `.staging-approved`; отдельный, действительно маршрутизируемый HTTPS STAGING с переменными `MARCOSA_STAGING_ORIGIN` и `MARCOSA_STAGING_PUBLIC_HOST`. Для этого есть штатный `scripts/bootstrap-staging.sh`. Не передавать приватные ключи, токены или содержимое секретов через чат.
+
+Папка действующего `marcosa.club` — `/opt/marcosa/current`, она root-owned и не является данным staging релизом. GitHub pipeline до отдельного production approval **не перезаписывает** этот сайт.
+
+Поскольку секретный deploy private key изначально создан на VPS, после проверки публикации перенесите его хранение в нормальный секрет-менеджер администратора и удалите лишний локальный приватный файл на сервере, оставив публичную часть в `authorized_keys`. Ротацию согласовывать с CI и резервным способом входа.

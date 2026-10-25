@@ -11,24 +11,32 @@ fail() {
 }
 : "${DEPLOY_HOST:?Set MARCOSA_STAGING_HOST repository secret}"
 : "${DEPLOY_USER:?Set MARCOSA_STAGING_USER repository secret}"
-: "${DEPLOY_KEY:?Set MARCOSA_SSH_KEY repository secret}"
+: "${DEPLOY_KEY:?Set DEPLOY_SSH_KEY repository secret}"
 : "${KNOWN_HOSTS:?Set MARCOSA_SSH_KNOWN_HOSTS repository secret}"
 DEPLOY_PORT="${DEPLOY_PORT:-22}"
 [[ "$DEPLOY_HOST" =~ ^[a-zA-Z0-9.-]{1,253}$ && "$DEPLOY_HOST" != -* && "$DEPLOY_HOST" != *..* ]] || fail "INVALID_HOST" "Configure a DNS name or IPv4 address, not an URL or port."
-[[ "$DEPLOY_USER" == "marcosa-deploy" ]] || fail "INVALID_USER" "MARCOSA_STAGING_USER must be the restricted marcosa-deploy account, never root."
+[[ "$DEPLOY_USER" == "marcosa-deploy" ]] || fail "INVALID_USER" "MARCOSA_STAGING_USER must be restricted marcosa-deploy, never root."
 [[ "$DEPLOY_PORT" =~ ^[0-9]{1,5}$ ]] || fail "INVALID_PORT" "SSH port must be numeric."
 ((10#$DEPLOY_PORT >= 1 && 10#$DEPLOY_PORT <= 65535)) || fail "INVALID_PORT" "SSH port out of range."
 if [[ "$DEPLOY_KEY" == ssh-ed25519\ * || "$DEPLOY_KEY" == ssh-rsa\ * ]]; then
   fail "PUBLIC_KEY_AS_PRIVATE" "MARCOSA_SSH_KEY contains a public key. It must contain the private key, not a .pub file."
 fi
+: "${EXPECTED_STAGING_HOST:?Set independently confirmed staging VPS IP}"
+[[ "$DEPLOY_HOST" == "$EXPECTED_STAGING_HOST" ]] ||
+  fail "WRONG_VPS" "Configured SSH host differs from confirmed MARCOSA VPS."
+: "${EXPECTED_DEPLOY_KEY_FP:?Set approved deploy public-key fingerprint}"
 TMP="$(mktemp -d)"
 trap 'rm -rf -- "$TMP"' EXIT
 mkdir -m 700 "$TMP/ssh"
 printf '%s\n' "$DEPLOY_KEY" | sed 's/\r$//' > "$TMP/ssh/id_deploy"
 chmod 600 "$TMP/ssh/id_deploy"
 if ! ssh-keygen -y -P '' -f "$TMP/ssh/id_deploy" >/dev/null 2>&1; then
-  fail "INVALID_PRIVATE_KEY" "Private key is invalid or encrypted with a passphrase. Check MARCOSA_SSH_KEY."
+  fail "INVALID_PRIVATE_KEY" "Key invalid or encrypted with a passphrase. Check DEPLOY_SSH_KEY."
 fi
+ACTUAL_DEPLOY_KEY_FP="$(ssh-keygen -y -P '' -f "$TMP/ssh/id_deploy" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+[[ "$ACTUAL_DEPLOY_KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] ||
+  fail "WRONG_DEPLOY_KEY" "GitHub deploy key does not match the preapproved marcosa-deploy public key."
+
 # R83: Full, exact host:port pinned ED25519 known_hosts record is required.
 # The deployment uploader must consume this same format. No ssh-keyscan trust.
 : "${DEPLOY_HOST_FINGERPRINT:?Set independently verified MARCOSA_STAGING_HOST_FINGERPRINT}"
