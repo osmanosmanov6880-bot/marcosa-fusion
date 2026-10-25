@@ -20,6 +20,7 @@ const DAY=86400000;
 const COOKIE='marcosa_session';
 const hash=s=>createHash('sha256').update(s).digest('hex');
 const str=x=>typeof x==='string'?x.trim():'';
+const htmlAttr=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const int=x=>/^[1-9][0-9]{0,14}$/.test(String(x))&&Number.isSafeInteger(Number(x))?Number(x):0;
 const REASONS=new Set(['spam','abuse','privacy','other']);
 const WORLD_TOPICS=Object.freeze({general:'Все темы',art:'Искусство',technology:'Технологии',business:'Бизнес',education:'Образование',lifestyle:'Стиль жизни',travel:'Путешествия'});
@@ -270,6 +271,34 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const incoming=new URL(req.url||'/','http://localhost');
    const route=incoming.pathname;
    const query=incoming.searchParams;
+   // R68: real World metadata HTML for shares. Always noindex in this lab.
+   const worldPage=route.match(/^\/w\/([a-z][a-z0-9-]{2,39})$/);
+   if(method==='GET'&&worldPage){
+    const viewer=who(req)?.id||'';
+    const world=db.prepare("SELECT w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId,"
+     +" EXISTS(SELECT 1 FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator'"
+     +" WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover"
+     +" FROM worlds w JOIN users u ON u.id=w.owner_id WHERE w.slug=? LIMIT 1").get(worldPage[1]);
+    check(world&&(!viewer||!isBlocked(viewer,world.ownerId)),404,'Мир не найден');
+    const title=htmlAttr(world.title)+' · MARCOSA';
+    const description=htmlAttr(world.description||'Мир автора @'+world.owner);
+    const canonical=htmlAttr('http://'+verifiedHost+'/w/'+world.slug);
+    const meta=[
+     '<meta name="description" content="'+description+'">',
+     '<meta name="robots" content="noindex,nofollow">',
+     '<meta property="og:type" content="website">',
+     '<meta property="og:site_name" content="MARCOSA">',
+     '<meta property="og:title" content="'+title+'">',
+     '<meta property="og:description" content="'+description+'">',
+     '<meta property="og:url" content="'+canonical+'">'
+    ];
+    if(world.hasCover)meta.push('<meta property="og:image" content="'+htmlAttr('http://'+verifiedHost+'/api/worlds/'+world.slug+'/cover')+'">');
+    const template=await readFile(new URL('./public/index.html',import.meta.url),'utf8');
+    const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>')
+     .replace('</head>',meta.join('\n')+'\n</head>');
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Robots-Tag':'noindex, nofollow'});
+    res.end(html);return;
+   }
    if(method==='GET'&&['/','/app.js','/style.css'].includes(route)){
     const name=route==='/'?'index.html':route.slice(1);
     const data=await readFile(new URL('./public/'+name,import.meta.url));
