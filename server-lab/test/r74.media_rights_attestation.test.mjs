@@ -83,6 +83,13 @@ test('R74 real owner rights declaration: no silent consent, normalized PNG bindi
   lab.db.prepare('UPDATE world_cover_rights SET asset_sha256=?').run(sha(Buffer.from(cover.png)));
   r=await req('/mod'+path+'/review',{method:'POST',cookie:mod.cookie,data:{decision:'approved'}});
   assert.equal(r.status,200);assert.equal((await req(path)).status,200);
+  // Existing approved media is also hidden if its rights digest later becomes stale.
+  lab.db.prepare('UPDATE world_cover_rights SET asset_sha256=?').run('0'.repeat(64));
+  assert.equal((await req(path)).status,404,'No direct PNG bytes without current digest proof');
+  const previewWithoutClaim=await fetch(base+'/w/'+owner.world.slug).then(r=>r.text());
+  assert.doesNotMatch(previewWithoutClaim,/<meta property="og:image"/,'No OpenGraph link without proof');
+  lab.db.prepare('UPDATE world_cover_rights SET asset_sha256=?').run(sha(Buffer.from(cover.png)));
+  assert.equal((await req(path)).status,200);
 
   // Replacing an approved cover requires a NEW declaration for the NEW digest.
   const previousSha=rights.asset_sha256;
