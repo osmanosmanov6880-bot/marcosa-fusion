@@ -56,7 +56,17 @@ test('R73 real SQLite with users, PNG, complaint and consent: authenticated encr
   assert.equal(lstatSync(oneShot).mode&0o777,0o600);
   const restoredOneShot=await unsealSnapshot({archive:oneShot,destination:standaloneRestore,passphrasePath:key});
   assert.equal(restoredOneShot.verification.integrity,'ok');
-  assert.equal(await sha256(standaloneRestore),await sha256(live));
+  // VACUUM INTO normalizes SQLite page layout. Compare logical records,
+  // NOT file hash of live database (its byte layout can legitimately differ).
+  const oneShotDb=(await import('node:sqlite')).DatabaseSync;
+  const recovered=new oneShotDb(standaloneRestore,{readOnly:true});
+  try{
+   assert.equal(recovered.prepare('SELECT count(*) AS n FROM users').get().n,3);
+   assert.equal(recovered.prepare('SELECT count(*) AS n FROM world_cover_reports').get().n,1);
+   assert.equal(recovered.prepare('SELECT count(*) AS n FROM beta_retention_days').get().n,1);
+   assert.ok(Buffer.from(recovered.prepare('SELECT png FROM world_covers').get().png).equals(binary));
+   assert.deepEqual(recovered.prepare('PRAGMA foreign_key_check').all(),[]);
+  }finally{recovered.close();}
   assert.equal((await import('node:fs')).readdirSync(dir).some(x=>x.startsWith('.marcosa-encrypted-drill-')),false,'No plaintext drill directory may persist');
   await assert.rejects(()=>encryptedRecoveryDrill({database:live,destination:oneShot,passphrasePath:key}),/already exists/);
   const snap=await backupLocal({source:live,destination:plain});
