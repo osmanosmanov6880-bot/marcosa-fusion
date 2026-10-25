@@ -123,6 +123,12 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r77.dynamic_locale_keys.test.mjs
           node --test server-lab/test/r77.dynamic_locale_keys.test.mjs
+      - name: R85 reject hostile PNG variants, corrupted CRC and metadata with real SQLite
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r85.adversarial_png_security.test.mjs
+          node --test server-lab/test/r85.adversarial_png_security.test.mjs
       - name: R81 independent content freeze, account deletion and incident recovery QA
         shell: bash
         run: |
