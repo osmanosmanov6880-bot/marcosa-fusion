@@ -297,7 +297,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
@@ -319,7 +319,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
 FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
@@ -332,7 +332,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&worldDetail){
     const viewer=who(req)?.id||'';
     const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
-     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved') AS hasCover,
+     EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,
      u.username AS owner,
      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
@@ -348,7 +348,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(source,404,'Мир не найден');
     const viewer=who(req)?.id||'';
     check(!viewer||!isBlocked(viewer,source.owner_id),404,'Обложка недоступна');
-    const image=db.prepare("SELECT png FROM world_covers WHERE world_id=? AND review_status='approved'").get(source.id);
+    const image=db.prepare("SELECT c.png FROM world_covers c JOIN users reviewer ON reviewer.id=c.reviewed_by AND reviewer.role='moderator' WHERE c.world_id=? AND c.review_status='approved'").get(source.id);
     check(image,404,'Обложка не найдена');
     res.writeHead(200,{'Content-Type':'image/png','Content-Length':image.png.length,
       'Content-Disposition':'inline','Cache-Control':'private, no-store',
