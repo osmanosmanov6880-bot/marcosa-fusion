@@ -1,7 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {randomUUID} from 'node:crypto';
+import {deflateSync} from 'node:zlib';
 import {createApp} from '../server.mjs';
+function crc(b){let n=0xffffffff;for(const x of b){n^=x;for(let k=0;k<8;k++)n=(n&1)?(n>>>1)^0xedb88320:(n>>>1);}return(n^0xffffffff)>>>0;}
+function chunk(name,data){const x=Buffer.alloc(data.length+12);x.writeUInt32BE(data.length,0);x.write(name,4,'ascii');data.copy(x,8);x.writeUInt32BE(crc(x.subarray(4,x.length-4)),x.length-4);return x;}
+function png(){const h=Buffer.alloc(13);h.writeUInt32BE(2,0);h.writeUInt32BE(2,4);h[8]=8;h[9]=6;const row=Buffer.from([0,33,44,55,255,66,77,88,255]);return Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]),chunk('IHDR',h),chunk('IDAT',deflateSync(Buffer.concat([row,row]))),chunk('IEND',Buffer.alloc(0))]);}
+
 
 test('R68 real share HTML: safe metadata, noindex, blocked users, older worlds and review revocation',async()=>{
  const app=createApp({inviteCode:'r68-private-world-link'});
@@ -59,7 +64,7 @@ test('R68 real share HTML: safe metadata, noindex, blocked users, older worlds a
   assert.equal((await req(link)).status,200);
   app.db.prepare("UPDATE users SET role='moderator' WHERE username='mod68'").run();
   const reviewer=app.db.prepare("SELECT id FROM users WHERE username='mod68'").get().id;
-  const pixels=Buffer.alloc(92,64);
+  const pixels=png();
   app.db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,?,?,?)")
    .run(w.id,pixels,2,2,pixels.length,100,'approved',reviewer,101);
   assert.match((await req(link)).body,/<meta property="og:image"/);
