@@ -426,7 +426,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='GET'&&route==='/api/mod/cover-reports'){
     const reviewer=requireUser(req);
     check(reviewer.role==='moderator',403,'Доступ только независимому модератору');
-    const rows=db.prepare("SELECT r.id,r.cover_sha256,r.reason,r.detail,r.created_at AS createdAt,w.slug,w.title,u.username AS owner,c.png FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN worlds w ON w.id=r.world_id JOIN users u ON u.id=w.owner_id WHERE r.status='open' AND c.review_status='approved' AND w.owner_id<>? AND r.reporter_id<>? AND c.reviewed_by<>? ORDER BY r.id ASC LIMIT 50").all(reviewer.id,reviewer.id,reviewer.id);
+    const rows=db.prepare("SELECT r.id,r.cover_sha256,r.reason,r.detail,r.created_at AS createdAt,w.slug,w.title,u.username AS owner,c.png FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN users media_reviewer ON media_reviewer.id=c.reviewed_by AND media_reviewer.role='moderator' JOIN worlds w ON w.id=r.world_id JOIN users u ON u.id=w.owner_id WHERE r.status='open' AND c.review_status='approved' AND w.owner_id<>? AND r.reporter_id<>? AND c.reviewed_by<>? ORDER BY r.id ASC LIMIT 50").all(reviewer.id,reviewer.id,reviewer.id);
     const items=rows.filter(x=>hash(Buffer.from(x.png))===x.cover_sha256)
      .map(({id,reason,detail,createdAt,slug,title,owner})=>({id,reason,detail,createdAt,slug,title,owner}));
     send(res,200,{items,scope:'moderator',production:false});return;
@@ -809,7 +809,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     check(user.role==='moderator',403,'Доступ только независимому модератору');
     check(Object.keys(body).length===1&&['upheld','dismissed'].includes(body.decision),400,'Неверное решение');
     const id=int(decideCoverReport[1]);
-    const claim=db.prepare("SELECT r.id,r.world_id,r.reporter_id,r.cover_sha256,c.png,c.review_status,c.reviewed_by AS originalReviewer,w.owner_id FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN worlds w ON w.id=r.world_id WHERE r.id=? AND r.status='open'").get(id);
+    const claim=db.prepare("SELECT r.id,r.world_id,r.reporter_id,r.cover_sha256,c.png,c.review_status,c.reviewed_by AS originalReviewer,w.owner_id FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN users media_reviewer ON media_reviewer.id=c.reviewed_by AND media_reviewer.role='moderator' JOIN worlds w ON w.id=r.world_id WHERE r.id=? AND r.status='open'").get(id);
     check(claim,404,'Жалоба закрыта или удалена');
     check(claim.owner_id!==user.id&&claim.reporter_id!==user.id&&claim.originalReviewer!==user.id,403,'Решение требует другого независимого модератора');
     check(claim.review_status==='approved'&&claim.cover_sha256===hash(Buffer.from(claim.png)),409,'Файл заменён или больше не публичный');
