@@ -91,6 +91,10 @@ export function evaluate(evidence,{profile='staging',sha,now=Date.now()}={}){
  if(!shaRe.test(evidence.commit||''))errors.push('evidence SHA must be a full commit');
  if(sha!==undefined&&evidence.commit!==sha)errors.push('evidence SHA does not match selected release commit');
  if(!plain(evidence.proofs))errors.push('proofs must be an object');
+ if(plain(evidence.proofs)){
+  const unknown=Object.keys(evidence.proofs).filter(id=>!PUBLIC.includes(id));
+  if(unknown.length)errors.push('unknown proof gates: '+unknown.join(', '));
+ }
  const secrets=inspectForSecrets(evidence);
  if(secrets.length)errors.push('sensitive fields forbidden in evidence JSON: '+secrets.join(', '));
  const passed=[],missing=[];
