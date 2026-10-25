@@ -76,7 +76,9 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_audit_post ON moderation_audit(post_id,id DESC)",
  "CREATE INDEX IF NOT EXISTS idx_audit_comment ON moderation_audit(comment_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS user_blocks (blocker_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, PRIMARY KEY(blocker_id,blocked_id), CHECK(blocker_id<>blocked_id))",
- "CREATE INDEX IF NOT EXISTS idx_user_blocks_target ON user_blocks(blocked_id,blocker_id)"
+ "CREATE INDEX IF NOT EXISTS idx_user_blocks_target ON user_blocks(blocked_id,blocker_id)",
+ "CREATE TABLE IF NOT EXISTS saved_posts (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, UNIQUE(user_id,post_id))",
+ "CREATE INDEX IF NOT EXISTS idx_saved_posts_owner ON saved_posts(user_id,id DESC)"
 ].join(';\n')+';';
 
 
@@ -350,6 +352,21 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     send(res,200,{mode:'verified-local-records',worlds,totals,paidViews:null,advertisingRevenue:null});
     return;
    }
+   if(method==='GET'&&route==='/api/me/saved/ids'){
+    const user=requireUser(req);
+    const items=db.prepare('SELECT post_id FROM saved_posts WHERE user_id=? ORDER BY id DESC LIMIT 500').all(user.id);
+    send(res,200,{ids:items.map(x=>x.post_id),scope:'private',isPublic:false});return;
+   }
+   if(method==='GET'&&route==='/api/me/saved'){
+    const user=requireUser(req);
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный указатель сохранённого');
+    const limit=20;
+    const rows=db.prepare("SELECT s.id AS cursorId,p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM saved_posts s JOIN posts p ON p.id=s.post_id JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE s.user_id=? AND p.status='published' AND "+visibleOwner('u.id')+" AND s.id<? ORDER BY s.id DESC LIMIT ?")
+     .all(user.id,user.id,user.id,cursor,limit+1);
+    const items=rows.slice(0,limit);
+    send(res,200,{items,nextCursor:rows.length>limit?String(items.at(-1).cursorId):null,scope:'private'});return;
+   }
    if(method==='GET'&&route==='/api/me/activity'){
     const user=requireUser(req);
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
@@ -384,12 +401,13 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const posts=db.prepare('SELECT id,world_id,body,status,created_at,updated_at FROM posts WHERE author_id=? ORDER BY id ASC').all(user.id);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
+    const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
     const sponsorProposals=db.prepare("SELECT a.brand_name,a.headline,a.status,w.slug AS world FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id").all(user.id);
     const activity=db.prepare("SELECT e.kind,e.created_at,e.read_at,u.username AS actor,w.slug AS world,e.post_id,e.sponsor_id FROM activity_events e JOIN users u ON u.id=e.actor_id LEFT JOIN worlds w ON w.id=e.world_id WHERE e.recipient_id=? ORDER BY e.id ASC").all(user.id);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,comments,sponsorProposals,activity,moderationAppeals});
+      user:{id:user.id,username:user.username,email:user.email},worlds,posts,reports,follows,savedPosts,comments,sponsorProposals,activity,moderationAppeals});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -471,6 +489,24 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     });
     send(res,200,{passwordChanged:true,sessionsRevoked:revoked,requiresLogin:true},
      {'Set-Cookie':cookie('',0)});return;
+   }
+   const savePost=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/save$/);
+   if(savePost&&(method==='POST'||method==='DELETE')){
+    throttle('save:'+user.id,120,3600000);
+    const id=int(savePost[1]);
+    if(method==='DELETE'){
+     const removed=db.prepare('DELETE FROM saved_posts WHERE user_id=? AND post_id=?').run(user.id,id);
+     send(res,200,{saved:false,changed:Boolean(removed.changes)});return;
+    }
+    const source=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(id);
+    check(source,404,'Публикация недоступна');
+    ensureNoBlock(user.id,source.author_id);
+    const existing=db.prepare('SELECT id FROM saved_posts WHERE user_id=? AND post_id=?').get(user.id,id);
+    if(existing){send(res,200,{saved:true,changed:false});return;}
+    const total=db.prepare('SELECT count(*) AS n FROM saved_posts WHERE user_id=?').get(user.id).n;
+    check(total<500,409,'Можно сохранить не более 500 публикаций');
+    const result=db.prepare('INSERT OR IGNORE INTO saved_posts(user_id,post_id,created_at) VALUES(?,?,?)').run(user.id,id,now());
+    send(res,result.changes?201:200,{saved:true,changed:Boolean(result.changes)});return;
    }
    if(method==='POST'&&route==='/api/me/activity/read'){
     const result=db.prepare('UPDATE activity_events SET read_at=? WHERE recipient_id=? AND read_at IS NULL').run(now(),user.id);
