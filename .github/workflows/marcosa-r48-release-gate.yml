@@ -1,0 +1,66 @@
+name: "MARCOSA | R48 release evidence validator (no deployment)"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/**"
+      - ".github/workflows/marcosa-r48-release-gate.yml"
+  push:
+    branches: [main]
+    paths:
+      - "ops/**"
+      - ".github/workflows/marcosa-r48-release-gate.yml"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Evidence level to validate; does not approve a release"
+        required: true
+        type: choice
+        default: staging
+        options:
+          - staging
+          - beta
+          - public
+permissions:
+  contents: read
+jobs:
+  contract-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify fail-closed release validator
+        run: |
+          set -euo pipefail
+          node --check ops/check-release-gate.mjs
+          node --test ops/test/release-gate.test.mjs
+      - name: Prove placeholder evidence cannot signal production readiness
+        run: |
+          set -euo pipefail
+          if node ops/check-release-gate.mjs --profile public --evidence ops/release-evidence.json --sha "$GITHUB_SHA" > /tmp/marcosa-blocked.json; then
+            echo "::error::Unverified evidence unexpectedly passed"
+            exit 1
+          fi
+          grep -q '"decision": "BLOCKED"' /tmp/marcosa-blocked.json
+          grep -q '"productionAuthorized": false' /tmp/marcosa-blocked.json
+  manual-evidence-check:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [contract-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Explain strict external approval
+        run: |
+          echo 'Evidence results are NOT authorization to deploy or charge users.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Human signoff, independently verified host key and Supabase Auth are still required.' >> "$GITHUB_STEP_SUMMARY"
+      - name: Inspect committed evidence against exact commit
+        run: |
+          set -euo pipefail
+          node ops/check-release-gate.mjs --profile "${{ inputs.profile }}" --evidence ops/release-evidence.json --sha "$GITHUB_SHA"
