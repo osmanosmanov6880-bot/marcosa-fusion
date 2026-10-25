@@ -102,6 +102,9 @@ export async function sealSnapshot({backup,manifest,destination,passphrasePath})
    for await(const part of createReadStream(src))yield part;
   }
   await pipeline(Readable.from(plaintext()),cipher,createWriteStream(temp,{flags:'a',mode:0o600}));
+  // A mutable SQLite snapshot might change between pre-hash and streaming.
+  // Do not publish an archive whose encrypted bytes no longer match its manifest.
+  demand(await sha256(src)===data.sha256,'Snapshot changed during encryption');
   const tag=cipher.getAuthTag(),handle=openSync(temp,'a');
   try{writeSync(handle,tag);}finally{closeSync(handle);}
   demand(statSync(temp).size===HEADER_LENGTH+4+raw.length+data.bytes+AUTH_TAG_LENGTH,
