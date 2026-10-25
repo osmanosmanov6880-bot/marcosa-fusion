@@ -130,6 +130,15 @@ class CanaryInstallTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 mod.verify_stage(stage)
 
+    def test_root_approval_marker_is_written_only_after_public_https_pass(self):
+        code=(ROOT/"ops/install_production_canary.py").read_text()
+        self.assertIn('verified_url=URL+',code)
+        self.assertIn('run("nginx","-t")',code)
+        self.assertIn('STATE.write_text',code)
+        self.assertIn('marker.write_text(MARK)',code)
+        self.assertGreater(code.index('marker.write_text(MARK)'),code.index('STATE.write_text'))
+        self.assertIn('disabled.write_text("MARCOSA-CANARY-DISABLED-v1',code)
+
     def test_script_never_gives_ci_root_rights(self):
         code=(ROOT/"ops/install_production_canary.py").read_text()
         self.assertIn('os.geteuid()!=0',code)

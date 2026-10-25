@@ -103,12 +103,51 @@ if ! ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'python3 -' < ops/loopback
   ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" 'bash -s' < scripts/rollback-staging.sh || true
   exit 1
 fi
+# R106: root-owned marker gates ONLY the additional public canary.
+# No sudo, Nginx reload or write to /opt/marcosa/current.
+CANARY_SUMMARY="not installed; root-only opt-in still required"
+CANARY_STATUS="$(ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+  "python3 - status $SOURCE_SHA" < ops/promote_canary_from_staging.py)"
+case "$CANARY_STATUS" in
+  '{"status": "NOT_INSTALLED"}')
+    echo "CANARY_NOT_INSTALLED=PASS"
+    ;;
+  '{"status": "READY"}')
+    echo "CANARY_ADMIN_GATE=PASS"
+    CANARY_RESULT="$(ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+      "python3 - promote $SOURCE_SHA" < ops/promote_canary_from_staging.py)"
+    echo "$CANARY_RESULT"
+    if [[ "$CANARY_RESULT" != *'"status": "PASS"'* &&
+          "$CANARY_RESULT" != *'"status": "ALREADY_ACTIVE"'* ]]; then
+      echo "::error::Canary promotion not confirmed"
+      exit 2
+    fi
+    tar -xOzf marcosa-site.tar.gz ./build-manifest.json > "$TMP/canary-manifest.json"
+    test -s "$TMP/canary-manifest.json"
+    test "$(stat -c '%s' "$TMP/canary-manifest.json")" -lt 2000000
+    if ! node ops/verify_canary_live_https.mjs \
+      --manifest "$TMP/canary-manifest.json" --sha "$SOURCE_SHA"; then
+      if [[ "$CANARY_RESULT" == *'"status": "PASS"'* ]]; then
+        echo "::error::Canary HTTPS readback failed; rolling back ONLY canary pointer"
+        ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" \
+          "python3 - rollback $SOURCE_SHA" < ops/promote_canary_from_staging.py || true
+      fi
+      exit 1
+    fi
+    CANARY_SUMMARY="public /network-os/ verified for every asset at exact SHA"
+    ;;
+  *)
+    echo "::error::Unexpected root-gated canary readiness state"
+    exit 2
+    ;;
+esac
 {
   echo "### MARCOSA automatic SSH-only staging"
   echo "- SSH filesystem upload and source-pinned digest: PASS"
   echo "- VPS: 169.58.48.38, user marcosa-deploy"
   echo "- Isolated path: /home/marcosa-deploy/marcosa-staging/current"
-  echo "- All 62/manifest assets checked through private localhost HTTP"
+  echo "- Every manifest asset checked through private localhost HTTP"
   echo "- Source commit: \`$SOURCE_SHA\`"
-  echo "- Public HTTPS: NOT VERIFIED; production marcosa.club unchanged"
+  echo "- Isolated STAGING has no public HTTPS configured; original production root unchanged"
+  echo "- Optional root-approved canary: $CANARY_SUMMARY"
 } >> "$GITHUB_STEP_SUMMARY"
