@@ -313,3 +313,20 @@ dialog form{display:grid;gap:17px}
 .discover-line #discover-category{flex:1 1 165px;min-width:0;min-height:44px;border-color:#ccb58b6a}
 #world-edit-category,#world-new-category{min-height:46px;color:#f1dec4}
 @media(max-width:600px){.discover-line #discover-category{flex:1 1 100%;width:100%}.discover-line input{flex:1 1 100%;width:100%}.discover-line button{min-height:44px}}
+
+/* R54: restrained cinematic imagery, real user content instead of mock images. */
+.world-cover-art,.world-detail-cover,.world-cover-preview{display:block;max-width:100%;width:100%;aspect-ratio:16/9;object-fit:cover;background:linear-gradient(135deg,#13253c,#233042 50%,#352d30);border:1px solid #d2b98b66;border-radius:10px}
+.world-cover-art{margin:6px 0 8px;max-height:240px;box-shadow:0 13px 35px #00000033}
+.world-detail-cover{margin:18px 0 24px;max-height:450px;border-radius:12px;box-shadow:0 20px 45px #00000044}
+.world-cover-preview{margin:14px 0;max-height:240px}
+.world-cover-art[hidden],.world-detail-cover[hidden],.world-cover-preview[hidden]{display:none!important}
+.world-cover-panel{padding:18px 0;border-top:1px solid var(--line);margin:16px 0}
+.world-cover-panel summary{font-weight:650;font-size:14px;line-height:1.5}
+.world-cover-panel>.muted{font-size:12px;line-height:1.7;margin:12px 0}
+.world-cover-panel .form-block{display:grid;gap:10px}
+.world-cover-panel select,.world-cover-panel input[type=file]{min-width:0;width:100%;font-size:12px}
+.world-cover-panel input[type=file]{padding:10px;border:1px solid #c8ae8355;border-radius:8px;color:#e7d2b5}
+.world-cover-panel button{min-height:44px}
+#world-cover-delete{width:100%;margin:4px 0 10px}
+#world-cover-status{font-size:11px;margin:8px 0}
+@media(max-width:650px){.world-cover-panel button{width:100%;min-height:48px}.world-cover-art{max-height:210px}.world-detail-cover{margin:13px 0 20px}}
