@@ -1,0 +1,127 @@
+name: "MARCOSA | R98 verified artifact to SSH-only VPS STAGING (not public)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/marcosa-r98-ssh-filesystem-stage.yml"
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type STAGE-VERIFIED-ARTIFACT to repeat the isolated SSH-only upload"
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-staging
+  cancel-in-progress: false
+jobs:
+  ssh_stage:
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirmation == 'STAGE-VERIFIED-ARTIFACT')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Download already-tested, source-pinned, immutable GitHub Actions artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: marcosa-site-54bff8c46e4fb285dff5fbd39422ab84f85a87ff
+          run-id: 40231267451
+          github-token: ${{ github.token }}
+      - name: Validate independently built bytes before SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="54bff8c46e4fb285dff5fbd39422ab84f85a87ff"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          sha256sum -c marcosa-site.tar.gz.sha256
+          test -s "staging-expected-${SOURCE_SHA}.json"
+          test "$(stat -c '%s' marcosa-site.tar.gz)" -lt 200000000
+          node --input-type=module -e '
+            import {readFileSync} from "node:fs";
+            const sha="54bff8c46e4fb285dff5fbd39422ab84f85a87ff";
+            const att=JSON.parse(readFileSync("staging-expected-"+sha+".json","utf8"));
+            if(att.sourceSha!==sha || att.productionAuthorized!==false ||
+               att.releaseKind!=="public_static_preview_only" ||
+               !/^[a-f0-9]{64}$/.test(att.buildManifestSha256||"")) {
+              throw Error("Cannot stage untrusted artifact provenance");
+            }
+            console.log("TRUSTED_GITHUB_ARTIFACT=PASS",sha,att.buildManifestSha256);
+          '
+      - name: Upload, activate and verify only isolated VPS filesystem release
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          source ops/load-pinned-staging-host.sh
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          : "${DEPLOY_KEY:?Missing SSH-only restricted deployment key}"
+          SOURCE_SHA="54bff8c46e4fb285dff5fbd39422ab84f85a87ff"
+          EXPECTED_MANIFEST_SHA256="$(node -p 'JSON.parse(require("node:fs").readFileSync("staging-expected-"+process.env.SOURCE_SHA+".json","utf8")).buildManifestSha256' SOURCE_SHA="$SOURCE_SHA")"
+          # The runner's source SHA is an explicit argument, NOT an inferred live version.
+          EXPECTED_MANIFEST_SHA256="$(node -p 'JSON.parse(require("node:fs").readFileSync("staging-expected-54bff8c46e4fb285dff5fbd39422ab84f85a87ff.json","utf8")).buildManifestSha256')"
+          [[ "$EXPECTED_MANIFEST_SHA256" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || { echo "::error::Wrong SSH deploy key"; exit 2; }
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          export DEPLOY_HOST DEPLOY_USER DEPLOY_KEY DEPLOY_PORT DEPLOY_HOST_FINGERPRINT KNOWN_HOSTS EXPECTED_STAGING_HOST=169.58.48.38 EXPECTED_DEPLOY_KEY_FP
+          bash scripts/diagnose-staging-ssh.sh
+          SSH_ARGS=(-i "$TMP/key" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
+          SCP_ARGS=(-i "$TMP/key" -P "$DEPLOY_PORT" -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" -o BatchMode=yes -o ConnectTimeout=12)
+          scp "${SCP_ARGS[@]}" marcosa-site.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:marcosa-staging/incoming/$SOURCE_SHA.tar.gz"
+          DIGEST="$(sha256sum marcosa-site.tar.gz | awk '{print $1}')"
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "bash -s -- $SOURCE_SHA $DIGEST" < scripts/activate-staging.sh
+          ssh "${SSH_ARGS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "bash -s -- $SOURCE_SHA $EXPECTED_MANIFEST_SHA256" <<'REMOTE'
+          set -euo pipefail
+          SHA="$1"
+          MANIFEST_SHA="$2"
+          ROOT="$HOME/marcosa-staging"
+          [[ "$(id -un)" == "marcosa-deploy" ]] || exit 2
+          [[ "$(readlink "$ROOT/current")" == "releases/$SHA" ]] || exit 2
+          python3 - "$ROOT/current" "$SHA" "$MANIFEST_SHA" <<'PY'
+          import hashlib,json,pathlib,sys
+          root=pathlib.Path(sys.argv[1])
+          sha=sys.argv[2]
+          expected=sys.argv[3]
+          manifest_bytes=(root/"build-manifest.json").read_bytes()
+          assert hashlib.sha256(manifest_bytes).hexdigest()==expected,"Trusted manifest SHA mismatch"
+          proof=json.loads((root/"staging-release.json").read_text("utf8"))
+          manifest=json.loads(manifest_bytes)
+          assert proof["sourceSha"]==sha
+          assert proof["buildManifestSha256"]==expected
+          assert proof["productionAuthorized"] is False
+          assert proof["releaseKind"]=="public_static_preview_only"
+          assert manifest["release_kind"]=="public_static_preview_only"
+          for asset in ["index.html","network.js","network.css"]:
+              assert hashlib.sha256((root/asset).read_bytes()).hexdigest()==manifest["files"][asset],asset
+          print("SSH_STAGING_BYTES_VERIFIED=PASS")
+          print("SOURCE_SHA="+sha)
+          PY
+          echo "SSH_STAGING_CURRENT=$ROOT/current"
+          echo "PUBLIC_HTTPS_VERIFIED=NO"
+          echo "PRODUCTION_UNCHANGED=YES"
+          REMOTE
+          {
+            echo "### MARCOSA SSH-only staging"
+            echo "- SSH filesystem upload and source-pinned digest: PASS"
+            echo "- VPS: 169.58.48.38, user marcosa-deploy"
+            echo "- Isolated path: /home/marcosa-deploy/marcosa-staging/current"
+            echo "- Source commit: \`$SOURCE_SHA\`"
+            echo "- Public HTTPS: NOT VERIFIED; production marcosa.club unchanged"
+          } >> "$GITHUB_STEP_SUMMARY"
