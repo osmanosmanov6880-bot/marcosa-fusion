@@ -85,7 +85,7 @@ def audit(resolve_fn=resolve_ipv4,probe_fn=https_probe)->dict:
             result["validHostnameCertificate"] is True and
             result["httpHeadReachable"] is True and
             isinstance(result["httpStatus"],int) and
-            200<=result["httpStatus"]<400
+            result["httpStatus"]==200
         )
     except (socket.timeout,ConnectionError,OSError,ssl.SSLError,ValueError):
         result["tlsErrorClass"]="TLS_OR_HTTP_NOT_READY"
@@ -97,9 +97,9 @@ def main():
         raise ValueError("No arguments accepted; fixed approved target only")
     r=audit()
     print(json.dumps(r,sort_keys=True))
-    print("R109_READONLY_ORIGIN_AUDIT=PASS")
-    print("PREVIEW_HOST_READY="+("YES" if r["previewHostnameReady"] else "NO"))
-    print("PRODUCTION_ROOT_UNCHANGED=YES")
+    print("R109_READONLY_ORIGIN_AUDIT=PASS",file=sys.stderr)
+    print("PREVIEW_HOST_READY="+("YES" if r["previewHostnameReady"] else "NO"),file=sys.stderr)
+    print("PRODUCTION_ROOT_UNCHANGED=YES",file=sys.stderr)
 
 
 if __name__=="__main__":

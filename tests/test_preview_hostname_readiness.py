@@ -53,7 +53,7 @@ class IndependentOriginTests(unittest.TestCase):
     def test_independent_origin_does_not_claim_cookie_or_auth_isolation(self):
         r=m.audit(resolve_fn=lambda n:["169.58.48.38"],probe_fn=lambda ip,host:{
             "validHostnameCertificate":True,"httpHeadReachable":True,"httpStatus":302})
-        self.assertTrue(r["previewHostnameReady"])
+        self.assertFalse(r["previewHostnameReady"])
         self.assertTrue(r["webStorageIsSeparateFromMainHostname"])
         self.assertFalse(r["legacyAuthStorageInspected"])
         self.assertFalse(r["crossSubdomainCookieIsolationVerified"])
