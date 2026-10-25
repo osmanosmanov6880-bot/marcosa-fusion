@@ -11,6 +11,7 @@ import {createHash} from 'node:crypto';
 import {createApp} from '../../server-lab/server.mjs';
 import {backupLocal,verifyDatabase,sha256} from '../local-backup-restore.mjs';
 import {sealSnapshot,unsealSnapshot,ARCHIVE_FORMAT} from '../encrypted-local-archive.mjs';
+import {encryptedRecoveryDrill} from '../encrypted-recovery-drill.mjs';
 
 test('R73 real SQLite with users, PNG, complaint and consent: authenticated encryption, recovery, tamper, wrong key and fail-closed output',async()=>{
  const dir=mkdtempSync(join(tmpdir(),'marcosa-r73-'));
@@ -44,6 +45,20 @@ test('R73 real SQLite with users, PNG, complaint and consent: authenticated encr
    .run(owner,172800000,2);
   app.db.prepare("INSERT INTO beta_retention_days(user_id,day_utc,source) VALUES(?,?,'consent')").run(owner,2);
   assert.equal(verifyDatabase(live).integrity,'ok');
+  // R73 large-block one-command tool uses an isolated private directory,
+  // encrypts and actually reopens the restored database before publishing.
+  const oneShot=join(dir,'one-shot.marc'),standaloneRestore=join(dir,'one-shot.sqlite');
+  const run=await encryptedRecoveryDrill({database:live,destination:oneShot,passphrasePath:key});
+  assert.equal(run.ok,true);
+  assert.equal(run.encrypted,true);
+  assert.equal(run.isolatedRecoveryPassed,true);
+  assert.equal(run.sha256Matches,true);
+  assert.equal(lstatSync(oneShot).mode&0o777,0o600);
+  const restoredOneShot=await unsealSnapshot({archive:oneShot,destination:standaloneRestore,passphrasePath:key});
+  assert.equal(restoredOneShot.verification.integrity,'ok');
+  assert.equal(await sha256(standaloneRestore),await sha256(live));
+  assert.equal((await import('node:fs')).readdirSync(dir).some(x=>x.startsWith('.marcosa-encrypted-drill-')),false,'No plaintext drill directory may persist');
+  await assert.rejects(()=>encryptedRecoveryDrill({database:live,destination:oneShot,passphrasePath:key}),/already exists/);
   const snap=await backupLocal({source:live,destination:plain});
   assert.equal(snap.verification.integrity,'ok');
   const first=await sealSnapshot({backup:plain,manifest:plain+'.json',destination:archive,passphrasePath:key});
