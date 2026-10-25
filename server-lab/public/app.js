@@ -19,6 +19,7 @@ const node=(tag,text='',cls='')=>{
  if(cls)el.className=cls;
  el.textContent=String(text);return el;
 };
+const systemNode=(tag,key,text,cls='')=>{const el=node(tag,localText(key,text),cls);el.dataset.i18nDynamic=key;return el;};
 const clear=element=>element.replaceChildren();
 const values=form=>Object.fromEntries(new FormData(form).entries());
 const coverUrl=slug=>'/api/worlds/'+encodeURIComponent(slug)+'/cover';
@@ -1023,6 +1024,9 @@ window.addEventListener('marcosa:locale-change',()=>{
  if(knownReady.includes($('notice').textContent))notice(localText('notice.ready',knownReady[0]));
  for(const el of document.querySelectorAll('[data-i18n-dynamic]')){
   el.textContent=localText(el.dataset.i18nDynamic,el.textContent);
+ }
+ for(const el of document.querySelectorAll('[data-i18n-placeholder]')){
+  el.placeholder=localText(el.dataset.i18nPlaceholder,el.placeholder);
  }
  for(const el of document.querySelectorAll('option[data-locale-topic]')){
   el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
