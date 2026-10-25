@@ -168,6 +168,18 @@ test('R76 twelve isolated real-HTTP accounts, multi-user writes and persistent p
   assert.equal(countSql('SELECT count(*) AS n FROM beta_retention_consents'),1);
   assert.equal((await request('/auth/me',{cookie:members[0].cookie})).status,200,
    'Existing valid session must survive app restart on the persistent DB');
+  // Historic versions generated default World slugs containing underscores
+  // (legal usernames; formerly invalid routing). Do NOT silently rename them.
+  const historical='u-user76_02';
+  lab.db.prepare('UPDATE worlds SET slug=? WHERE id=?').run(historical,members[2].world.id);
+  const legacy=await request('/worlds/'+historical,{cookie:members[2].cookie});
+  assert.equal(legacy.status,200,'Preserve old World direct REST routes');
+  assert.equal(legacy.data.world.slug,historical);
+  const legacyPosts=await request('/worlds/'+historical+'/posts');
+  assert.equal(legacyPosts.status,200,'Preserve existing story links for old Worlds');
+  const serverHtml=await fetch(base+'/w/'+historical);
+  assert.equal(serverHtml.status,200,'Preserve historical server-rendered World URLs');
+  assert.match(await serverHtml.text(),/noindex,nofollow/);
 
   // Ownership-controlled irreversible deletion must cascade all data for
   // the target without damaging the other accounts or their signed sessions.
