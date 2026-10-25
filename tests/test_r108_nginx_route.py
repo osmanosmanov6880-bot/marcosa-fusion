@@ -19,6 +19,7 @@ import time
 import unittest
 from urllib.error import HTTPError
 from urllib.request import Request, build_opener, HTTPRedirectHandler
+from urllib.parse import urlsplit
 
 PROJECT=Path(__file__).resolve().parents[1]
 spec=importlib.util.spec_from_file_location("production_canary",PROJECT/"ops/install_production_canary.py")
@@ -130,7 +131,9 @@ class RealNginxCanaryContract(unittest.TestCase):
             self.assertEqual(api,b"LEGACY-API-UNTOUCHED")
             status,headers,_=query(url,"/network-os")
             self.assertEqual(status,308)
-            self.assertEqual(headers.get("Location"),"/network-os/")
+            redirect=urlsplit(headers.get("Location"))
+            self.assertEqual(redirect.path,"/network-os/")
+            self.assertIn(redirect.netloc,("",urlsplit(url).netloc))
             for route in ("/network-os/","/network-os/index.html"):
                 status,headers,body=query(url,route)
                 self.assertEqual(status,200)
