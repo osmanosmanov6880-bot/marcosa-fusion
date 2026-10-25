@@ -19,7 +19,7 @@ concurrency:
 jobs:
   test-real-api:
     runs-on: ubuntu-latest
-    timeout-minutes: 7
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -70,6 +70,20 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/browser-cdp.mjs
           node server-lab/test/browser-cdp.mjs
+      - name: R60 actual image upload, appeal and two-moderator Chromium E2E (three screen sizes)
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r60.media_browser_cdp.mjs
+          node server-lab/test/r60.media_browser_cdp.mjs
+      - name: Upload R60 browser media QA screenshots
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r60-real-media-lifecycle-chromium
+          path: qa-r60/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Upload real browser captures including pilot onboarding and social safety
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
