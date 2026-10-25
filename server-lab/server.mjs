@@ -254,13 +254,14 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
-      WHERE (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
+      WHERE w.visibility='public'
+      AND (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
       AND ${visibleOwner('u.id')}
       ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer);
     const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
       (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
       FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
-      WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
+      WHERE p.status='published' AND w.visibility='public' AND instr(lower(p.body),lower(?))>0
       AND ${visibleOwner('u.id')}
       ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer);
     send(res,200,{query:raw,worlds,posts,limit:12});return;
@@ -269,8 +270,9 @@ export function createApp({databasePath=':memory:',inviteCode='',now=()=>Date.no
     const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')}
-ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
+FROM worlds w JOIN users u ON u.id=w.owner_id
+WHERE (w.visibility='public' OR w.owner_id=?) AND ${visibleOwner('u.id')}
+ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'',who(req)?.id||'');
     send(res,200,{items});return;
    }
    const worldRoute=route.match(/^\/api\/worlds\/([a-z0-9-]{3,45})\/posts$/);
@@ -278,14 +280,18 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
     const viewer=who(req)?.id||'';
-    send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,cursor,21),20));return;
+    const world=db.prepare('SELECT owner_id,visibility FROM worlds WHERE slug=?').get(worldRoute[1]);
+    check(world,404,'Мир не найден');
+    if(world.visibility==='private'&&world.owner_id!==viewer)throw new HttpError(404,'Мир не найден');
+    send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,viewer,cursor,21),20));return;
    }
    // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
    const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9-]{2,39})\/followers$/);
    if(method==='GET'&&followRead){
-    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followRead[1]);
+    const world=db.prepare('SELECT id,owner_id,visibility FROM worlds WHERE slug=?').get(followRead[1]);
     check(world,404,'Мир не найден');
     const visitor=who(req);
+    if(world.visibility==='private'&&world.owner_id!==visitor?.id)throw new HttpError(404,'Мир не найден');
     if(visitor&&isBlocked(visitor.id,world.owner_id))throw new HttpError(404,'Мир не найден');
     const count=db.prepare('SELECT count(*) AS n FROM world_follows WHERE world_id=?').get(world.id).n;
     const followed=Boolean(visitor&&db.prepare('SELECT 1 FROM world_follows WHERE world_id=? AND user_id=?').get(world.id,visitor.id));
@@ -294,9 +300,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
    const commentRead=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
    if(method==='GET'&&commentRead){
     const id=int(commentRead[1]);
-    const source=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(id);
+    const source=db.prepare("SELECT p.author_id,w.visibility FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published'").get(id);
     check(source,404,'Публикация не найдена');
     const viewer=who(req)?.id||'';
+    if(source.visibility==='private'&&viewer!==source.author_id)throw new HttpError(404,'Публикация не найдена');
     if(viewer&&isBlocked(viewer,source.author_id))throw new HttpError(404,'Публикация не найдена');
     const limit=20;
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
@@ -307,7 +314,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
    }
    if(method==='GET'&&route==='/api/sponsors/approved'){
     const viewer=who(req)?.id||'';
-    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' AND "+visibleOwner('a.owner_id')+" AND "+visibleOwner('w.owner_id')+" ORDER BY a.id DESC LIMIT 12")
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' AND w.visibility='public' AND "+visibleOwner('a.owner_id')+" AND "+visibleOwner('w.owner_id')+" ORDER BY a.id DESC LIMIT 12")
      .all(viewer,viewer,viewer,viewer);
     send(res,200,{items,paid:false,production:false});return;
    }
