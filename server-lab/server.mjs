@@ -71,6 +71,10 @@ const SCHEMA=[
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
  "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
  "CREATE TABLE IF NOT EXISTS world_cover_review_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, decision TEXT NOT NULL CHECK(decision IN ('approved','rejected')), created_at INTEGER NOT NULL)",
+ 
+ "CREATE TABLE IF NOT EXISTS world_cover_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE,reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,cover_sha256 TEXT NOT NULL CHECK(length(cover_sha256)=64),reason TEXT NOT NULL CHECK(reason IN ('copyright','privacy','abuse','impersonation','other')),detail TEXT NOT NULL CHECK(length(detail) BETWEEN 12 AND 500),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','dismissed','withdrawn')),reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,decided_at INTEGER,UNIQUE(world_id,reporter_id,cover_sha256))",
+ "CREATE INDEX IF NOT EXISTS idx_cover_reports_queue ON world_cover_reports(status,id DESC)",
+ "CREATE INDEX IF NOT EXISTS idx_cover_reports_user ON world_cover_reports(reporter_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS world_cover_appeals (id INTEGER PRIMARY KEY AUTOINCREMENT,world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,cover_sha256 TEXT NOT NULL CHECK(length(cover_sha256)=64),original_reviewer TEXT REFERENCES users(id) ON DELETE SET NULL,reason TEXT NOT NULL CHECK(length(reason) BETWEEN 12 AND 1000),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','reopened','withdrawn')),decided_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,decided_at INTEGER)",
  "CREATE UNIQUE INDEX IF NOT EXISTS idx_world_cover_one_open_appeal ON world_cover_appeals(world_id) WHERE status='open'",
  "CREATE INDEX IF NOT EXISTS idx_world_cover_appeals_owner ON world_cover_appeals(owner_id,id DESC)",
@@ -374,6 +378,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     catch{throw new HttpError(422,'Обложка должна быть PNG RGB/RGBA без анимации, до 1600 px и 768 KiB');}
     atomic(()=>{
      db.prepare("UPDATE world_cover_appeals SET status='withdrawn',decided_at=? WHERE world_id=? AND status='open'").run(now(),world.id);
+     db.prepare("UPDATE world_cover_reports SET status='withdrawn',decided_at=? WHERE world_id=? AND status='open'").run(now(),world.id);
      db.prepare("INSERT INTO world_covers(world_id,png,width,height,byte_size,updated_at,review_status,reviewed_by,reviewed_at) VALUES(?,?,?,?,?,?,'pending',NULL,NULL) ON CONFLICT(world_id) DO UPDATE SET png=excluded.png,width=excluded.width,height=excluded.height,byte_size=excluded.byte_size,updated_at=excluded.updated_at,review_status='pending',reviewed_by=NULL,reviewed_at=NULL")
       .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
     });
@@ -411,6 +416,19 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const pending=db.prepare("SELECT a.id,a.cover_sha256,a.reason,a.created_at AS createdAt,w.slug,w.title,u.username AS owner,c.png FROM world_cover_appeals a JOIN worlds w ON w.id=a.world_id JOIN users u ON u.id=w.owner_id JOIN world_covers c ON c.world_id=a.world_id WHERE a.status='open' AND c.review_status='rejected' AND a.owner_id<>? AND (a.original_reviewer IS NULL OR a.original_reviewer<>?) ORDER BY a.id ASC LIMIT 50").all(moderator.id,moderator.id);
     const items=pending.filter(row=>hash(Buffer.from(row.png))===row.cover_sha256)
      .map(({id,reason,createdAt,slug,title,owner})=>({id,reason,createdAt,slug,title,owner}));
+    send(res,200,{items,scope:'moderator',production:false});return;
+   }
+   if(method==='GET'&&route==='/api/me/cover-reports'){
+    const reporter=requireUser(req);
+    const items=db.prepare("SELECT a.id,w.slug,a.reason,a.detail,a.status,a.created_at AS createdAt,a.decided_at AS decidedAt FROM world_cover_reports a JOIN worlds w ON w.id=a.world_id WHERE a.reporter_id=? ORDER BY a.id DESC LIMIT 50").all(reporter.id);
+    send(res,200,{items,scope:'self',production:false});return;
+   }
+   if(method==='GET'&&route==='/api/mod/cover-reports'){
+    const reviewer=requireUser(req);
+    check(reviewer.role==='moderator',403,'Доступ только независимому модератору');
+    const rows=db.prepare("SELECT r.id,r.cover_sha256,r.reason,r.detail,r.created_at AS createdAt,w.slug,w.title,u.username AS owner,c.png FROM world_cover_reports r JOIN world_covers c ON c.world_id=r.world_id JOIN worlds w ON w.id=r.world_id JOIN users u ON u.id=w.owner_id WHERE r.status='open' AND c.review_status='approved' AND w.owner_id<>? AND r.reporter_id<>? AND c.reviewed_by<>? ORDER BY r.id ASC LIMIT 50").all(reviewer.id,reviewer.id,reviewer.id);
+    const items=rows.filter(x=>hash(Buffer.from(x.png))===x.cover_sha256)
+     .map(({id,reason,detail,createdAt,slug,title,owner})=>({id,reason,detail,createdAt,slug,title,owner}));
     send(res,200,{items,scope:'moderator',production:false});return;
    }
    if(method==='GET'&&route==='/api/mod/cover-audit'){
@@ -582,8 +600,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const moderationAppeals=db.prepare("SELECT post_id,comment_id,reason,status,created_at,decided_at FROM moderation_appeals WHERE appellant_id=? ORDER BY id ASC").all(user.id);
     const retentionConsent=db.prepare("SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?").get(user.id)||null;
     const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
+    const coverReports=db.prepare("SELECT r.reason,r.detail,r.status,r.created_at AS createdAt,r.decided_at AS decidedAt,w.slug FROM world_cover_reports r JOIN worlds w ON w.id=r.world_id WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
