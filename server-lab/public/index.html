@@ -64,6 +64,11 @@
      <label>Выбери мир<select id="world-settings-select" name="slug" required></select></label>
      <label>Название мира<input name="title" maxlength="70" minlength="3" required></label>
      <label>Описание<textarea name="description" maxlength="400" rows="4"></textarea></label>
+     <label>Доступ к миру<select name="visibility" required>
+      <option value="public">Публичный — доступен всем</option>
+      <option value="private">Приватный — только владельцу</option>
+     </select></label>
+     <p class="muted privacy-warning">При закрытии мира подписки и активные рекламные согласия прекращаются. Возврат к публичному доступу не восстановит их автоматически. Ранее сохранённые посторонними копии материалов удалить невозможно.</p>
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>

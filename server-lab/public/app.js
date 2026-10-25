@@ -42,6 +42,7 @@ function syncWorldSettings(){
  if(!world)return;
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
+ form.elements.visibility.value=world.visibility||'public';
 }
 async function loadBlocks(){
  if(!state.me)return;
@@ -99,7 +100,7 @@ async function session(){
   const container=$('my-worlds'),choose=$('post-world'),settings=$('world-settings-select');
   clear(container);clear(choose);clear(settings);
   for(const world of state.worlds){
-   const item=node('p',world.title+' / '+world.slug,'world-own');container.append(item);
+   const item=node('p',world.title+' / '+world.slug+(world.visibility==='private'?' · ПРИВАТНЫЙ':' · ПУБЛИЧНЫЙ'),'world-own');container.append(item);
    const option=node('option',world.title);option.value=world.id;choose.append(option);
    const editOption=node('option',world.title+' / '+world.slug);
    editOption.value=world.slug;settings.append(editOption);
@@ -128,7 +129,7 @@ async function worlds(){
  const followInfo=state.me?await Promise.all(result.items.map(w=>api('/worlds/'+encodeURIComponent(w.slug)+'/followers'))):[];
  for(const [i,world] of result.items.entries()){
   const card=node('article','','world-card');
-  card.append(node('span','WORLD / '+world.slug,'eyebrow'),node('h3',world.title));
+  card.append(node('span','WORLD / '+world.slug+(world.visibility==='private'?' · ПРИВАТНЫЙ':''),'eyebrow'),node('h3',world.title));
   card.append(node('p',world.description||'Мир автора @'+world.owner));
   const stats=node('p',world.posts_count+' публикаций · '+world.followers_count+' подписчиков','world-stats');
   card.append(stats,node('small','Создан @'+world.owner));
@@ -185,7 +186,7 @@ async function openWorld(slug){
  const panel=$('world-detail');
  $('world-detail-title').textContent=world.title;
  $('world-detail-description').textContent=world.description||'Цифровой мир автора @'+world.owner;
- $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций';
+ $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций'+(world.visibility==='private'?' · ПРИВАТНЫЙ ПРОСМОТР':'');
  const list=$('world-detail-posts');clear(list);
  for(const item of posts.items)list.append(postCard(item));
  if(!posts.items.length)list.append(node('p','Здесь пока нет опубликованных историй.','muted'));
@@ -515,9 +516,9 @@ $('logout').addEventListener('click',()=>run(async()=>{
 $('world-settings-select').addEventListener('change',syncWorldSettings);
 $('world-settings-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
- const {slug,title,description}=values(form);
+ const {slug,title,description,visibility}=values(form);
  run(async()=>{
-  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description});
+  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,visibility});
   await session();await worlds();
  },'Оформление мира сохранено — данные видны посетителям.');
 });
