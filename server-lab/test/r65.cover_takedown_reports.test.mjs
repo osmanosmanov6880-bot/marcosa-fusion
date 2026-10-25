@@ -26,6 +26,7 @@ test('R65: published PNG reports revoke approved cover only after independent de
  async function req(path,{method='GET',cookie,data,origin=base,mime='application/json'}={}){
   const headers={};if(cookie)headers.Cookie=cookie;
   if(method!=='GET'){headers.Origin=origin;headers['Content-Type']=mime;}
+  if(method==='POST'&&path.endsWith('/cover')&&mime==='image/png')headers['X-Marcosa-Rights-Attestation']='rights-v1';
   const body=data===undefined?undefined:Buffer.isBuffer(data)?data:JSON.stringify(data);
   const res=await fetch(base+'/api'+path,{method,headers,...(body===undefined?{}:{body})});
   const binary=(res.headers.get('content-type')||'').includes('image/png');
