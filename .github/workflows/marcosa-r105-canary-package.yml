@@ -1,0 +1,47 @@
+name: "MARCOSA | R105 additive canary installer safety tests (NO production install)"
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/install_production_canary.py"
+      - "tests/test_canary_install.py"
+      - ".github/workflows/marcosa-r105-canary-package.yml"
+  pull_request:
+    paths:
+      - "ops/install_production_canary.py"
+      - "tests/test_canary_install.py"
+      - ".github/workflows/marcosa-r105-canary-package.yml"
+permissions:
+  contents: read
+jobs:
+  dry-run-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run R105 offline Nginx patch and STAGING provenance tests
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_canary_install.py' -v
+          python -m unittest discover -s tests -p 'test_production_canary_readiness.py' -v
+          python -m py_compile ops/install_production_canary.py ops/production_canary_readiness.py
+          python ops/install_production_canary.py --help >/dev/null
+      - name: Validate privilege boundary and conservative install source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('ops/install_production_canary.py').read_text()
+          assert 'MARCOSA-ADD-ONLY-CANARY' in code
+          assert 'MARCOSA-REMOVE-ONLY-CANARY' in code
+          assert 'productionRootUnchanged' not in code or 'LEGACY' in code
+          assert 'nginx -t' not in code or 'run("nginx","-t")' in code
+          assert 'shutil.rmtree(LEGACY' not in code
+          assert 'os.chown(path,uid,gid)' in code
+          assert 'STATE_DIR' in code
+          print('R105 ROOT-ONLY INSTALL GUARDS=PASS')
+          PY
