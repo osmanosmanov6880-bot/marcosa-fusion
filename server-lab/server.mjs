@@ -73,6 +73,8 @@ const SCHEMA=[
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
  "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
  "CREATE TABLE IF NOT EXISTS world_cover_rights (world_id TEXT PRIMARY KEY REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS world_cover_rights_history (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_world_cover_rights_history ON world_cover_rights_history(owner_id,world_id,id DESC)",
  "CREATE TABLE IF NOT EXISTS world_cover_review_audit (id INTEGER PRIMARY KEY AUTOINCREMENT, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, decision TEXT NOT NULL CHECK(decision IN ('approved','rejected')), created_at INTEGER NOT NULL)",
  
  "CREATE TABLE IF NOT EXISTS world_cover_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,world_id TEXT NOT NULL REFERENCES world_covers(world_id) ON DELETE CASCADE,reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,cover_sha256 TEXT NOT NULL CHECK(length(cover_sha256)=64),reason TEXT NOT NULL CHECK(reason IN ('copyright','privacy','abuse','impersonation','other')),detail TEXT NOT NULL CHECK(length(detail) BETWEEN 12 AND 500),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','dismissed','withdrawn')),reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,decided_at INTEGER,UNIQUE(world_id,reporter_id,cover_sha256))",
@@ -416,6 +418,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
       .run(world.id,safe.png,safe.width,safe.height,safe.bytes,now());
      db.prepare("INSERT INTO world_cover_rights(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?) ON CONFLICT(world_id) DO UPDATE SET owner_id=excluded.owner_id,asset_sha256=excluded.asset_sha256,statement_version=excluded.statement_version,asserted_at=excluded.asserted_at")
       .run(world.id,owner.id,hash(safe.png),now());
+     db.prepare("INSERT INTO world_cover_rights_history(world_id,owner_id,asset_sha256,statement_version,asserted_at) VALUES(?,?,?,'rights-v1',?)")
+      .run(world.id,owner.id,hash(safe.png),now());
     });
     send(res,200,{hasCover:true,width:safe.width,height:safe.height,bytes:safe.bytes,
       type:'image/png',metadataRemoved:true,reviewStatus:'pending',
@@ -630,6 +634,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const savedPosts=db.prepare('SELECT post_id,created_at FROM saved_posts WHERE user_id=? ORDER BY id ASC').all(user.id);
     const worldCoverMetadata=db.prepare('SELECT w.slug,c.width,c.height,c.byte_size AS bytes,c.review_status AS reviewStatus,c.updated_at FROM world_covers c JOIN worlds w ON w.id=c.world_id WHERE w.owner_id=? ORDER BY w.slug').all(user.id);
     const worldCoverRights=db.prepare("SELECT w.slug,r.asset_sha256 AS assetSha256,r.statement_version AS statementVersion,r.asserted_at AS declaredAt FROM world_cover_rights r JOIN worlds w ON w.id=r.world_id WHERE r.owner_id=? AND w.owner_id=? ORDER BY w.slug").all(user.id,user.id);
+    const worldCoverRightsHistory=db.prepare("SELECT w.slug,r.asset_sha256 AS assetSha256,r.statement_version AS statementVersion,r.asserted_at AS declaredAt FROM world_cover_rights_history r JOIN worlds w ON w.id=r.world_id WHERE r.owner_id=? AND w.owner_id=? ORDER BY r.id ASC").all(user.id,user.id);
     const coverAppeals=db.prepare("SELECT w.slug,a.reason,a.status,a.created_at AS createdAt,a.decided_at AS decidedAt FROM world_cover_appeals a JOIN worlds w ON w.id=a.world_id WHERE a.owner_id=? ORDER BY a.id ASC").all(user.id);
     const notificationSettings=readNotificationSettings(user.id);
     const comments=db.prepare('SELECT post_id,body,status,created_at FROM comments WHERE author_id=? ORDER BY id ASC').all(user.id);
@@ -640,7 +645,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     const coverReports=db.prepare("SELECT r.reason,r.detail,r.status,r.created_at AS createdAt,r.decided_at AS decidedAt,w.slug FROM world_cover_reports r JOIN worlds w ON w.id=r.world_id WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
