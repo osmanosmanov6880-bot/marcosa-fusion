@@ -12,6 +12,7 @@ SCRIPTS = (
     "scripts/bootstrap-staging.sh",
     "scripts/activate-staging.sh",
     "scripts/rollback-staging.sh",
+    "ops/ssh-stage-verified.sh",
 )
 
 class DeploymentGuardrailTests(unittest.TestCase):
@@ -48,6 +49,37 @@ class DeploymentGuardrailTests(unittest.TestCase):
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("PUBLIC_KEY_AS_PRIVATE", result.stderr)
+
+    def test_r99_continuous_staging_is_main_only_nonroot_and_never_production(self):
+        source = (ROOT / "ops/ssh-stage-verified.sh").read_text(encoding="utf-8")
+        workflow = (ROOT / ".github/workflows/marcosa-staging.yml").read_text(encoding="utf-8")
+        self.assertIn('GITHUB_REF', source)
+        self.assertIn('GITHUB_REPOSITORY', source)
+        self.assertIn('GITHUB_SHA', source)
+        self.assertIn('source ops/load-pinned-staging-host.sh', source)
+        self.assertIn('bash scripts/diagnose-staging-ssh.sh', source)
+        self.assertIn('ssh_stage', workflow.replace('deploy_ssh_filesystem','ssh_stage'))
+        self.assertIn('name: marcosa-site-${{ github.sha }}', workflow)
+        self.assertIn('bash ops/ssh-stage-verified.sh', workflow)
+        self.assertIn('sha256sum -c marcosa-site.tar.gz.sha256', source)
+        self.assertIn('SSH_STAGING_ASSETS_VERIFIED=', source)
+        self.assertIn('PUBLIC_HTTPS_VERIFIED=NO', source)
+        self.assertNotIn('/opt/marcosa/current', source)
+        self.assertNotIn('StrictHostKeyChecking=no', source)
+        self.assertNotIn('rm -rf /opt/marcosa', source)
+
+    def test_r99_script_denies_wrong_repo_before_network(self):
+        env = os.environ.copy()
+        env.update(GITHUB_REPOSITORY="unknown/repo", GITHUB_REF="refs/heads/main",
+                   GITHUB_EVENT_NAME="push", GITHUB_SHA="f"*40,
+                   DEPLOY_HOST="169.58.48.38", DEPLOY_USER="marcosa-deploy",
+                   DEPLOY_KEY="not-a-valid-private-key")
+        result = subprocess.run(
+            ["bash", str(ROOT / "ops/ssh-stage-verified.sh")],
+            capture_output=True, text=True, env=env, timeout=10)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn("Not the approved MARCOSA source repo",result.stdout+result.stderr)
+        self.assertNotIn("not-a-valid-private-key",result.stdout+result.stderr)
 
     def test_staging_bootstrap_requires_local_root_and_public_key(self):
         source = (ROOT / "scripts/bootstrap-staging.sh").read_text(encoding="utf-8")

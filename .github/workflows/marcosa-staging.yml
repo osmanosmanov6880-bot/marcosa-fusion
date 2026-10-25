@@ -9,17 +9,6 @@ on:
         type: string
   push:
     branches: [main]
-    paths:
-      - "site/**"
-      - "tests/**"
-      - "tools/**"
-      - "scripts/activate-staging.sh"
-      - "ops/staging-release-attestation.mjs"
-      - "ops/staging-deploy-contract.mjs"
-      - "ops/staging-live-readback.mjs"
-      - "ops/load-pinned-staging-host.sh"
-      - "ops/ssh/marcosa-staging-known-hosts"
-      - ".github/workflows/marcosa-staging.yml"
 
 permissions:
   contents: read
@@ -137,12 +126,42 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+  deploy_ssh_filesystem:
+    # R99: every trusted main build is uploaded to isolated non-root VPS storage,
+    # even when a separate public STAGING HTTPS hostname is not yet configured.
+    needs: build
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marcosa-site-${{ github.sha }}
+      - name: Validate same-run artifact, deploy via pinned SSH and verify ALL assets
+        shell: bash
+        env:
+          APPROVAL: ${{ inputs.confirmation || '' }}
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          bash ops/ssh-stage-verified.sh
+
   deploy_staging:
     # R91: owner-requested continuous STAGING delivery from trusted main, never PR or production.
-    needs: build
-    # Staging is permitted from trusted main only. Remote marker + non-root
-    # user + host pin enforce the actual release boundary, not repo visibility.
-    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'))
+    needs: [build, deploy_ssh_filesystem]
+    # Run the stricter independent PUBLIC HTTPS release only when the owner
+    # has configured and approved a public staging hostname. No hostname =>
+    # SSH-only release remains successful and no false public URL is claimed.
+    if: github.ref == 'refs/heads/main' && vars.MARCOSA_STAGING_ORIGIN != '' && vars.MARCOSA_STAGING_PUBLIC_HOST != '' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirmation == 'DEPLOY-MARCOSA-STAGING'))
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: marcosa-staging
