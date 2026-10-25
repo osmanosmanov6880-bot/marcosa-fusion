@@ -160,30 +160,33 @@ async function pilotMetrics(){
  const report=await api('/mod/pilot-metrics');
  const list=$('pilot-metrics-data');clear(list);
  const entries=[
-  ['Аккаунтов участников',report.members],
-  ['Регистраций по одноразовым кодам',report.invitedMembers],
-  ['Авторов с опубликованной историей',report.publishedCreators],
-  ['Из приглашённых стали авторами',report.invitedCreatorsPublished],
-  ['Публичных миров с контентом',report.publicWorlds],
-  ['Ответов другим авторам',report.repliesToOtherAuthors],
-  ['Подписок на миры',report.followEdges],
-  ['Сохранённых публикаций',report.savedReferences],
-  ['Выдано приглашений',report.invitations.issued],
-  ['Погашено приглашений',report.invitations.redeemed]
+  [localText('pilot.metrics.members','Аккаунтов участников'),report.members],
+  [localText('pilot.metrics.invited','Регистраций по одноразовым кодам'),report.invitedMembers],
+  [localText('pilot.metrics.published','Авторов с опубликованной историей'),report.publishedCreators],
+  [localText('pilot.metrics.invitedPublished','Из приглашённых стали авторами'),report.invitedCreatorsPublished],
+  [localText('pilot.metrics.publicWorlds','Публичных миров с контентом'),report.publicWorlds],
+  [localText('pilot.metrics.replies','Ответов другим авторам'),report.repliesToOtherAuthors],
+  [localText('pilot.metrics.follows','Подписок на миры'),report.followEdges],
+  [localText('pilot.metrics.saved','Сохранённых публикаций'),report.savedReferences],
+  [localText('pilot.metrics.issued','Выдано приглашений'),report.invitations.issued],
+  [localText('pilot.metrics.redeemed','Погашено приглашений'),report.invitations.redeemed]
  ];
  for(const [label,count] of entries){
   const card=node('div','','pilot-metric');
-  card.append(node('strong',String(count)),node('span',label));
-  list.append(card);
+  card.append(node('strong',String(count)),node('span',label));list.append(card);
  }
- const activation=report.invitedCreatorActivationRate===null?'нет приглашённых':
+ const activation=report.invitedCreatorActivationRate===null?
+  localText('pilot.metrics.noInvited','нет приглашённых'):
   Math.round(report.invitedCreatorActivationRate*100)+'% ('+report.invitedCreatorsPublished+'/'+report.invitedMembers+')';
- list.append(node('p','Активация приглашённых авторов: '+activation,'pilot-metrics-note'));
+ list.append(node('p',localText('pilot.metrics.activation','Активация приглашённых авторов: ')+activation,'pilot-metrics-note'));
  const r=report.retentionEvidence;
- const fmt=x=>x?.eligible>0?Math.round(x.rate*100)+'% ('+x.returned+'/'+x.eligible+')':'не измерено (нет зрелой когорты)';
+ const fmt=x=>x?.suppressed?
+  localText('pilot.metrics.suppressed','скрыто: меньше пяти участников'):
+  x?.eligible>0?Math.round(x.rate*100)+'% ('+x.returned+'/'+x.eligible+')':
+  localText('pilot.metrics.unmeasured','не измерено (нет зрелой когорты)');
  list.append(node('p','D7: '+fmt(r?.d7)+' · D30: '+fmt(r?.d30),'pilot-metrics-note'));
- list.append(node('p','Основа: добровольно согласившиеся приглашённые участники, реальные UTC-входы в локальную лабораторию. Отзывы согласия исключаются из когорты.','pilot-metrics-note'));
- list.append(node('p','Рекламные показы и выручка не подтверждены.','pilot-metrics-note'));
+ list.append(node('p',localText('pilot.metrics.basis','Источник: добровольные UTC-входы приглашённых участников локальной беты. Когорты менее пяти скрыты; отзыв согласия удаляет историю.'),'pilot-metrics-note'));
+ list.append(node('p',localText('pilot.metrics.revenue','Показы рекламы и реальные доходы не подтверждены.'),'pilot-metrics-note'));
 }
 async function loadRetentionConsent(){
  if(!state.me)return;
@@ -1115,6 +1118,7 @@ window.addEventListener('marcosa:locale-change',()=>{
  for(const el of document.querySelectorAll('option[data-locale-topic]')){
   el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
  }
+ if(state.me?.role==='moderator')pilotMetrics().catch(()=>{});
 });
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
 Promise.all([loadTopics(),refreshIncidentBanner()]).then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
