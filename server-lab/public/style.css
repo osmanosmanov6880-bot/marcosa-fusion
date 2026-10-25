@@ -296,3 +296,14 @@ dialog form{display:grid;gap:17px}
 .pilot-metrics-note{grid-column:1/-1;color:#b9c4d2;font-size:11px;line-height:1.7;margin:3px 0}
 #pilot-metrics-refresh{width:100%;min-height:42px}
 @media(max-width:720px){.pilot-metrics{padding:20px 0}.pilot-metric strong{font-size:20px}}
+
+/* R50 premium attention controls: humane spacing, tactile accessibility. */
+.notification-settings-panel{margin:18px 0;padding:16px 0;border-top:1px solid var(--line)}
+.notification-settings-panel summary{font-weight:650;font-size:14px;line-height:1.5}
+.notification-settings-panel>.muted{margin:12px 0;line-height:1.7;font-size:12px}
+.notification-settings-panel .form-block{display:grid;gap:10px}
+.notification-settings-panel .notification-option{display:flex;align-items:center;gap:11px;min-height:46px;padding:11px 13px;border:1px solid #c8ae8344;border-radius:9px;background:#112235;color:#e6d4b8;font-size:12px;line-height:1.6;cursor:pointer}
+.notification-settings-panel .notification-option input{flex:none;width:18px;height:18px;accent-color:#d3b17e;cursor:pointer}
+.notification-settings-panel button{min-height:46px;width:100%;margin-top:7px}
+#notification-settings-status{font-size:11px}
+@media(max-width:720px){.notification-settings-panel{padding:19px 0}.notification-settings-panel .notification-option{font-size:13px;min-height:50px}}
