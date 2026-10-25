@@ -419,6 +419,30 @@ ORDER BY w.created_at DESC LIMIT 30`).all(who(req)?.id||'',who(req)?.id||'');
     const items=db.prepare('SELECT p.id,p.body,p.status,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? ORDER BY p.id DESC LIMIT 50').all(user.id);
     send(res,200,{items});return;
    }
+   if(method==='GET'&&route==='/api/mod/pilot-metrics'){
+    const operator=requireUser(req);
+    check(operator.role==='moderator',403,'Пилотные показатели доступны только модератору');
+    // Every aggregate derives from verified local SQLite rows, not browser
+    // telemetry, fabricated impressions, inferred DAU or synthetic earnings.
+    const members=db.prepare("SELECT count(*) AS n FROM users WHERE role='member'").get().n;
+    const invited=db.prepare("SELECT count(DISTINCT u.id) AS n FROM pilot_invites i JOIN users u ON u.id=i.used_by WHERE i.used_at IS NOT NULL AND u.role='member'").get().n;
+    const publishedCreators=db.prepare("SELECT count(DISTINCT p.author_id) AS n FROM posts p JOIN users u ON u.id=p.author_id WHERE p.status='published' AND u.role='member'").get().n;
+    const invitedPublished=db.prepare("SELECT count(DISTINCT p.author_id) AS n FROM pilot_invites i JOIN users u ON u.id=i.used_by JOIN posts p ON p.author_id=u.id WHERE i.used_at IS NOT NULL AND u.role='member' AND p.status='published'").get().n;
+    const publicWorlds=db.prepare("SELECT count(DISTINCT world_id) AS n FROM posts WHERE status='published'").get().n;
+    const replies=db.prepare("SELECT count(*) AS n FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.status='published' AND p.status='published' AND c.author_id<>p.author_id").get().n;
+    const followEdges=db.prepare("SELECT count(*) AS n FROM world_follows").get().n;
+    const saves=db.prepare("SELECT count(*) AS n FROM saved_posts").get().n;
+    const tickets=db.prepare("SELECT count(*) AS issued, sum(CASE WHEN used_at IS NOT NULL THEN 1 ELSE 0 END) AS redeemed, sum(CASE WHEN revoked_at IS NOT NULL THEN 1 ELSE 0 END) AS revoked, sum(CASE WHEN used_at IS NULL AND revoked_at IS NULL AND expires_at>? THEN 1 ELSE 0 END) AS pending FROM pilot_invites").get(now());
+    send(res,200,{
+     source:'verified-local-sqlite',generatedAt:new Date(now()).toISOString(),production:false,
+     members,invitedMembers:invited,publishedCreators,invitedCreatorsPublished:invitedPublished,
+     creatorActivationRate:members>0?publishedCreators/members:null,
+     invitedCreatorActivationRate:invited>0?invitedPublished/invited:null,
+     publicWorlds,repliesToOtherAuthors:replies,followEdges,savedReferences:saves,
+     invitations:{issued:tickets.issued||0,redeemed:tickets.redeemed||0,revoked:tickets.revoked||0,pending:tickets.pending||0},
+     verifiedAdImpressions:null,paidRevenue:null,retentionD7:null,retentionD30:null
+    });return;
+   }
    if(method==='GET'&&route==='/api/mod/invites'){
     const moderator=requireUser(req);
     check(moderator.role==='moderator',403,'Только модератор управляет приглашениями');
