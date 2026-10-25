@@ -45,6 +45,11 @@ test('R76 twelve isolated real-HTTP accounts, multi-user writes and persistent p
   assert.equal(profile.status,200);
   assert.equal(profile.data.user.username,username);
   assert.equal(profile.data.worlds.length,1);
+  assert.match(profile.data.worlds[0].slug,/^[a-z][a-z0-9-]{2,39}$/,
+   'Allowed underscore username must not create unrouteable World slug');
+  assert.equal(created.data.world,profile.data.worlds[0].slug);
+  const direct=await request('/worlds/'+profile.data.worlds[0].slug,{cookie:login.cookie});
+  assert.equal(direct.status,200,'New default World must be accessible by direct route');
   return{username,email,cookie:login.cookie,id:profile.data.user.id,world:profile.data.worlds[0]};
  }
  try{
