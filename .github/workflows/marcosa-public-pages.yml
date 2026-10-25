@@ -18,6 +18,7 @@ on:
       - "tools/r25_grade_cinematic_assets.py"
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
+      - "tools/r110_social_transfer_cdp.cjs"
       - "inventory/playable_cinema_r19.json"
       - "ops/pages-live-readback.mjs"
       - "tests/pages-live-readback.test.mjs"
@@ -39,6 +40,7 @@ on:
       - "tools/r25_grade_cinematic_assets.py"
       - "tools/r22_extract_cinematic_assets.py"
       - "tools/r5_browser_smoke.py"
+      - "tools/r110_social_transfer_cdp.cjs"
       - "inventory/playable_cinema_r19.json"
       - "ops/pages-live-readback.mjs"
       - "tests/pages-live-readback.test.mjs"
@@ -109,6 +111,7 @@ jobs:
           node --check site/social-core.js
           node --check site/social-journal.js
           node --check site/social-transfer.js
+          node --check tools/r110_social_transfer_cdp.cjs
           node --check tools/r21_brand_cdp.cjs
           node --check tools/r22_reference_cdp.cjs
           node --check site/marcosa-gateway.js
@@ -204,6 +207,7 @@ jobs:
           node tools/r21_brand_cdp.cjs
           node tools/r24_nocturne_cdp.cjs
           node tools/r25_director_cdp.cjs
+          node tools/r110_social_transfer_cdp.cjs
       - name: Capture R4 Chromium render evidence (desktop / mobile / static)
         if: github.event_name == 'pull_request'
         shell: bash
@@ -294,6 +298,14 @@ jobs:
         with:
           name: r24-marcosa-nocturne-real-worlds-qa
           path: qa-r24/
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload R110 real Social transfer desktop/mobile screenshots
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: r110-real-social-transfer-qa
+          path: qa-r110/
           retention-days: 7
           if-no-files-found: error
       - name: Run independent public HTTPS readback contract tests
