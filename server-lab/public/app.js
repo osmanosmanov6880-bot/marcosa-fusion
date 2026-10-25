@@ -37,6 +37,32 @@ function clearIssuedInvite(){
  $('issued-invite-code').textContent='';
  $('issued-invite-result').hidden=true;
 }
+async function pilotMetrics(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const report=await api('/mod/pilot-metrics');
+ const list=$('pilot-metrics-data');clear(list);
+ const entries=[
+  ['Аккаунтов участников',report.members],
+  ['Регистраций по одноразовым кодам',report.invitedMembers],
+  ['Авторов с опубликованной историей',report.publishedCreators],
+  ['Из приглашённых стали авторами',report.invitedCreatorsPublished],
+  ['Публичных миров с контентом',report.publicWorlds],
+  ['Ответов другим авторам',report.repliesToOtherAuthors],
+  ['Подписок на миры',report.followEdges],
+  ['Сохранённых публикаций',report.savedReferences],
+  ['Выдано приглашений',report.invitations.issued],
+  ['Погашено приглашений',report.invitations.redeemed]
+ ];
+ for(const [label,count] of entries){
+  const card=node('div','','pilot-metric');
+  card.append(node('strong',String(count)),node('span',label));
+  list.append(card);
+ }
+ const activation=report.invitedCreatorActivationRate===null?'нет приглашённых':
+  Math.round(report.invitedCreatorActivationRate*100)+'% ('+report.invitedCreatorsPublished+'/'+report.invitedMembers+')';
+ list.append(node('p','Активация приглашённых авторов: '+activation,'pilot-metrics-note'));
+ list.append(node('p','D7/D30: не измерены · Рекламные показы и выручка: не измерены','pilot-metrics-note'));
+}
 async function pilotInvites(){
  if(!state.me||state.me.role!=='moderator')return;
  const result=await api('/mod/invites'),list=$('invite-list');clear(list);
@@ -131,7 +157,7 @@ async function session(){
   $('security-sessions').textContent='Активные сессии: —';
   $('security-expiry').textContent='Срок текущего входа: —';
   $('security-revoke-form').reset();$('security-password-form').reset();
-  clearIssuedInvite();clear($('invite-list'));
+  clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));
   clear($('onboarding-steps'));$('onboarding-progress').value=0;
   $('onboarding-counter').textContent='0 из 5 шагов';
   clear($('blocked-users-list'));
@@ -165,8 +191,8 @@ async function session(){
   if(state.worlds.length)syncWorldSettings();
   await loadSavedIds();
   await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadBlocks(),saved(true),onboarding()]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites()]);
-  else {clearIssuedInvite();clear($('invite-list'));}
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics()]);
+  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));}
  }
 }
 async function worlds(){
@@ -693,6 +719,7 @@ $('issue-invite-form').addEventListener('submit',event=>{
 });
 $('invite-clear').addEventListener('click',clearIssuedInvite);
 $('invite-refresh').addEventListener('click',()=>run(pilotInvites,'Список приглашений обновлён'));
+$('pilot-metrics-refresh').addEventListener('click',()=>run(pilotMetrics,'Показатели пересчитаны из базы'));
 $('reload-reports').addEventListener('click',()=>run(async()=>{await Promise.all([reports(),reviewAppeals(),pilotInvites()]);}));
 session().then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
