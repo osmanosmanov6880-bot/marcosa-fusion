@@ -1,0 +1,156 @@
+name: "MARCOSA | R119 ephemeral real VPS social API smoke (NO PRODUCTION)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)"
+    types: [completed]
+  pull_request:
+    paths:
+      - "ops/r119_social_smoke.mjs"
+      - "tests/r119_vps_social_smoke.test.mjs"
+      - ".github/workflows/marcosa-r119-vps-social-smoke.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r119-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify genuine local social API before any VPS use
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          node --check server-lab/server.mjs
+          node --check ops/r119_social_smoke.mjs
+          node --test tests/r119_vps_social_smoke.test.mjs
+  isolated-vps-lab:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.name == 'MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'workflow_run' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository) ||
+       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Require expected source SHA and same-commit R117 triple-proof
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
+          node ops/release_certificate_r117.mjs
+      - name: Copy only source into ephemeral owner-only directory and smoke real VPS loopback
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$DEPLOY_USER" == 'marcosa-deploy' ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
+          # A fixed source tree, no symlinks or tar flags from untrusted input.
+          [[ -f server-lab/server.mjs && -f ops/r119_social_smoke.mjs ]] || exit 2
+          if find server-lab ops/r119_social_smoke.mjs -type l | grep -q .; then
+            echo "::error::Source package contains a symlink"
+            exit 2
+          fi
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing restricted deploy private key}"
+          umask 077
+          TEMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TEMP"; rm -f -- r119-vps-proof-stdout.log' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TEMP/ssh"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TEMP/known_hosts"
+          chmod 600 "$TEMP/ssh" "$TEMP/known_hosts"
+          KEY_FP="$(ssh-keygen -y -P '' -f "$TEMP/ssh" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs \
+            --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
+            --known-hosts "$TEMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          REMOTE_SCRIPT="$(cat <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          [[ "$(id -un)" == "marcosa-deploy" ]] || exit 2
+          WORK="$(mktemp -d "$HOME/marcosa-r119-XXXXXXXX")"
+          trap "rm -rf -- \"$WORK\"" EXIT
+          tar -xz -C "$WORK" --no-same-owner --no-same-permissions
+          cd "$WORK"
+          [[ "$(find . -type l | wc -l)" == "0" ]] || exit 2
+          command -v node >/dev/null || { echo "R119_VPS_NODE22_REQUIRED"; exit 2; }
+          node --check ops/r119_social_smoke.mjs
+          node ops/r119_social_smoke.mjs
+          REMOTE
+          )"
+          # This is the actual server-lab source, NOT a mocked miniature server.
+          tar -czf - server-lab ops/r119_social_smoke.mjs |
+            ssh -T -i "$TEMP/ssh" -p "$DEPLOY_PORT" \
+              -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TEMP/known_hosts" \
+              "$DEPLOY_USER@$DEPLOY_HOST" "RELEASE_SHA=$RELEASE_SHA bash -c '$REMOTE_SCRIPT'" |
+            tee r119-vps-proof-stdout.log
+          grep -qx 'R119_ACTUAL_VPS_EPHEMERAL_SOCIAL_API=PASS' r119-vps-proof-stdout.log
+          grep -qx "R119_RELEASE_SHA=$RELEASE_SHA" r119-vps-proof-stdout.log
+          grep -qx 'R119_CROSS_TENANT_DENIAL=PASS' r119-vps-proof-stdout.log
+          grep -qx 'R119_PRODUCTION_AUTHORIZED=NO' r119-vps-proof-stdout.log
+          node --input-type=module -e '
+            import {writeFileSync} from "node:fs";
+            const sha=process.env.RELEASE_SHA;
+            if(!/^[a-f0-9]{40}$/.test(sha))throw Error("Invalid source");
+            writeFileSync("marcosa-r119-vps-social-proof.json",
+              JSON.stringify({
+                format:"MARCOSA-R119-EPHEMERAL-VPS-SOCIAL-PROOF-v1",
+                sourceSha:sha,status:"PASS",
+                scope:"127.0.0.1_ephemeral_synthetic_sqlite_memory",
+                realVpsExecution:true,
+                syntheticTwoAccountHttpAuthAndOwnership:true,
+                crossTenantWriteDenied:true,
+                logoutDeletionForeignKeyIntegrity:true,
+                noCustomerDatabaseOrRealUsers:true,
+                productionAuthorized:false,
+                actualPostgresOrSupabaseVerified:false,
+                verifiedPublicHttpsSocialApp:false,
+              },null,2)+"\n",{flag:"wx",mode:0o600});
+          '
+          echo 'R119_GITHUB_VPS_SOURCE_AND_SMOKE=PASS'
+      - name: Retain only redacted synthetic runtime proof; never any DB or sessions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r119-vps-loopback-social-proof
+          path: marcosa-r119-vps-social-proof.json
+          retention-days: 14
+          if-no-files-found: warn
