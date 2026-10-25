@@ -47,6 +47,71 @@ async function run(action,success){
  try{await action();if(success)notice(success);}
  catch(error){notice(error.message||'Не удалось выполнить действие');}
 }
+// R87: all native form constraints get one accessible, localized error surface.
+// This attaches to newly created forms too; validation itself remains native
+// and server-side rules remain authoritative.
+const formErrors=new WeakMap();
+let formErrorSerial=0;
+function formValidationSummary(form){
+ let element=formErrors.get(form);
+ if(!element){
+  element=node('p','','form-validation-summary');
+  element.id='marcosa-form-error-'+(++formErrorSerial);
+  element.setAttribute('role','alert');
+  element.setAttribute('tabindex','-1');
+  element.hidden=true;
+  form.prepend(element);
+  formErrors.set(form,element);
+ }
+ return element;
+}
+function describeFormErrors(form,{focus=false}={}){
+ const summary=formValidationSummary(form);
+ const controls=Array.from(form.elements).filter(el=>
+  el instanceof HTMLElement&&el.willValidate===true);
+ const invalid=controls.filter(el=>!el.validity.valid);
+ const problem=new Set(invalid);
+ for(const field of controls){
+  const references=(field.getAttribute('aria-describedby')||'')
+   .split(/\s+/).filter(Boolean).filter(id=>id!==summary.id);
+  if(problem.has(field)){
+   field.setAttribute('aria-invalid','true');
+   field.setAttribute('aria-describedby',[...references,summary.id].join(' '));
+  }else{
+   field.removeAttribute('aria-invalid');
+   if(references.length)field.setAttribute('aria-describedby',references.join(' '));
+   else field.removeAttribute('aria-describedby');
+  }
+ }
+ if(!invalid.length){
+  summary.hidden=true;summary.textContent='';delete summary.dataset.i18nDynamic;
+  return;
+ }
+ summary.dataset.i18nDynamic='validation.checkFields';
+ summary.textContent=localText('validation.checkFields',
+  'Проверь выделенные поля: некоторые значения не соответствуют требованиям.');
+ summary.hidden=false;
+ if(focus)invalid[0].focus({preventScroll:false});
+}
+document.addEventListener('invalid',event=>{
+ const form=event.target?.form;
+ if(!form)return;
+ // Prevent opaque native-language validation bubbles and focus the first
+ // invalid field after the browser has emitted all invalid events.
+ event.preventDefault();
+ if(form.dataset.marcosaValidationScheduled==='1')return;
+ form.dataset.marcosaValidationScheduled='1';
+ queueMicrotask(()=>{
+  delete form.dataset.marcosaValidationScheduled;
+  if(form.isConnected)describeFormErrors(form,{focus:true});
+ });
+},true);
+const refreshValidationAfterEdit=event=>{
+ const form=event.target?.form;
+ if(form&&formErrors.has(form))describeFormErrors(form);
+};
+document.addEventListener('input',refreshValidationAfterEdit,true);
+document.addEventListener('change',refreshValidationAfterEdit,true);
 async function loadTopics(){
  const data=await api('/world-topics');
  state.topicNames=new Map(data.items.map(item=>[item.id,item.title]));

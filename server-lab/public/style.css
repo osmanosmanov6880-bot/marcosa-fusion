@@ -411,3 +411,25 @@ dialog form{display:grid;gap:17px}
 }
 .incident-banner[hidden]{display:none}
 @media(max-width:720px){.incident-banner{margin:-8px 0 20px;padding:16px;align-items:flex-start;gap:14px;font-size:13px}}
+
+/* R87 form validation: assistive status plus visible invalid fields, never UGC. */
+.form-validation-summary{
+ margin:0 0 13px;padding:13px 16px;border:2px solid #f0bf8a;
+ background:#32251e;color:#fff0d7;border-radius:9px;
+ font:700 13px/1.65 var(--sans);overflow-wrap:anywhere;
+}
+.form-validation-summary[hidden]{display:none}
+.form-block [aria-invalid="true"],form [aria-invalid="true"]{
+ border:2px solid #f3c891!important;background:#2d1c22!important;
+ box-shadow:0 0 0 2px #edbd7840;
+}
+.form-block [aria-invalid="true"]:focus-visible,form [aria-invalid="true"]:focus-visible{
+ outline:3px solid #fff1d3!important;outline-offset:3px;
+}
+@media(max-width:720px){
+ .form-validation-summary{padding:15px 13px;font-size:14px;line-height:1.55}
+}
+@media(prefers-contrast:more){
+ .form-validation-summary{border-color:#fff;background:#201821;color:#fff}
+ .form-block [aria-invalid="true"],form [aria-invalid="true"]{border-color:#fff!important}
+}

@@ -141,6 +141,20 @@ jobs:
           set -euo pipefail
           node --check server-lab/test/r79.media_incident_kill_switch.test.mjs
           node --test server-lab/test/r79.media_incident_kill_switch.test.mjs
+      - name: R87 accessible RU EN native form validation across real Chromium desktop and phone
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r87.form_validation_cdp.mjs
+          node server-lab/test/r87.form_validation_cdp.mjs
+      - name: Keep real R87 accessible form error Chrome screenshots
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r87-accessible-form-errors
+          path: qa-r87/
+          retention-days: 7
+          if-no-files-found: warn
       - name: R82 actual bilingual incident banner QA in Chrome 1440 390 360
         shell: bash
         run: |
