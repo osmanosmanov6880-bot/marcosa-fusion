@@ -1,0 +1,33 @@
+name: "MARCOSA | R76 independent multi-tenant write and privacy acceptance"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r76-multitenant-lab.yml"
+  push:
+    branches: [main]
+    paths:
+      - "server-lab/**"
+      - ".github/workflows/marcosa-r76-multitenant-lab.yml"
+permissions:
+  contents: read
+jobs:
+  r76-local-write-acceptance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: R76 executable 12-account privacy and write-integrity regression
+        run: |
+          set -euo pipefail
+          node --check server-lab/test/r76.multi_tenant_write_drill.test.mjs
+          node --test server-lab/test/r76.multi_tenant_write_drill.test.mjs
+      - name: Protect release interpretation
+        if: always()
+        run: |
+          echo "R76 is a disposable local 12-test-account SQLite scenario." >> "$GITHUB_STEP_SUMMARY"
+          echo "It does NOT count as 12 independent beta participants, real D7/D30, or global production load." >> "$GITHUB_STEP_SUMMARY"
