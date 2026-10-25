@@ -351,6 +351,35 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     res.writeHead(200,{'Content-Type':'image/svg+xml; charset=utf-8'});res.end(data);return;
    }
    if(method==='GET'&&route==='/api/health'){send(res,200,{ok:true,production:false,mode:'loopback-lab',publicMediaDelivery:publicMediaDisabled?'disabled':'enabled',contentWrites:contentWritesDisabled?'disabled':'enabled'});return;}
+   // R89: operator-only, on-demand SQLite readiness. Public /api/health
+   // remains cheap liveness, not data integrity or cloud production evidence.
+   if(method==='GET'&&route==='/api/mod/readiness'){
+    const operator=requireUser(req);
+    check(operator.role==='moderator',403,'Только модератор проверяет готовность SQLite');
+    let quickCheck=false,foreignKeys=false,requiredTables=false;
+    try{
+     quickCheck=db.prepare('PRAGMA quick_check(1)').get()?.quick_check==='ok';
+     foreignKeys=db.prepare('PRAGMA foreign_key_check').all().length===0;
+     const names=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name));
+     requiredTables=['users','worlds','posts','world_follows','world_covers',
+      'world_cover_rights','reports','pilot_invites','beta_retention_consents']
+      .every(name=>names.has(name));
+    }catch{
+     // Do not disclose raw database errors, schema SQL, user data or paths.
+    }
+    const readReady=quickCheck&&foreignKeys&&requiredTables;
+    send(res,readReady?200:503,{
+     ready:readReady,production:false,scope:'moderator-local-sqlite',
+     sqlite:{quickCheckPassed:quickCheck,foreignKeysPassed:foreignKeys,
+      requiredTablesPresent:requiredTables},
+     readReady,writeReady:readReady&&!contentWritesDisabled,
+     publicMediaReady:readReady&&!publicMediaDisabled,
+     incidentContentFreeze:contentWritesDisabled,
+     incidentPublicMediaShutdown:publicMediaDisabled,
+     measurement:'on-demand-local-check-no-guaranteed-RTO-or-RPO'
+    },{'Cache-Control':'no-store',...(readReady?{}:{'Retry-After':'60'})});
+    return;
+   }
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
    }
