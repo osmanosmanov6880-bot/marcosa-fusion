@@ -1,0 +1,129 @@
+name: "MARCOSA | R121 complete legacy PUBLIC file hashes (READ ONLY, NO CUTOVER)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)"
+    types: [completed]
+  pull_request:
+    paths:
+      - "tools/r121_public_legacy_fingerprints.py"
+      - "ops/r121_full_public_inventory.mjs"
+      - "tests/r121_full_public_inventory.test.mjs"
+      - "tests/test_r121_public_legacy_fingerprints.py"
+      - ".github/workflows/marcosa-r121-full-legacy-hash-inventory.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r121-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify full public hash collector and anti-false-PASS evaluator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tests -p 'test_r121_public_legacy_fingerprints.py' -v
+          python -m py_compile tools/r121_public_legacy_fingerprints.py
+          node --check ops/r121_full_public_inventory.mjs
+          node --test tests/r121_full_public_inventory.test.mjs
+  actual-vps-public-hashes:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)' &&
+      github.event.workflow_run.event == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    environment: marcosa-staging
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Pin current commit and exact verified R118 artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$UPSTREAM_RUN_ID" =~ ^[1-9][0-9]*$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "::error::New main commit superseded this evidence"
+            exit 2
+          }
+          mkdir -m 700 r118-evidence
+          gh run download "$UPSTREAM_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name marcosa-r118-production-boundary-no-go \
+            --dir r118-evidence
+          test -f r118-evidence/marcosa-r118-production-boundary.json
+          test "$(wc -c < r118-evidence/marcosa-r118-production-boundary.json)" -lt 65536
+      - name: Stream read-only public hashes from pinned non-root Contabo
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+          EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
+        run: |
+          set -euo pipefail
+          [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
+          source ops/load-pinned-staging-host.sh
+          : "${DEPLOY_KEY:?Missing read-only verifier SSH credential}"
+          umask 077
+          TMP="$(mktemp -d)"
+          trap 'rm -rf -- "$TMP"; rm -f -- r121-remote-public-inventory.json' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TMP/key"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TMP/known_hosts"
+          chmod 600 "$TMP/key" "$TMP/known_hosts"
+          KEY_FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          [[ "$KEY_FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
+          node ops/verify-staging-host-key.mjs \
+            --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
+            --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          # Exactly reviewed read-only Python streams through SSH stdin.
+          # No configuration, raw legacy content or customer data is uploaded.
+          ssh -T -i "$TMP/key" -p "$DEPLOY_PORT" \
+            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
+            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
+            "$DEPLOY_USER@$DEPLOY_HOST" 'python3 -' \
+            < tools/r121_public_legacy_fingerprints.py > r121-remote-public-inventory.json
+          [[ -s r121-remote-public-inventory.json ]] || exit 2
+          [[ "$(wc -c < r121-remote-public-inventory.json)" -lt 65536 ]] || exit 2
+          node ops/r121_full_public_inventory.mjs
+      - name: Preserve ONLY scrubbed public SHA-256 hashes, never file contents
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r121-legacy-public-hashes
+          path: marcosa-r121-public-file-hashes.json
+          retention-days: 14
+          if-no-files-found: warn
