@@ -1,0 +1,123 @@
+name: "MARCOSA | R122 compare two independent legacy PUBLIC SHA-256 snapshots (NO CUTOVER)"
+on:
+  pull_request:
+    paths:
+      - "ops/r122_compare_public_snapshots.mjs"
+      - "tests/r122_compare_public_snapshots.test.mjs"
+      - ".github/workflows/marcosa-r122-public-hash-diff.yml"
+  workflow_dispatch:
+    inputs:
+      baseline_run_id:
+        description: "Prior successful R121 real VPS workflow run ID"
+        required: true
+        type: string
+      baseline_sha:
+        description: "Exact 40-hex Git main commit attested by baseline R121"
+        required: true
+        type: string
+      current_run_id:
+        description: "Current successful R121 real VPS workflow run ID (must differ)"
+        required: true
+        type: string
+      current_sha:
+        description: "Exact 40-hex current HEAD of main"
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run two-snapshot integrity, false proof and drift tests without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/r122_compare_public_snapshots.mjs
+          node --test tests/r122_compare_public_snapshots.test.mjs
+  compare-approved-snapshots:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check distinct actual R121 V P S evidence with exact commit and successful live job
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASELINE_RUN_ID: ${{ inputs.baseline_run_id }}
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+          CURRENT_RUN_ID: ${{ inputs.current_run_id }}
+          CURRENT_MAIN_SHA: ${{ inputs.current_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$BASELINE_RUN_ID" =~ ^[1-9][0-9]*$ ]] || exit 2
+          [[ "$CURRENT_RUN_ID" =~ ^[1-9][0-9]*$ ]] || exit 2
+          [[ "$BASELINE_RUN_ID" != "$CURRENT_RUN_ID" ]] || exit 2
+          [[ "$BASELINE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$CURRENT_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$CURRENT_MAIN_SHA" ]] || {
+            echo "::error::Current R121 is not the latest main; no compare"
+            exit 2
+          }
+          # The two ids are supplied explicitly, never selected from a
+          # random newest release. Both must come from actual live R121 VPS jobs.
+          for kind in BASELINE CURRENT; do
+            if [[ "$kind" == "BASELINE" ]]; then
+              id="$BASELINE_RUN_ID"; sha="$BASELINE_SHA"
+            else
+              id="$CURRENT_RUN_ID"; sha="$CURRENT_MAIN_SHA"
+            fi
+            run="repos/$GITHUB_REPOSITORY/actions/runs/$id"
+            actualSha="$(gh api "$run" --jq '.head_sha')"
+            actualEvent="$(gh api "$run" --jq '.event')"
+            actualBranch="$(gh api "$run" --jq '.head_branch')"
+            actualStatus="$(gh api "$run" --jq '.status')"
+            actualResult="$(gh api "$run" --jq '.conclusion')"
+            actualWorkflow="$(gh api "$run" --jq '.name')"
+            [[ "$actualSha" == "$sha" ]] || exit 2
+            [[ "$actualEvent" == "workflow_run" ]] || exit 2
+            [[ "$actualBranch" == "main" ]] || exit 2
+            [[ "$actualStatus" == "completed" && "$actualResult" == "success" ]] || exit 2
+            [[ "$actualWorkflow" == "MARCOSA | R121 complete legacy PUBLIC file hashes (READ ONLY, NO CUTOVER)" ]] || exit 2
+            liveJobs="$(gh api "$run/jobs?per_page=100" \
+              --jq '[.jobs[] | select(.name == "actual-vps-public-hashes" and .conclusion == "success")] | length')"
+            [[ "$liveJobs" == "1" ]] || {
+              echo "::error::Offline R121 job is not accepted as real VPS evidence"
+              exit 2
+            }
+          done
+          mkdir -m 700 r122-baseline r122-current
+          gh run download "$BASELINE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name marcosa-r121-legacy-public-hashes --dir r122-baseline
+          gh run download "$CURRENT_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name marcosa-r121-legacy-public-hashes --dir r122-current
+          test -f r122-baseline/marcosa-r121-public-file-hashes.json
+          test -f r122-current/marcosa-r121-public-file-hashes.json
+          node ops/r122_compare_public_snapshots.mjs
+      - name: Save redacted only-public-filename differences even on drift
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r122-public-drift-verdict
+          path: marcosa-r122-legacy-public-diff.json
+          retention-days: 14
+          if-no-files-found: warn
