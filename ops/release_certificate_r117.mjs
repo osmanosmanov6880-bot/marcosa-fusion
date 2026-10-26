@@ -6,8 +6,10 @@
  * verified Contabo SSH staging deployment, and R116's REAL read-only VPS
  * rollback-candidate verification. No SSH, production, database, or writes.
  */
-import {writeFileSync, appendFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {writeFileSync, appendFileSync, readFileSync, mkdtempSync, rmSync} from 'node:fs';
+import {resolve, join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {evaluateRelease, REPO, PIPELINES} from './release_evidence_r114.mjs';
 
@@ -20,7 +22,7 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const API = 'https://api.github.com/repos/' + REPO + '/';
 const demand = (condition, reason) => {if (!condition) throw Error(reason);};
 
-function proofForSha(sourceSha, runs, jobsByRun) {
+function proofForSha(sourceSha, runs, jobsByRun, artifactsByRun) {
   const matching = runs.filter(run => run && run.name === R116.name &&
     run.head_sha === sourceSha && run.head_branch === 'main' &&
     run.event === 'workflow_run');
@@ -48,22 +50,38 @@ function proofForSha(sourceSha, runs, jobsByRun) {
     if (!job || job.status !== 'completed') incomplete = true;
     else if (job.conclusion !== 'success') rejected = true;
   }
-  return {
-    ...identity,
-    status:rejected ? 'FAIL' : incomplete ? 'PENDING' : 'PASS',
-    reason:rejected ? 'PROOF_JOB_FAILED_OR_SKIPPED' :
-      incomplete ? 'PROOF_JOB_MISSING_OR_UNFINISHED' : 'LIVE_ROLLBACK_READINESS_CONFIRMED',
-    jobs:conclusions,
-  };
+  if (rejected || incomplete) {
+    return {
+      ...identity,status:rejected?'FAIL':'PENDING',
+      reason:rejected?'PROOF_JOB_FAILED_OR_SKIPPED':'PROOF_JOB_MISSING_OR_UNFINISHED',
+      jobs:conclusions,
+    };
+  }
+  // A completed-success R116 job can otherwise be a zero-work superseded-SHA
+  // branch that exited 0. The R116 artifact is created ONLY after the actual
+  // SSH checks pass and is associated with this exact same workflow run.
+  const artifacts=artifactsByRun?.[String(run.id)];
+  const valid=Array.isArray(artifacts)&&artifacts.length<=100?
+    artifacts.filter(a=>a?.name==='marcosa-r116-actual-vps-rollback-proof'):[];
+  if(valid.length!==1 || !Number.isSafeInteger(valid[0].id) || valid[0].id<=0 ||
+     valid[0].expired!==false || !Number.isSafeInteger(valid[0].size_in_bytes) ||
+     valid[0].size_in_bytes<100 || valid[0].size_in_bytes>16384 ||
+     (valid[0].workflow_run && valid[0].workflow_run.id!==run.id)) {
+    return {...identity,status:'FAIL',reason:'NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT',
+      jobs:conclusions};
+  }
+  return {...identity,status:'PASS',reason:'LIVE_ROLLBACK_READINESS_CONFIRMED',
+    jobs:conclusions,actualVpsProofArtifactId:valid[0].id};
+
 }
 
-export function evaluateCertificate({sourceSha, mainSha, runs, jobsByRun}={}) {
+export function evaluateCertificate({sourceSha, mainSha, runs, jobsByRun, artifactsByRun}={}) {
   demand(SHA40.test(sourceSha || '') && SHA40.test(mainSha || ''),
     'Exact main and release SHA required');
   demand(Array.isArray(runs) && runs.length <= 500, 'Bounded workflow evidence required');
   demand(jobsByRun && typeof jobsByRun === 'object', 'Job evidence required');
   const dual = evaluateRelease({sourceSha, mainSha, runs, jobsByRun});
-  const rollback = proofForSha(sourceSha, runs, jobsByRun);
+  const rollback = proofForSha(sourceSha, runs, jobsByRun, artifactsByRun);
   const checks = [dual.channels.pages.status, dual.channels.staging.status, rollback.status];
   const status = sourceSha !== mainSha ? 'SUPERSEDED' :
     checks.includes('FAIL') ? 'FAIL' :
@@ -132,14 +150,73 @@ async function collectEvidence(sha, token) {
     r.head_branch === 'main' && c.event.includes(r.event))
     .sort((a,b) => Number(b.id) - Number(a.id))[0]).filter(Boolean);
   const jobsByRun = {};
+  const artifactsByRun = {};
   await Promise.all(latest.filter(r => r.status === 'completed' &&
       r.conclusion === 'success').map(async r => {
     demand(Number.isSafeInteger(r.id) && r.id > 0, 'Invalid workflow id');
     const response = await requestJson('actions/runs/' + r.id + '/jobs?per_page=100',token);
     demand(Array.isArray(response.jobs), 'Missing workflow jobs');
     jobsByRun[String(r.id)] = response.jobs;
+    if(r.name===R116.name) {
+      const items=await requestJson('actions/runs/' + r.id + '/artifacts?per_page=100',token);
+      demand(Array.isArray(items.artifacts),'Missing R116 proof artifact list');
+      artifactsByRun[String(r.id)]=items.artifacts;
+    }
   }));
-  return evaluateCertificate({sourceSha:sha, mainSha, runs, jobsByRun});
+  return evaluateCertificate({sourceSha:sha, mainSha, runs, jobsByRun, artifactsByRun});
+}
+
+/**
+ * Validate the ACTUAL JSON bytes downloaded from the GitHub Actions R116 run.
+ * GitHub's artifact metadata alone would not prove the attested SHA and
+ * read-only SSH operation were reported in the artifact content.
+ */
+export function verifyR116ProofPayload(payload,{expectedSha,runId}={}){
+  demand(SHA40.test(expectedSha||'')&&Number.isSafeInteger(runId)&&runId>0,
+    'Exact R116 proof source required');
+  demand(payload&&typeof payload==='object'&&!Array.isArray(payload)&&
+    payload.format==='MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1'&&
+    payload.sourceSha===expectedSha&&
+    SHA40.test(payload.previousReleaseSha||'')&&
+    Number.isSafeInteger(payload.rollbackCandidateAssetsVerified)&&
+    payload.rollbackCandidateAssetsVerified>=3&&
+    payload.rollbackCandidateAssetsVerified<=99999&&
+    payload.actualReadOnlyVpsSshCheck===true&&
+    payload.previousFilesAndManifestSha256Verified===true&&
+    payload.productionChanged===false&&
+    payload.productionAuthorized===false&&payload.status==='PASS',
+    'R116 downloaded proof does not attest actual nonroot read-only SSH');
+  return Object.freeze({
+    actualR116VpsArtifactContent:'PASS',
+    actualR116VpsProofRunId:runId,
+    actualR116VpsSourceSha:expectedSha,
+    previousReleaseSha:payload.previousReleaseSha,
+    rollbackCandidateAssetsVerified:payload.rollbackCandidateAssetsVerified,
+    productionAuthorized:false,
+  });
+}
+function downloadAndVerifyR116Proof({sha,rollback,token}){
+  demand(rollback?.status==='PASS'&&
+    Number.isSafeInteger(rollback.runId)&&rollback.runId>0&&
+    Number.isSafeInteger(rollback.actualVpsProofArtifactId)&&
+    rollback.actualVpsProofArtifactId>0,
+    'R116 actual VPS evidence has not passed');
+  demand(typeof token==='string'&&token.length>10,'GitHub action token missing');
+  const tmp=mkdtempSync(join(tmpdir(),'marcosa-r116-proof-'));
+  try{
+    execFileSync('gh',[
+      'run','download',String(rollback.runId),'--repo',REPO,
+      '--name','marcosa-r116-actual-vps-rollback-proof',
+      '--dir',tmp
+    ],{env:{...process.env,GH_TOKEN:token},timeout:30000,
+      encoding:'utf8',maxBuffer:65536,stdio:['ignore','pipe','pipe']});
+    const data=readFileSync(join(tmp,'marcosa-r116-actual-vps-rollback-proof.json'));
+    demand(data.length>50&&data.length<=16384,'Oversized or missing real R116 JSON');
+    return verifyR116ProofPayload(JSON.parse(data.toString('utf8')),
+      {expectedSha:sha,runId:rollback.runId});
+  }finally{
+    rmSync(tmp,{recursive:true,force:true});
+  }
 }
 
 async function main() {
@@ -147,6 +224,17 @@ async function main() {
   const sourceSha = process.env.RELEASE_SHA;
   demand(SHA40.test(sourceSha || ''), 'Invalid source SHA');
   const report = await collectEvidence(sourceSha, process.env.GITHUB_TOKEN);
+  if(report.status==='PASS'){
+    const verified=downloadAndVerifyR116Proof({
+      sha:sourceSha,
+      rollback:report.evidence.verifiedVpsRollbackCandidate,
+      token:process.env.GITHUB_TOKEN,
+    });
+    report.evidence.verifiedVpsRollbackCandidate={
+      ...report.evidence.verifiedVpsRollbackCandidate,...verified,
+    };
+    console.log('R117_R116_ACTUAL_VPS_PROOF_JSON=PASS');
+  }
   writeFileSync('marcosa-r117-release-certificate.json',
     JSON.stringify(report,null,2) + '\n',{flag:'wx',mode:0o600});
   console.log('R117_TRIPLE_PROOF_CERTIFICATE=' + report.status);

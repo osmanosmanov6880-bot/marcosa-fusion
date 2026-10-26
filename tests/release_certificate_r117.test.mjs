@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {evaluateCertificate, R116} from '../ops/release_certificate_r117.mjs';
+import {evaluateCertificate, R116, verifyR116ProofPayload} from '../ops/release_certificate_r117.mjs';
 import {PIPELINES} from '../ops/release_evidence_r114.mjs';
 
 const sha = 'a'.repeat(40);
@@ -25,6 +25,10 @@ function example() {
       [staging.id]:goodJobs(PIPELINES.staging.jobs),
       [rollback.id]:goodJobs(R116.requiredJobs),
     },
+    artifactsByRun:{[rollback.id]:[{
+      id:887766, name:'marcosa-r116-actual-vps-rollback-proof',
+      expired:false,size_in_bytes:412,workflow_run:{id:rollback.id},
+    }]},
   };
 }
 test('three SAME SHA proofs with completed success jobs yield a scoped preview PASS',()=>{
@@ -41,6 +45,30 @@ test('three SAME SHA proofs with completed success jobs yield a scoped preview P
   assert.equal(c.privateAuthOrAccountMigrationVerified,false);
   assert.equal(c.scope,'public_static_preview_only');
 });
+test('R116 superseded green live job with NO real artifact must FAIL',()=>{
+  const c=example();
+  delete c.artifactsByRun['7103'];
+  const r=evaluateCertificate(c);
+  assert.equal(r.status,'FAIL');
+  assert.equal(r.evidence.verifiedVpsRollbackCandidate.reason,
+    'NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT');
+});
+test('R116 proof from unrelated run or expired artifact must never issue certificate',()=>{
+  for(const artifactPatch of [
+    {expired:true},{workflow_run:{id:99999}},{size_in_bytes:0},{id:0},
+    {name:'fake-r116-rollback-proof'}]){
+    const c=example();
+    Object.assign(c.artifactsByRun['7103'][0],artifactPatch);
+    assert.equal(evaluateCertificate(c).status,'FAIL');
+  }
+});
+test('a genuine same-run actual VPS proof preserves PREVIEW-only NO_GO',()=>{
+  const c=evaluateCertificate(example());
+  assert.equal(c.evidence.verifiedVpsRollbackCandidate.actualVpsProofArtifactId,887766);
+  assert.equal(c.status,'PASS');
+  assert.equal(c.productionAuthorized,false);
+});
+
 test('green R116 push-only offline tests are NOT actual VPS proof',()=>{
   const c=example();
   c.runs[2].event='push';
@@ -140,4 +168,53 @@ test('workflow reruns certificate both after Pages and real VPS proof in either 
   assert.match(yaml,/persist-credentials: false/);
   assert.match(yaml,/github\.event\.workflow_run\.head_branch == 'main'/);
   assert.doesNotMatch(yaml,/permissions:\s*\n\s+contents: write/);
+});
+
+
+test('R117 validates actual downloaded R116 JSON, not only artifact metadata',()=>{
+  const proof={
+    format:'MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1',
+    sourceSha:sha,previousReleaseSha:'e'.repeat(40),
+    rollbackCandidateAssetsVerified:63,
+    actualReadOnlyVpsSshCheck:true,
+    previousFilesAndManifestSha256Verified:true,
+    productionChanged:false,productionAuthorized:false,status:'PASS',
+    rawPrivateCredentials:'never propagate',
+  };
+  const checked=verifyR116ProofPayload(proof,{expectedSha:sha,runId:7103});
+  assert.equal(checked.actualR116VpsArtifactContent,'PASS');
+  assert.equal(checked.previousReleaseSha,'e'.repeat(40));
+  assert.equal(checked.rollbackCandidateAssetsVerified,63);
+  assert.equal(checked.productionAuthorized,false);
+  assert.doesNotMatch(JSON.stringify(checked),/never propagate/);
+});
+test('R117 rejects mismatch SHA, false SSH, mutated production or forged artifact payload',()=>{
+  const valid={
+    format:'MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1',
+    sourceSha:sha,previousReleaseSha:'e'.repeat(40),
+    rollbackCandidateAssetsVerified:63,
+    actualReadOnlyVpsSshCheck:true,
+    previousFilesAndManifestSha256Verified:true,
+    productionChanged:false,productionAuthorized:false,status:'PASS',
+  };
+  for(const change of [
+    {sourceSha:'b'.repeat(40)},
+    {previousReleaseSha:'not-hex'},
+    {rollbackCandidateAssetsVerified:0},
+    {actualReadOnlyVpsSshCheck:false},
+    {previousFilesAndManifestSha256Verified:false},
+    {productionChanged:true},{productionAuthorized:true},
+    {status:'SKIPPED'},{format:'FAKE-VPS-PROOF'},
+  ])assert.throws(()=>verifyR116ProofPayload({...valid,...change},
+    {expectedSha:sha,runId:7103}),/does not attest/);
+  assert.throws(()=>verifyR116ProofPayload(valid,{expectedSha:sha,runId:0}),
+    /Exact R116 proof/);
+});
+test('R117 verifies R116 download content before saving a PASS certificate',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const source=readFileSync(new URL('../ops/release_certificate_r117.mjs',import.meta.url),'utf8');
+  assert.match(source,/gh[\s\S]*?run[\s\S]*?download/);
+  assert.match(source,/R117_R116_ACTUAL_VPS_PROOF_JSON=PASS/);
+  assert.ok(source.indexOf('downloadAndVerifyR116Proof({')<
+    source.indexOf("writeFileSync('marcosa-r117-release-certificate.json'"));
 });
