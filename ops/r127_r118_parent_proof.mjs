@@ -47,6 +47,22 @@ export function verifyParentPair({expectedSha,parentIds,first,second}={}){
   const checks=source.map((item,i)=>{
     demand(item&&typeof item==='object'&&item.run?.event==='workflow_dispatch',
       'Only operator-dispatched real R118 audits are accepted');
+    // GitHub Actions may paginate after the first 100 jobs/artifacts.
+    // Never accept a first-page success while a second page is unseen.
+    const jobs=item.jobs?.jobs,arts=item.artifacts?.artifacts;
+    demand(Array.isArray(jobs)&&jobs.length>=2&&jobs.length<=100&&
+      Number.isSafeInteger(item.jobs.total_count)&&
+      item.jobs.total_count===jobs.length,
+      'Incomplete R118 GitHub jobs page');
+    demand(Array.isArray(arts)&&arts.length>=1&&arts.length<=100&&
+      Number.isSafeInteger(item.artifacts.total_count)&&
+      item.artifacts.total_count===arts.length,
+      'Incomplete R118 GitHub artifacts page');
+    const own=arts.filter(a=>a?.name==='marcosa-r118-production-boundary-no-go');
+    demand(own.length===1&&own[0].workflow_run?.id===parentIds[i]&&
+      Number.isSafeInteger(own[0].id)&&own[0].id>0&&
+      own[0].expired===false,
+      'R118 NO_GO artifact must be from the exact parent run');
     const good=verifyR118LiveEvidence({
       repository:REPO,expectedSha,upstreamRunId:parentIds[i],
       run:item.run,jobs:item.jobs,artifacts:item.artifacts,report:item.report,
@@ -61,6 +77,19 @@ export function verifyParentPair({expectedSha,parentIds,first,second}={}){
   });
   demand(checks[0].r118RunId!==checks[1].r118RunId,
     'Repeated R118 audit is not an independent source');
+  const liveId=item=>{
+    const matches=item.jobs.jobs.filter(x=>x?.name==='live-production-parity');
+    return matches.length===1?matches[0].id:null;
+  };
+  const artifactId=item=>{
+    const matches=item.artifacts.artifacts.filter(
+      x=>x?.name==='marcosa-r118-production-boundary-no-go');
+    return matches.length===1?matches[0].id:null;
+  };
+  demand(source.every(item=>Number.isSafeInteger(liveId(item))&&liveId(item)>0&&
+    Number.isSafeInteger(artifactId(item))&&artifactId(item)>0)&&
+    liveId(first)!==liveId(second)&&artifactId(first)!==artifactId(second),
+    'Distinct real R118 VPS job and artifact IDs required');
   return Object.freeze({
     format:FORMAT,sourceSha:expectedSha,
     verifiedR118ParentRunIds:[...parentIds],
