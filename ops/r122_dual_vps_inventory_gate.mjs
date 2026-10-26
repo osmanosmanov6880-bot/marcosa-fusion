@@ -42,6 +42,7 @@ export function verifyR124Installed({r116,r117,r121}={}) {
     'R124 R117 actual R116 artifact requirement not installed on main');
   requireThat(typeof r121==='string' &&
     r121.includes('node ops/r123_upstream_live_gate.mjs') &&
+    r121.includes('R118_RUN_ID: ${{ github.event.workflow_run.id }}') &&
     r121.includes('gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"') &&
     r121.indexOf('node ops/r123_upstream_live_gate.mjs') < r121.indexOf('ssh -T -i "$TMP/key"'),
     'R124 R121 real R118 live job proof must run before SSH on main');
@@ -88,6 +89,7 @@ export function verifySnapshot({runId,run,jobs,artifacts,report,expectedSha}={})
     report.customerStorageOrAuthInspected===false &&
     report.nonRootReadOnly===true && report.noProductionChangesMade===true &&
     report.verdict==='NO_GO' &&
+    positive(report.r118UpstreamRunId) &&
     Array.isArray(report.driftReasons) && report.driftReasons.length===0,
     'R121 report malformed, drifted, outdated or unsafe');
   const files=report.publicFileHashes;
@@ -118,7 +120,8 @@ export function verifySnapshot({runId,run,jobs,artifacts,report,expectedSha}={})
     JSON.stringify([...critical].sort()),
     'R121 critical legacy filenames inconsistent');
   return Object.freeze({
-    runId,actualVpsJobId:live[0].id,artifactId:matching[0].id,
+    runId,r118RunId:report.r118UpstreamRunId,
+    actualVpsJobId:live[0].id,artifactId:matching[0].id,
     canonicalManifestSha256:report.sha256OfCanonicalPublicManifest,
     indexSha256:index.sha256,baselineIndexSha256:report.verifiedR118OldIndexSha256,
     files:safeFiles,totalBytes:sum,
@@ -130,8 +133,8 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
   const a=verifySnapshot({...first,expectedSha});
   const b=verifySnapshot({...second,expectedSha});
   requireThat(a.runId!==b.runId && a.actualVpsJobId!==b.actualVpsJobId &&
-    a.artifactId!==b.artifactId,
-    'Two DISTINCT R121 run IDs, VPS jobs and artifacts are mandatory');
+    a.artifactId!==b.artifactId && a.r118RunId!==b.r118RunId,
+    'Two DISTINCT R121 runs, VPS jobs, artifacts and upstream R118 run IDs are mandatory');
   const mapA=new Map(a.files.map(f=>[f.name,f]));
   const mapB=new Map(b.files.map(f=>[f.name,f]));
   const added=b.files.filter(f=>!mapA.has(f.name)).map(f=>f.name);
@@ -148,6 +151,7 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     status:stable?'PASS':'DRIFT',
     scope:'same_sha_two_separate_read_only_public_top_level_vps_snapshots',
     independentlyCompletedVpsJobs:true,
+    separateR118UpstreamRunsReported:true,
     r118UpstreamEventIdentityIndependentlyProven:false,
     historicalAllFilesAlwaysUnchangedProven:false,
     customerAuthOrPrivateStorageInspected:false,
@@ -156,12 +160,13 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     productionDecision:'NO_GO',
     runIds:[a.runId,b.runId],vpsJobIds:[a.actualVpsJobId,b.actualVpsJobId],
     artifactIds:[a.artifactId,b.artifactId],
+    r118SourceRunIds:[a.r118RunId,b.r118RunId],
     firstManifestSha256:a.canonicalManifestSha256,
     secondManifestSha256:b.canonicalManifestSha256,
     publicFilesFirst:a.files.length,publicFilesSecond:b.files.length,
     modifiedPublicFileNames:changed,addedPublicFileNames:added,
     removedPublicFileNames:removed,indexOrHistoricalBaselineMismatch:indexMismatch,
-    note:'Two independent real VPS SHA-256 snapshots at the same current main SHA; no private data, authenticated behavior or release permission. R118 exact upstream event linkage not independently certified by this R122 report.',
+    note:'Two distinct live R121 public-hash jobs with different R118 source IDs recorded by their verified source workflow. R122 does not independently fetch R118 upstream metadata; no production release, private-data or Auth proof.',
   });
 }
 
@@ -202,7 +207,8 @@ function main(){
       '- First R121 VPS run: '+idA,
       '- Second R121 VPS run: '+idB,
       '- Byte-for-byte current public inventory: **'+report.status+'**',
-      '- Independent source R118 event linkage: NOT PROVEN by R122 itself',
+      '- Separate upstream R118 run IDs carried in the verified R121 artifacts: '+report.r118SourceRunIds.join(', '),
+      '- Direct independent GitHub R118 API attestation by R122: NOT PERFORMED',
       '- Production cutover: **NO_GO**',
       '',
     ].join('\n'));
