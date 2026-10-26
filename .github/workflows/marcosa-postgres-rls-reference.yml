@@ -18,6 +18,9 @@ on:
       - "tests/postgres/**"
       - "ops/r130_disposable_storage_restore.mjs"
       - "tests/r130_disposable_storage_restore.test.mjs"
+      - "ops/r131_isolated_pg17_cluster_restore.mjs"
+      - "tests/r131_isolated_pg17_cluster_restore.test.mjs"
+      - "docs/MARCOSA_R131_CROSS_CLUSTER_DISASTER_RECOVERY_RU.md"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
     branches: [main]
@@ -37,6 +40,9 @@ on:
       - "tests/postgres/**"
       - "ops/r130_disposable_storage_restore.mjs"
       - "tests/r130_disposable_storage_restore.test.mjs"
+      - "ops/r131_isolated_pg17_cluster_restore.mjs"
+      - "tests/r131_isolated_pg17_cluster_restore.test.mjs"
+      - "docs/MARCOSA_R131_CROSS_CLUSTER_DISASTER_RECOVERY_RU.md"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
 permissions:
@@ -253,6 +259,23 @@ jobs:
           PGDATABASE=marcosa_r128_restored psql -v ON_ERROR_STOP=1 \
             -f tests/postgres/131_r130_restored_storage_acl.sql
           node ops/r130_disposable_storage_restore.mjs attest
+      - name: R131 validate two REAL different physical PostgreSQL cluster identities, no GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/r131_isolated_pg17_cluster_restore.mjs
+          node --test tests/r131_isolated_pg17_cluster_restore.test.mjs
+      - name: R131 restore actual synthetic custom dump into NEW no-network PG17 cluster
+        shell: bash
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "osmanosmanov6880-bot/marcosa-fusion" ]] || exit 2
+          test "$PGHOST" = 127.0.0.1
+          test "$PGPORT" = 5432
+          test "$PGDATABASE" = postgres
+          node ops/r131_isolated_pg17_cluster_restore.mjs
       - name: Preserve only sanitized disposable-database restore acceptance
         if: success()
         uses: actions/upload-artifact@v4
@@ -267,6 +290,14 @@ jobs:
         with:
           name: marcosa-r130-disposable-storage-recovery-proof
           path: marcosa-r130-disposable-storage-restore-proof.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Save ONLY sanitized R131 cross-cluster NO_GO result, not backup bytes
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r131-independent-pg17-cluster-restore-proof
+          path: marcosa-r131-cross-cluster-disaster-recovery-proof.json
           retention-days: 7
           if-no-files-found: error
       - name: Assert the test database never targeted external infrastructure
