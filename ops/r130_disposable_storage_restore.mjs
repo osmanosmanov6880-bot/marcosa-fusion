@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * R129: byte-accurate, intentionally SYNTHETIC media-object backup and restore.
+ * R130: byte-accurate, intentionally SYNTHETIC media-object backup and restore.
  * Cross-checks object bytes against records in an independently restored PG17
  * R128 fixture. No Supabase Storage API, user credentials, or production I/O.
  */
@@ -13,7 +13,7 @@ import {join,resolve,dirname,isAbsolute,relative,sep} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
 export const REPO='osmanosmanov6880-bot/marcosa-fusion';
-export const FORMAT='MARCOSA-R129-SYNTHETIC-STORAGE-BYTE-SNAPSHOT-v1';
+export const FORMAT='MARCOSA-R130-SYNTHETIC-STORAGE-BYTE-SNAPSHOT-v1';
 const WORLD=[
   '12800000-0000-4128-8128-000000000101',
   '12800000-0000-4128-8128-000000000102',
@@ -153,7 +153,7 @@ export function scanObjects(root){
   return items;
 }
 export function createSyntheticSource(root){
-  must(!existsSync(root),'R129 source may not overwrite an existing directory');
+  must(!existsSync(root),'R130 source may not overwrite an existing directory');
   mkdirSync(root,{mode:0o700});
   for(let i=0;i<2;i++){
     const bytes=syntheticPng(i+1),sha=digest(bytes);
@@ -210,7 +210,7 @@ export function verifySnapshot(backup){
 }
 export function backupSyntheticStorage(source,backup){
   const entries=scanObjects(source);
-  must(!existsSync(backup),'R129 backup overwrites forbidden');
+  must(!existsSync(backup),'R130 backup overwrites forbidden');
   mkdirSync(backup,{mode:0o700});
   const objects=join(backup,'objects');
   mkdirSync(objects,{mode:0o700});
@@ -231,7 +231,7 @@ export function backupSyntheticStorage(source,backup){
 }
 export function restoreSyntheticStorage(backup,restore){
   const m=verifySnapshot(backup);
-  must(!existsSync(restore),'R129 restore destination exists; no replacement');
+  must(!existsSync(restore),'R130 restore destination exists; no replacement');
   mkdirSync(restore,{mode:0o700});
   for(const e of m.entries){
     const dest=join(restore,...e.key.split('/'));
@@ -256,9 +256,9 @@ export function seedSqlForMetadata(items){
   must(records.every(Boolean),'Expected two different synthetic World object keys');
   const lines=[
     '\\set ON_ERROR_STOP on',
-    "DO $$ BEGIN IF current_database()<>'postgres' THEN RAISE EXCEPTION 'R129 refuses non-disposable source'; END IF; END $$;",
+    "DO $$ BEGIN IF current_database()<>'postgres' THEN RAISE EXCEPTION 'R130 refuses non-disposable source'; END IF; END $$;",
     "INSERT INTO auth.users(id) VALUES ('"+REVIEWER+"');",
-    "INSERT INTO public.marcosa_profiles(id,handle,display_name) VALUES ('"+REVIEWER+"','r129reviewer','Synthetic Reviewer');",
+    "INSERT INTO public.marcosa_profiles(id,handle,display_name) VALUES ('"+REVIEWER+"','r130reviewer','Synthetic Reviewer');",
   ];
   for(let i=0;i<2;i++){
     const e=records[i],isPublic=i===1;
@@ -270,13 +270,13 @@ export function seedSqlForMetadata(items){
       (isPublic?"true,'approved','"+REVIEWER+"',now()":
         "false,'pending',NULL,NULL")+");");
   }
-  lines.push("SELECT 'R129_DISPOSABLE_MEDIA_METADATA_SEEDED=PASS' AS result;");
+  lines.push("SELECT 'R130_DISPOSABLE_MEDIA_METADATA_SEEDED=PASS' AS result;");
   return lines.join('\n')+'\n';
 }
 export function verifyRowsAgainstStorage(items,rows){
   checkedEntries(items);
   must(items.length===2&&Array.isArray(rows)&&rows.length===2,
-    'R129 requires two independent restored media metadata rows');
+    'R130 requires two independent restored media metadata rows');
   const index=new Map(items.map(x=>[x.key,x]));
   const seen=new Set();
   for(const row of rows){
@@ -306,7 +306,7 @@ export function verifyRowsAgainstStorage(items,rows){
 function restoredPostgresRows(){
   must(process.env.PGHOST==='127.0.0.1'&&process.env.PGPORT==='5432'&&
     process.env.PGUSER==='postgres'&&process.env.PGDATABASE==='postgres',
-    'R129 requires local-only disposable PostgreSQL 17 fixture');
+    'R130 requires local-only disposable PostgreSQL 17 fixture');
   const sql="SELECT a.world_id::text,a.uploaded_by::text,a.storage_key,"+
     "a.sha256,a.byte_size::text,a.width::text,a.height::text,"+
     "CASE WHEN a.normalized THEN 't' ELSE 'f' END,a.status,"+
@@ -326,35 +326,35 @@ function runnerPaths(){
     typeof root==='string'&&isAbsolute(root)&&root.length<280&&
     process.env.PGHOST==='127.0.0.1'&&process.env.PGPORT==='5432'&&
     process.env.PGUSER==='postgres'&&process.env.PGDATABASE==='postgres',
-    'R129 cannot operate outside official disposable local CI');
+    'R130 cannot operate outside official disposable local CI');
   realDir(root,'GitHub runner private temp');
   return {
-    source:join(root,'marcosa-r129-source'),
-    backup:join(root,'marcosa-r129-storage-snapshot'),
-    restored:join(root,'marcosa-r129-restored'),
-    sql:join(root,'marcosa-r129-media-fixtures.sql'),
+    source:join(root,'marcosa-r130-source'),
+    backup:join(root,'marcosa-r130-storage-snapshot'),
+    restored:join(root,'marcosa-r130-restored'),
+    sql:join(root,'marcosa-r130-media-fixtures.sql'),
   };
 }
 function cli(){
-  must(process.argv.length===3,'Fixed R129 commands only');
+  must(process.argv.length===3,'Fixed R130 commands only');
   const mode=process.argv[2],paths=runnerPaths();
   if(mode==='seed'){
     const entries=createSyntheticSource(paths.source);
     writeFileSync(paths.sql,seedSqlForMetadata(entries),
       {flag:'wx',mode:0o600});
-    console.log('R129_SYNTHETIC_PNG_OBJECTS_CREATED=2');
+    console.log('R130_SYNTHETIC_PNG_OBJECTS_CREATED=2');
   }else if(mode==='backup'){
     const m=backupSyntheticStorage(paths.source,paths.backup);
-    console.log('R129_DISPOSABLE_STORAGE_OBJECTS_BACKED_UP='+m.entries.length);
+    console.log('R130_DISPOSABLE_STORAGE_OBJECTS_BACKED_UP='+m.entries.length);
   }else if(mode==='restore'){
     const m=restoreSyntheticStorage(paths.backup,paths.restored);
-    console.log('R129_DISPOSABLE_STORAGE_OBJECTS_RESTORED='+m.entries.length);
+    console.log('R130_DISPOSABLE_STORAGE_OBJECTS_RESTORED='+m.entries.length);
   }else if(mode==='attest'){
     const m=verifyRestoredStorage(paths.backup,paths.restored);
     const rows=restoredPostgresRows();
     verifyRowsAgainstStorage(m.entries,rows);
     const proof={
-      format:'MARCOSA-R129-DISPOSABLE-PG17-MEDIA-RESTORE-v1',
+      format:'MARCOSA-R130-DISPOSABLE-PG17-MEDIA-RESTORE-v1',
       source:'synthetic-local-ci-only',status:'PASS',
       objectCount:m.entries.length,
       sha256OfCanonicalObjectInventory:m.sha256OfCanonicalEntries,
@@ -365,16 +365,16 @@ function cli(){
       realCustomerDataOrObjectsIncluded:false,
       productionCutoverAuthorized:false,verdict:'NO_GO',
     };
-    writeFileSync('marcosa-r129-disposable-storage-restore-proof.json',
+    writeFileSync('marcosa-r130-disposable-storage-restore-proof.json',
       JSON.stringify(proof,null,2)+'\n',{flag:'wx',mode:0o600});
-    console.log('R129_PG17_AND_DISPOSABLE_STORAGE_CROSS_RESTORE=PASS');
-    console.log('R129_REAL_CUSTOMER_STORAGE=NOT_VERIFIED');
-    console.log('R129_PRODUCTION_CUTOVER=NO_GO');
-  }else throw Error('Unknown R129 command');
+    console.log('R130_PG17_AND_DISPOSABLE_STORAGE_CROSS_RESTORE=PASS');
+    console.log('R130_REAL_CUSTOMER_STORAGE=NOT_VERIFIED');
+    console.log('R130_PRODUCTION_CUTOVER=NO_GO');
+  }else throw Error('Unknown R130 command');
 }
 if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)){
   try{cli()}catch(e){
-    console.error('R129_DISPOSABLE_STORAGE_REFUSED='+String(e.message||e).slice(0,180));
+    console.error('R130_DISPOSABLE_STORAGE_REFUSED='+String(e.message||e).slice(0,180));
     process.exitCode=2;
   }
 }
