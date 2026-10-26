@@ -10,12 +10,17 @@ on:
       - "tests/r119_vps_social_smoke.test.mjs"
       - ".github/workflows/marcosa-r119-vps-social-smoke.yml"
   workflow_dispatch:
+    inputs:
+      verified_r118_run_id:
+        description: 'Successful R118 run ID with actual VPS parity PASS (required for manual diagnostic)'
+        required: true
+        type: string
 permissions:
   contents: read
   actions: read
 concurrency:
   group: marcosa-r119-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   offline-contract:
     runs-on: ubuntu-latest
@@ -68,6 +73,33 @@ jobs:
           [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
           [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
           node ops/release_certificate_r117.mjs
+      - name: Demand completed real R118 live-VPS job and its exact NO_GO artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          R118_RUN_ID: ${{ github.event.workflow_run.id || inputs.verified_r118_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
+          [[ "$R118_RUN_ID" =~ ^[1-9][0-9]*$ ]] || {
+            echo "::error::Explicit upstream real-R118 workflow run ID required"
+            exit 2
+          }
+          # A green top-level workflow alone is insufficient: its real VPS
+          # job might have been SKIPPED. Check the exact GitHub API job and
+          # preserved NO_GO artifact, not just workflow-level conclusion.
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID" > r123-r118-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100" > r123-r118-jobs.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/artifacts?per_page=100" > r123-r118-artifacts.json
+          mkdir -m 700 r123-r118-report
+          gh run download "$R118_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name marcosa-r118-production-boundary-no-go --dir r123-r118-report
+          node ops/r123_upstream_live_gate.mjs | tee r123-upstream-verified.log
+          grep -qx 'R123_REAL_R118_NONROOT_VPS_UPSTREAM=PASS' r123-upstream-verified.log
+          rm -f r123-r118-run.json r123-r118-jobs.json r123-r118-artifacts.json r123-upstream-verified.log
+          rm -rf -- r123-r118-report
       - name: Copy only source into ephemeral owner-only directory and smoke real VPS loopback
         shell: bash
         env:
@@ -84,7 +116,21 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
           # A fixed source tree, no symlinks or tar flags from untrusted input.
           [[ -f server-lab/server.mjs && -f ops/r119_social_smoke.mjs ]] || exit 2
-          if find server-lab ops/r119_social_smoke.mjs -type l | grep -q .; then
+          SOURCE_PATHS=(
+            server-lab/server.mjs
+            server-lab/media/safe-png.mjs
+            server-lab/ops/moderation-queue-health.mjs
+            server-lab/public/index.html
+            server-lab/public/app.js
+            server-lab/public/i18n.js
+            server-lab/public/style.css
+            site/marcosa-mark.svg
+            ops/r119_social_smoke.mjs
+          )
+          for item in "${SOURCE_PATHS[@]}"; do
+            [[ -f "$item" && ! -L "$item" ]] || exit 2
+          done
+          if find "${SOURCE_PATHS[@]}" -type l | grep -q .; then
             echo "::error::Source package contains a symlink"
             exit 2
           fi
@@ -116,7 +162,7 @@ jobs:
           REMOTE
           )"
           # This is the actual server-lab source, NOT a mocked miniature server.
-          tar -czf - server-lab ops/r119_social_smoke.mjs |
+          tar -czf - "${SOURCE_PATHS[@]}" |
             ssh -T -i "$TEMP/ssh" -p "$DEPLOY_PORT" \
               -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
               -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TEMP/known_hosts" \
