@@ -1,0 +1,51 @@
+name: "MARCOSA | R129 legacy public source-route gap (NO CUTOVER)"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "ops/r129_legacy_route_gap.mjs"
+      - "tests/r129_legacy_route_gap.test.mjs"
+      - "docs/MARCOSA_R129_LEGACY_SOURCE_GAP_RU.md"
+      - ".github/workflows/marcosa-r129-legacy-source-gap.yml"
+      - "site/**"
+  push:
+    branches: [main]
+    paths:
+      - "ops/r129_legacy_route_gap.mjs"
+      - "tests/r129_legacy_route_gap.test.mjs"
+      - "docs/MARCOSA_R129_LEGACY_SOURCE_GAP_RU.md"
+      - ".github/workflows/marcosa-r129-legacy-source-gap.yml"
+      - "site/**"
+permissions:
+  contents: read
+jobs:
+  preview-legacy-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify bounded and read-only source analysis with negative fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/r129_legacy_route_gap.mjs
+          node --test tests/r129_legacy_route_gap.test.mjs
+      - name: Create reproducible public source gap inventory, never production GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          node ops/r129_legacy_route_gap.mjs
+          node -e "const r=require('./marcosa-r129-preview-legacy-gap.json');if(r.productionDecision!=='NO_GO'||r.productionCutoverAuthorized!==false||r.legacyProductionRuntimeReviewed!==false||r.scope!=='new_preview_source_only')process.exit(2)"
+      - name: Preserve only a bounded sanitized no-GO source inventory
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r129-preview-legacy-gap
+          path: marcosa-r129-preview-legacy-gap.json
+          retention-days: 14
+          if-no-files-found: error
