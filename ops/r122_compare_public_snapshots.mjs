@@ -100,7 +100,7 @@ export function comparePublicSnapshots({
     productionCutoverAuthorized:false,
     productionChanged:false,
     verdict:'NO_GO',
-    note:'Identical current public files across two independently collected R121 reports. Does not attest prior years, user databases, Auth, billing or feature compatibility.',
+    note:'PASS indicates identical PUBLIC-file hashes in these two attested R121 snapshots; DRIFT indicates reported differences. Neither result attests prior years, customer databases, Auth, billing or application compatibility.',
   };
 }
 function readJson(path){
