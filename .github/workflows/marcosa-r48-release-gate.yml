@@ -5,11 +5,9 @@ on:
     paths:
       - "ops/**"
       - ".github/workflows/marcosa-r48-release-gate.yml"
+      - "tests/r135_main_sha_r48_contract.test.mjs"
   push:
     branches: [main]
-    paths:
-      - "ops/**"
-      - ".github/workflows/marcosa-r48-release-gate.yml"
   workflow_dispatch:
     inputs:
       profile:
@@ -36,7 +34,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check ops/check-release-gate.mjs
-          node --test ops/test/release-gate.test.mjs
+          node --test ops/test/release-gate.test.mjs tests/r135_main_sha_r48_contract.test.mjs
       - name: R70 read-only staging host ED25519 fingerprint verification contract
         shell: bash
         run: |
