@@ -38,7 +38,14 @@ function fixture(id=81001){
     },
   };
 }
-function pair(){return {expectedSha:SHA,first:fixture(),second:fixture(81002)};}
+function pair(){return {expectedSha:SHA,first:fixture(),second:fixture(81002),
+  verifiedParents:{format:'MARCOSA-R127-INDEPENDENT-TWO-R118-PARENT-PROOF-v1',
+    sourceSha:SHA,status:'PASS',verdict:'NO_GO',
+    manualWorkflowDispatchVerified:true,independentReadOnlyVpsJobsVerified:true,
+    boundedNoGoArtifactsVerified:true,verifiedUsingGitHubApi:true,
+    productionCutoverAuthorized:false,productionFilesChanged:false,
+    customerAuthStorageOrDatabaseVerified:false,
+    verifiedR118ParentRunIds:[8100100,8100200]}};}
 const rejects=(name,change,re)=>test(name,()=>{
   const p=pair();change(p);
   assert.throws(()=>evaluateDoubleProof(p),re);
@@ -48,7 +55,8 @@ test('two different actual VPS jobs with exactly matching files pass but product
   const result=evaluateDoubleProof(pair());
   assert.equal(result.status,'PASS');
   assert.equal(result.independentlyCompletedVpsJobs,true);
-  assert.equal(result.r118UpstreamEventIdentityIndependentlyProven,false);
+  assert.equal(result.r118UpstreamEventIdentityIndependentlyProven,true);
+  assert.equal(result.independentR118ParentJobsAndNoGoArtifactsRecheckedByR127,true);
   assert.deepEqual(result.verifiedR118ParentRunIds,[8100100,8100200]);
   assert.equal(result.historicalAllFilesAlwaysUnchangedProven,false);
   assert.equal(result.productionCutoverAuthorized,false);
@@ -75,6 +83,16 @@ test('changed R118 baseline fails closed with DRIFT',()=>{
   const r=evaluateDoubleProof(p);assert.equal(r.status,'DRIFT');
   assert.equal(r.indexOrHistoricalBaselineMismatch,true);
 });
+rejects('R127 receipt cannot be absent',p=>{delete p.verifiedParents},/R127 GitHub API/);
+rejects('R127 receipt cannot refer to different R118 parents',p=>{
+  p.verifiedParents.verifiedR118ParentRunIds[1]=500;
+},/R127 GitHub API/);
+rejects('R127 receipt requires actual VPS jobs and NO_GO artifacts',p=>{
+  p.verifiedParents.independentReadOnlyVpsJobsVerified=false;
+},/R127 GitHub API/);
+rejects('R127 receipt source SHA must be current',p=>{
+  p.verifiedParents.sourceSha='e'.repeat(40);
+},/R127 GitHub API/);
 rejects('identical R121 run ID refused',p=>{p.second=structuredClone(p.first)},/DISTINCT/);
 rejects('same R118 parent fails',p=>{
   p.second.report.verifiedR118UpstreamRunId=p.first.report.verifiedR118UpstreamRunId;

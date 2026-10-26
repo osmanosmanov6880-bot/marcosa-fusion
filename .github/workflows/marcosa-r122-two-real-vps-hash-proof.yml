@@ -15,6 +15,8 @@ on:
   pull_request:
     paths:
       - "ops/r122_dual_vps_inventory_gate.mjs"
+      - "ops/r127_r118_parent_proof.mjs"
+      - "tests/r127_r118_parent_proof.test.mjs"
       - "tests/r122_dual_vps_inventory_gate.test.mjs"
       - "tests/r122_workflow_contract.test.mjs"
       - ".github/workflows/marcosa-r122-two-real-vps-hash-proof.yml"
@@ -41,6 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           node --check ops/r122_dual_vps_inventory_gate.mjs
+          node --check ops/r127_r118_parent_proof.mjs
+          node --test tests/r127_r118_parent_proof.test.mjs
           node --test tests/r122_dual_vps_inventory_gate.test.mjs
           node --test tests/r122_workflow_contract.test.mjs
   two-real-vps-public-proof:
@@ -77,7 +81,7 @@ jobs:
           [[ "$R121_RUN_A" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
           [[ "$R121_RUN_B" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
           [[ "$R121_RUN_A" != "$R121_RUN_B" ]] || exit 2
-          trap 'rm -rf -- r122-a-artifact r122-b-artifact; rm -f -- r122-a-run.json r122-a-jobs.json r122-a-artifacts.json r122-a-report.json r122-b-run.json r122-b-jobs.json r122-b-artifacts.json r122-b-report.json' EXIT
+          trap 'rm -rf -- r122-a-artifact r122-b-artifact r122-a-r118-artifact r122-b-r118-artifact; rm -f -- r122-a-run.json r122-a-jobs.json r122-a-artifacts.json r122-a-report.json r122-b-run.json r122-b-jobs.json r122-b-artifacts.json r122-b-report.json r122-a-r118-run.json r122-a-r118-jobs.json r122-a-r118-artifacts.json r122-a-r118-report.json r122-b-r118-run.json r122-b-r118-jobs.json r122-b-r118-artifacts.json r122-b-r118-report.json r122-r118-parent-ids.txt r122-verified-r118-parents.json' EXIT
           for suffix in a b; do
             if [[ "$suffix" == a ]]; then runid="$R121_RUN_A"; else runid="$R121_RUN_B"; fi
             gh api "repos/$GITHUB_REPOSITORY/actions/runs/$runid" > "r122-$suffix-run.json"
@@ -91,6 +95,28 @@ jobs:
             test "$(wc -c < "r122-$suffix-artifact/marcosa-r121-public-file-hashes.json")" -lt 65536
             cp "r122-$suffix-artifact/marcosa-r121-public-file-hashes.json" "r122-$suffix-report.json"
           done
+          # R127 re-fetches two distinct upstream R118 manual audits independently:
+          # source run identity, real VPS job, same-run NO_GO artifact and exact SHA.
+          node ops/r127_r118_parent_proof.mjs --extract
+          mapfile -t R118_PARENTS < r122-r118-parent-ids.txt
+          [[ "${#R118_PARENTS[@]}" -eq 2 ]] || exit 2
+          [[ "${R118_PARENTS[0]}" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
+          [[ "${R118_PARENTS[1]}" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
+          [[ "${R118_PARENTS[0]}" != "${R118_PARENTS[1]}" ]] || exit 2
+          for suffix in a b; do
+            if [[ "$suffix" == a ]]; then parentid="${R118_PARENTS[0]}"; else parentid="${R118_PARENTS[1]}"; fi
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$parentid" > "r122-$suffix-r118-run.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$parentid/jobs?per_page=100" > "r122-$suffix-r118-jobs.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$parentid/artifacts?per_page=100" > "r122-$suffix-r118-artifacts.json"
+            mkdir -m 700 "r122-$suffix-r118-artifact"
+            gh run download "$parentid" --repo "$GITHUB_REPOSITORY" \
+              --name marcosa-r118-production-boundary-no-go \
+              --dir "r122-$suffix-r118-artifact"
+            test -f "r122-$suffix-r118-artifact/marcosa-r118-production-boundary.json"
+            test "$(wc -c < "r122-$suffix-r118-artifact/marcosa-r118-production-boundary.json")" -lt 65536
+            cp "r122-$suffix-r118-artifact/marcosa-r118-production-boundary.json" "r122-$suffix-r118-report.json"
+          done
+          node ops/r127_r118_parent_proof.mjs --verify
           node ops/r122_dual_vps_inventory_gate.mjs
       - name: Retain only a bounded, sanitized, non-production R122 verdict
         if: always()

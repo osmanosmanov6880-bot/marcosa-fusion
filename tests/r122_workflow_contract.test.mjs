@@ -25,6 +25,10 @@ test('R122 fetches exact two run artifacts and validates them in Node',()=>{
   assert.match(workflow,/actions\/runs\/\$runid\/artifacts\?per_page=100/);
   assert.match(workflow,/gh run download "\$runid"/);
   assert.match(workflow,/node ops\/r122_dual_vps_inventory_gate\.mjs/);
+  assert.match(workflow,/node ops\/r127_r118_parent_proof\.mjs --extract/);
+  assert.match(workflow,/node ops\/r127_r118_parent_proof\.mjs --verify/);
+  assert.match(workflow,/gh run download "\$parentid"/);
+  assert.match(workflow,/R118_PARENTS/);
   assert.match(workflow,/"\$\(git rev-parse HEAD\)" == "\$RELEASE_SHA"/);
   assert.match(workflow,/if-no-files-found: warn/);
 });

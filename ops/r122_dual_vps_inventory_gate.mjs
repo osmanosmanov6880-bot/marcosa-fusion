@@ -129,7 +129,7 @@ export function verifySnapshot({runId,run,jobs,artifacts,report,expectedSha}={})
   });
 }
 
-export function evaluateDoubleProof({expectedSha,first,second}={}) {
+export function evaluateDoubleProof({expectedSha,first,second,verifiedParents}={}) {
   requireThat(HEX40.test(expectedSha||''),'Exact full current main SHA required');
   const a=verifySnapshot({...first,expectedSha});
   const b=verifySnapshot({...second,expectedSha});
@@ -137,6 +137,22 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     a.artifactId!==b.artifactId,
     'Two DISTINCT R121 run IDs, VPS jobs and artifacts are mandatory');
   requireThat(a.r118RunId!==b.r118RunId,'Two DISTINCT R118 parent runs mandatory');
+  requireThat(verifiedParents&&
+    verifiedParents.format==='MARCOSA-R127-INDEPENDENT-TWO-R118-PARENT-PROOF-v1'&&
+    verifiedParents.sourceSha===expectedSha&&verifiedParents.status==='PASS'&&
+    verifiedParents.verdict==='NO_GO'&&
+    verifiedParents.manualWorkflowDispatchVerified===true&&
+    verifiedParents.independentReadOnlyVpsJobsVerified===true&&
+    verifiedParents.boundedNoGoArtifactsVerified===true&&
+    verifiedParents.verifiedUsingGitHubApi===true&&
+    verifiedParents.productionCutoverAuthorized===false&&
+    verifiedParents.productionFilesChanged===false&&
+    verifiedParents.customerAuthStorageOrDatabaseVerified===false&&
+    Array.isArray(verifiedParents.verifiedR118ParentRunIds)&&
+    verifiedParents.verifiedR118ParentRunIds.length===2&&
+    verifiedParents.verifiedR118ParentRunIds[0]===a.r118RunId&&
+    verifiedParents.verifiedR118ParentRunIds[1]===b.r118RunId,
+    'Missing independent current-SHA R127 GitHub API R118 parent proof');
   const mapA=new Map(a.files.map(f=>[f.name,f]));
   const mapB=new Map(b.files.map(f=>[f.name,f]));
   const added=b.files.filter(f=>!mapA.has(f.name)).map(f=>f.name);
@@ -153,8 +169,9 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     status:stable?'PASS':'DRIFT',
     scope:'same_sha_two_separate_read_only_public_top_level_vps_snapshots',
     independentlyCompletedVpsJobs:true,
-    r118UpstreamEventIdentityIndependentlyProven:false,
+    r118UpstreamEventIdentityIndependentlyProven:true,
     r118ParentRunIdsDistinctAndAttestedByR121:true,
+    independentR118ParentJobsAndNoGoArtifactsRecheckedByR127:true,
     historicalAllFilesAlwaysUnchangedProven:false,
     customerAuthOrPrivateStorageInspected:false,
     productionCutoverAuthorized:false,
@@ -168,7 +185,7 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     publicFilesFirst:a.files.length,publicFilesSecond:b.files.length,
     modifiedPublicFileNames:changed,addedPublicFileNames:added,
     removedPublicFileNames:removed,indexOrHistoricalBaselineMismatch:indexMismatch,
-    note:'Two independent real VPS SHA-256 snapshots at the same current main SHA; no private data, authenticated behavior or release permission. R118 exact upstream event linkage not independently certified by this R122 report.',
+    note:'Two distinct R121 public SHA-256 snapshots at one exact main SHA with independently re-fetched R118 GitHub API live jobs and bounded NO_GO artifacts. No customer data, private Auth/Storage or production release permission.',
   });
 }
 
@@ -195,7 +212,8 @@ function main(){
     report:readJsonFixed('r122-'+suffix+'-report.json',65536),
   });
   const report=evaluateDoubleProof({expectedSha:process.env.RELEASE_SHA,
-    first:make('a',idA),second:make('b',idB)});
+    first:make('a',idA),second:make('b',idB),
+    verifiedParents:readJsonFixed('r122-verified-r118-parents.json',8192)});
   writeFileSync('marcosa-r122-double-real-vps-acceptance.json',
     JSON.stringify(report,null,2)+'\n',{flag:'wx',mode:0o600});
   console.log('R122_TWO_ACTUAL_VPS_PUBLIC_HASH_SNAPSHOTS='+report.status);
@@ -209,7 +227,7 @@ function main(){
       '- First R121 VPS run: '+idA,
       '- Second R121 VPS run: '+idB,
       '- Byte-for-byte current public inventory: **'+report.status+'**',
-      '- Independent source R118 event linkage: NOT PROVEN by R122 itself',
+      '- Independent R118 job/artifact re-verification via GitHub API: PASS (R127)',
       '- Production cutover: **NO_GO**',
       '',
     ].join('\n'));
