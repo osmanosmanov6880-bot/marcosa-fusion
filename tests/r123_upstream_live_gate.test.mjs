@@ -150,6 +150,13 @@ test('R118 live audit must not be cancelled by a second same-SHA workflow event'
   assert.match(yaml,/StrictHostKeyChecking=yes/);
   assert.match(yaml,/permissions:\s*\n\s+contents: read\s*\n\s+actions: read/);
 });
+test('R117 double trigger from Pages plus R116 cannot abort active certificate',()=>{
+  const yaml=readFileSync(new URL(
+    '../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
+  assert.match(yaml,/concurrency:[\s\S]*cancel-in-progress: false/);
+  assert.match(yaml,/R116 read-only live VPS rollback readiness/);
+  assert.match(yaml,/Publish public Network OS preview/);
+});
 test('CLI refuses missing approved evidence, never emits a fake PASS',()=>{
   const p=spawnSync(process.execPath,['ops/r123_upstream_live_gate.mjs'],{
     cwd:new URL('../',import.meta.url),encoding:'utf8',timeout:12000,
