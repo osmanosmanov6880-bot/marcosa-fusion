@@ -4,13 +4,14 @@ on:
     paths:
       - "ops/r133_one_sha_automatic_evidence_gate.mjs"
       - "tests/r133_one_sha_automatic_evidence_gate.test.mjs"
+      - "tests/r134_r133_github_expressions.test.mjs"
       - ".github/workflows/marcosa-r133-automatic-proof.yml"
   workflow_dispatch:
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: marcosa-r133-${ github.run_id }}
+  group: marcosa-r133-${{ github.run_id }}
   cancel-in-progress: false
 jobs:
   offline-contract:
@@ -27,7 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check ops/r133_one_sha_automatic_evidence_gate.mjs
-          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs
   actual-main-automatic-proof:
     needs: offline-contract
     if: >-
@@ -47,7 +48,7 @@ jobs:
       - name: Query fixed exact-run GitHub API and inspect actual R114/R116 bounded artifacts
         shell: bash
         env:
-          GH_TOKEN: ${ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
