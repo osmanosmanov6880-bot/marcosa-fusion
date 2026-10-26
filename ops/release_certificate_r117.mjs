@@ -20,7 +20,7 @@ const SHA40 = /^[0-9a-f]{40}$/;
 const API = 'https://api.github.com/repos/' + REPO + '/';
 const demand = (condition, reason) => {if (!condition) throw Error(reason);};
 
-function proofForSha(sourceSha, runs, jobsByRun) {
+function proofForSha(sourceSha, runs, jobsByRun, artifactsByRun) {
   const matching = runs.filter(run => run && run.name === R116.name &&
     run.head_sha === sourceSha && run.head_branch === 'main' &&
     run.event === 'workflow_run');
@@ -48,22 +48,38 @@ function proofForSha(sourceSha, runs, jobsByRun) {
     if (!job || job.status !== 'completed') incomplete = true;
     else if (job.conclusion !== 'success') rejected = true;
   }
-  return {
-    ...identity,
-    status:rejected ? 'FAIL' : incomplete ? 'PENDING' : 'PASS',
-    reason:rejected ? 'PROOF_JOB_FAILED_OR_SKIPPED' :
-      incomplete ? 'PROOF_JOB_MISSING_OR_UNFINISHED' : 'LIVE_ROLLBACK_READINESS_CONFIRMED',
-    jobs:conclusions,
-  };
+  if (rejected || incomplete) {
+    return {
+      ...identity,status:rejected?'FAIL':'PENDING',
+      reason:rejected?'PROOF_JOB_FAILED_OR_SKIPPED':'PROOF_JOB_MISSING_OR_UNFINISHED',
+      jobs:conclusions,
+    };
+  }
+  // A completed-success R116 job can otherwise be a zero-work superseded-SHA
+  // branch that exited 0. The R116 artifact is created ONLY after the actual
+  // SSH checks pass and is associated with this exact same workflow run.
+  const artifacts=artifactsByRun?.[String(run.id)];
+  const valid=Array.isArray(artifacts)&&artifacts.length<=100?
+    artifacts.filter(a=>a?.name==='marcosa-r116-actual-vps-rollback-proof'):[];
+  if(valid.length!==1 || !Number.isSafeInteger(valid[0].id) || valid[0].id<=0 ||
+     valid[0].expired!==false || !Number.isSafeInteger(valid[0].size_in_bytes) ||
+     valid[0].size_in_bytes<100 || valid[0].size_in_bytes>16384 ||
+     (valid[0].workflow_run && valid[0].workflow_run.id!==run.id)) {
+    return {...identity,status:'FAIL',reason:'NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT',
+      jobs:conclusions};
+  }
+  return {...identity,status:'PASS',reason:'LIVE_ROLLBACK_READINESS_CONFIRMED',
+    jobs:conclusions,actualVpsProofArtifactId:valid[0].id};
+
 }
 
-export function evaluateCertificate({sourceSha, mainSha, runs, jobsByRun}={}) {
+export function evaluateCertificate({sourceSha, mainSha, runs, jobsByRun, artifactsByRun}={}) {
   demand(SHA40.test(sourceSha || '') && SHA40.test(mainSha || ''),
     'Exact main and release SHA required');
   demand(Array.isArray(runs) && runs.length <= 500, 'Bounded workflow evidence required');
   demand(jobsByRun && typeof jobsByRun === 'object', 'Job evidence required');
   const dual = evaluateRelease({sourceSha, mainSha, runs, jobsByRun});
-  const rollback = proofForSha(sourceSha, runs, jobsByRun);
+  const rollback = proofForSha(sourceSha, runs, jobsByRun, artifactsByRun);
   const checks = [dual.channels.pages.status, dual.channels.staging.status, rollback.status];
   const status = sourceSha !== mainSha ? 'SUPERSEDED' :
     checks.includes('FAIL') ? 'FAIL' :
@@ -132,14 +148,20 @@ async function collectEvidence(sha, token) {
     r.head_branch === 'main' && c.event.includes(r.event))
     .sort((a,b) => Number(b.id) - Number(a.id))[0]).filter(Boolean);
   const jobsByRun = {};
+  const artifactsByRun = {};
   await Promise.all(latest.filter(r => r.status === 'completed' &&
       r.conclusion === 'success').map(async r => {
     demand(Number.isSafeInteger(r.id) && r.id > 0, 'Invalid workflow id');
     const response = await requestJson('actions/runs/' + r.id + '/jobs?per_page=100',token);
     demand(Array.isArray(response.jobs), 'Missing workflow jobs');
     jobsByRun[String(r.id)] = response.jobs;
+    if(r.name===R116.name) {
+      const items=await requestJson('actions/runs/' + r.id + '/artifacts?per_page=100',token);
+      demand(Array.isArray(items.artifacts),'Missing R116 proof artifact list');
+      artifactsByRun[String(r.id)]=items.artifacts;
+    }
   }));
-  return evaluateCertificate({sourceSha:sha, mainSha, runs, jobsByRun});
+  return evaluateCertificate({sourceSha:sha, mainSha, runs, jobsByRun, artifactsByRun});
 }
 
 async function main() {
