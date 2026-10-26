@@ -1,38 +1,70 @@
-name: "MARCOSA | R100 production compatibility audit (READ ONLY, no deploy)"
+name: "MARCOSA | R132 exact main source vs legacy root (READ ONLY, MANUAL)"
 on:
-  push:
+  pull_request:
     branches: [main]
     paths:
       - ".github/workflows/marcosa-r100-production-readonly-compat.yml"
+      - "ops/r132_current_main_readonly_parity.mjs"
+      - "tests/r132_current_main_readonly_parity.test.mjs"
   workflow_dispatch:
     inputs:
       confirmation:
-        description: "Type AUDIT-PRODUCTION-READONLY for read-only inspection"
+        description: "Type AUDIT-PRODUCTION-READONLY for read-only SSH audit"
         required: true
         type: string
 permissions:
   contents: read
   actions: read
 jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify R132 safe audit negative tests without SSH
+        run: |
+          set -euo pipefail
+          node --check ops/r132_current_main_readonly_parity.mjs
+          node --test tests/r132_current_main_readonly_parity.test.mjs
   production-compat-readonly:
-    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.confirmation == 'AUDIT-PRODUCTION-READONLY')
+    needs: offline-contract
+    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main' && github.event_name == 'workflow_dispatch' && inputs.confirmation == 'AUDIT-PRODUCTION-READONLY'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment: marcosa-staging
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Retrieve immutable trusted R99 static preview for comparison only
-        uses: actions/download-artifact@v4
-        with:
-          name: marcosa-site-863adfddfef56783b7bc62e99c1b466c3571f134
-          run-id: 40232174313
-          github-token: ${{ github.token }}
-      - name: Compare public preview to existing root-owned production without changing anything
+      - name: Bind comparison to the exact CURRENT main source and SHA
         shell: bash
         env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "osmanosmanov6880-bot/marcosa-fusion" ]] || exit 2
+          [[ "$GITHUB_REF" == "refs/heads/main" && "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]] || exit 2
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
+          [[ -f site/index.html && ! -L site/index.html ]] || exit 2
+          SOURCE_INDEX_SHA="$(sha256sum site/index.html | awk '{print $1}')"
+          SOURCE_INDEX_BYTES="$(stat -c %s site/index.html)"
+          [[ "$SOURCE_INDEX_SHA" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          [[ "$SOURCE_INDEX_BYTES" =~ ^[1-9][0-9]{0,9}$ ]] || exit 2
+          echo "SOURCE_INDEX_SHA=$SOURCE_INDEX_SHA" >> "$GITHUB_ENV"
+          echo "SOURCE_INDEX_BYTES=$SOURCE_INDEX_BYTES" >> "$GITHUB_ENV"
+      - name: Compare exact current MAIN SOURCE with untouched root-owned legacy production
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.sha }}
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -42,9 +74,8 @@ jobs:
           set -euo pipefail
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           source ops/load-pinned-staging-host.sh
-          sha256sum -c marcosa-site.tar.gz.sha256
-          PREVIEW_HASH="$(tar -xOzf marcosa-site.tar.gz ./index.html | sha256sum | awk '{print $1}')"
-          [[ "$PREVIEW_HASH" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          [[ "$SOURCE_INDEX_SHA" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          [[ "$SOURCE_INDEX_BYTES" =~ ^[1-9][0-9]{0,9}$ ]] || exit 2
           umask 077
           TMP="$(mktemp -d)"
           trap 'rm -rf -- "$TMP"' EXIT
@@ -78,21 +109,22 @@ jobs:
           echo "PRODUCTION_AUDIT_ONLY=YES"
           REMOTE
           )"
-          printf '%s\n' "$REPORT"
-          LIVE_HASH="$(printf '%s\n' "$REPORT" | sed -n 's/^LIVE_INDEX_SHA256=//p')"
-          [[ "$LIVE_HASH" =~ ^[a-f0-9]{64}$ ]] || exit 2
-          echo "PUBLIC_PREVIEW_INDEX_SHA256=$PREVIEW_HASH"
-          if [[ "$LIVE_HASH" == "$PREVIEW_HASH" ]]; then
-            echo "INDEX_BYTES_IDENTICAL=YES"
-          else
-            echo "INDEX_BYTES_IDENTICAL=NO"
-          fi
-          echo "AUTOMATIC_PRODUCTION_CUTOVER_AUTHORIZED=NO"
+          # Never print raw SSH output: verify exact allowlisted fields first.
+          printf '%s\n' "$REPORT" | node ops/r132_current_main_readonly_parity.mjs
+          node --input-type=module -e "import {readFileSync} from 'node:fs'; const r=JSON.parse(readFileSync('marcosa-r132-current-sha-readonly.json'));if(r.sourceSha!==process.env.RELEASE_SHA||r.productionDecision!=='NO_GO'||r.productionCutoverAuthorized!==false||r.authJwtCookiesAndApiRuntimeParityProven!==false)process.exit(2)"
           {
-            echo "### R100 production read-only compatibility audit"
-            echo "- Root-owned live site compared against vetted static preview index SHA256"
-            echo "- Production files, Nginx and databases were not changed"
-            echo "- Preview index matches existing production: $([[ "$LIVE_HASH" == "$PREVIEW_HASH" ]] && echo YES || echo NO)"
-            echo "- No automatic production cutover authorized"
-            echo "- Safe delivery target remains isolated SSH STAGING"
+            echo "### MARCOSA R132 — current main source vs untouched legacy root"
+            echo "- Exact checked-out main SHA: $RELEASE_SHA"
+            echo "- Public index source SHA-256: $SOURCE_INDEX_SHA"
+            echo "- Old root is read-only and root-owned: VERIFIED"
+            echo "- Indexed SOURCE and legacy root are compared; runtime/Auth/API parity: NOT VERIFIED"
+            echo "- NO_GO: static source comparison cannot approve migration"
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve only bounded R132 NO_GO source comparison
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r132-current-main-readonly-compat
+          path: marcosa-r132-current-sha-readonly.json
+          retention-days: 7
+          if-no-files-found: error
