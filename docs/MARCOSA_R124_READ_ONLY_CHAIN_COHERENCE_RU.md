@@ -18,6 +18,8 @@ R124 присваивает уникальную concurrency-группу по *
 
 R124 исправляет отказ на `exit 2`, а R116 при фактическом успешном read-only SSH и проверке старого релиза выпускает отдельный ограниченный `marcosa-r116-actual-vps-rollback-proof` artifact только после прохождения всех строк `STAGING_ROLLBACK_PREFLIGHT=PASS`, SHA текущего релиза, SHA-256 всех файлов отката и `PRODUCTION_UNCHANGED=YES`.
 
+R117 теперь не ограничивается метаданными GitHub. После предварительного PASS он отдельно скачивает артефакт указанного R116 запуска через GitHub CLI, ограничивает размер JSON и проверяет его фактическое содержимое: точный `sourceSha`, SHA предыдущего выпуска, число проверенных файлов, `actualReadOnlyVpsSshCheck=true`, `previousFilesAndManifestSha256Verified=true`, `productionAuthorized=false`, `productionChanged=false` и `status=PASS`. Только после этого возможно сохранить сертификат R117 с PASS. При отсутствии, подмене или повреждении файла выпуск блокируется без ложного сертификата.
+
 R117 проверяет, что **этот** конкретный R116 run имеет завершённый job `read-only-vps-proof=success` **и** ровно один ещё не истёкший `marcosa-r116-actual-vps-rollback-proof` artifact с привязкой к тому же run ID. Отсутствие artifact — `FAIL`, не `PASS`. Это аттестация происхождения артефакта из защищённого GitHub workflow; его наличие не доказывает миграцию Auth, Storage, Postgres или production. Для более строгой проверки содержания самого JSON можно дополнительно выполнять загрузку и сверку SHA при выпуске сертификата.
 
 Повторно проверены негативные условия тестами R117 и R124. Старые зелёные R116 без такого artifact **не считаются** настоящим PASS.
