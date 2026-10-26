@@ -8,6 +8,8 @@ on:
     paths:
       - "ops/r119_social_smoke.mjs"
       - "tests/r119_vps_social_smoke.test.mjs"
+      - "ops/r123_upstream_live_gate.mjs"
+      - "tests/r123_upstream_live_gate.test.mjs"
       - ".github/workflows/marcosa-r119-vps-social-smoke.yml"
   workflow_dispatch:
     inputs:
@@ -41,6 +43,8 @@ jobs:
           node --check server-lab/server.mjs
           node --check ops/r119_social_smoke.mjs
           node --test tests/r119_vps_social_smoke.test.mjs
+          node --check ops/r123_upstream_live_gate.mjs
+          node --test tests/r123_upstream_live_gate.test.mjs
   isolated-vps-lab:
     needs: offline-contract
     if: >-
