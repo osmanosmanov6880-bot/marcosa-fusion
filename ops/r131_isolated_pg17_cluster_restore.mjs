@@ -195,8 +195,13 @@ async function execute(){
      storageAndRowsMatch:verifyRowsAgainstStorage(storage.entries,rows),
      sqlRlsChecksPassed:true,priorEvidenceTrusted:true,
    });
+   const isMainRef=process.env.GITHUB_REF==='refs/heads/main'&&
+     (process.env.GITHUB_EVENT_NAME==='push'||
+      process.env.GITHUB_EVENT_NAME==='workflow_dispatch');
    writeFileSync('marcosa-r131-cross-cluster-disaster-recovery-proof.json',
-     JSON.stringify({...proof,sourceSha:process.env.GITHUB_SHA},null,2)+'\n',
+     JSON.stringify({...proof,sourceSha:process.env.GITHUB_SHA,
+       shaOrigin:isMainRef?'github_main_ref_event':'github_pr_or_other_ci_ref',
+       currentMainShaIndependentlyReverified:false},null,2)+'\n',
      {flag:'wx',mode:0o600});
    console.log('R131_FRESH_POSTGRES17_CLUSTER_NETWORK_NONE=PASS');
    console.log('R131_DIFFERENT_PHYSICAL_PG_CONTROL_IDENTIFIER=PASS');
