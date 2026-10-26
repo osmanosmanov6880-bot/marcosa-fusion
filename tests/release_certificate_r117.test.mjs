@@ -25,6 +25,10 @@ function example() {
       [staging.id]:goodJobs(PIPELINES.staging.jobs),
       [rollback.id]:goodJobs(R116.requiredJobs),
     },
+    artifactsByRun:{[rollback.id]:[{
+      id:887766, name:'marcosa-r116-actual-vps-rollback-proof',
+      expired:false,size_in_bytes:412,workflow_run:{id:rollback.id},
+    }]},
   };
 }
 test('three SAME SHA proofs with completed success jobs yield a scoped preview PASS',()=>{
@@ -41,6 +45,30 @@ test('three SAME SHA proofs with completed success jobs yield a scoped preview P
   assert.equal(c.privateAuthOrAccountMigrationVerified,false);
   assert.equal(c.scope,'public_static_preview_only');
 });
+test('R116 superseded green live job with NO real artifact must FAIL',()=>{
+  const c=example();
+  delete c.artifactsByRun['7103'];
+  const r=evaluateCertificate(c);
+  assert.equal(r.status,'FAIL');
+  assert.equal(r.evidence.verifiedVpsRollbackCandidate.reason,
+    'NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT');
+});
+test('R116 proof from unrelated run or expired artifact must never issue certificate',()=>{
+  for(const artifactPatch of [
+    {expired:true},{workflow_run:{id:99999}},{size_in_bytes:0},{id:0},
+    {name:'fake-r116-rollback-proof'}]){
+    const c=example();
+    Object.assign(c.artifactsByRun['7103'][0],artifactPatch);
+    assert.equal(evaluateCertificate(c).status,'FAIL');
+  }
+});
+test('a genuine same-run actual VPS proof preserves PREVIEW-only NO_GO',()=>{
+  const c=evaluateCertificate(example());
+  assert.equal(c.evidence.verifiedVpsRollbackCandidate.actualVpsProofArtifactId,887766);
+  assert.equal(c.status,'PASS');
+  assert.equal(c.productionAuthorized,false);
+});
+
 test('green R116 push-only offline tests are NOT actual VPS proof',()=>{
   const c=example();
   c.runs[2].event='push';
