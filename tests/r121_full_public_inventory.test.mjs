@@ -35,12 +35,17 @@ function proof() {
     criticalPresent:[...CRITICAL].sort(),files,
     rawCustomerData:'DO_NOT_LEAK_PRIVATE_CUSTOMER',
   };
-  return {expectedSha:sha,r118,inventory};
+  const r123Proof={format:'MARCOSA-R123-VERIFIED-R118-LIVE-UPSTREAM-v1',sourceSha:sha,
+    r118RunId:70001,offlineJob:'PASS',actualNonrootVpsParityJob:'PASS',
+    boundedR118NoGoArtifact:'PASS',productionCutoverAuthorized:false,
+    productionFilesChanged:false,productionDatabasesAccessed:false};
+  return {expectedSha:sha,r118,inventory,r123Proof,expectedR118RunId:70001};
 }
 test('all actual public hashes collected while production cutover remains NO_GO',()=>{
   const v=evaluatePublicInventory(proof());
   assert.equal(v.format,FORMAT);
   assert.equal(v.status,'PASS');
+  assert.equal(v.verifiedR118UpstreamRunId,70001);
   assert.equal(v.numberOfHashedPublicFiles,CRITICAL.length+1);
   assert.equal(v.publicFileHashes.length,v.numberOfHashedPublicFiles);
   assert.match(v.sha256OfCanonicalPublicManifest,/^[a-f0-9]{64}$/);
@@ -53,6 +58,16 @@ test('all actual public hashes collected while production cutover remains NO_GO'
   const output=JSON.stringify(v);
   assert.equal(output.includes('LEAK_ME_NEVER'),false);
   assert.equal(output.includes('DO_NOT_LEAK_PRIVATE_CUSTOMER'),false);
+});
+test('R121 rejects missing or stale R118 parent proof',()=>{
+  const a=proof();delete a.r123Proof;
+  assert.throws(()=>evaluatePublicInventory(a),/parent provenance/);
+  const b=proof();b.r123Proof.r118RunId=70002;
+  assert.throws(()=>evaluatePublicInventory(b),/parent provenance/);
+  const c=proof();c.r123Proof.sourceSha='b'.repeat(40);
+  assert.throws(()=>evaluatePublicInventory(c),/parent provenance/);
+  const d=proof();d.r123Proof.actualNonrootVpsParityJob='skipped';
+  assert.throws(()=>evaluatePublicInventory(d),/parent provenance/);
 });
 test('old root index SHA mutation records DRIFT, never PASS',()=>{
   const x=proof();

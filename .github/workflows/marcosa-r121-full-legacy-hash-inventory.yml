@@ -101,6 +101,7 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          R118_RUN_ID: ${{ github.event.workflow_run.id }}
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
