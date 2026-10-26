@@ -36,7 +36,9 @@ function safeJson(filename,maximum){
   return JSON.parse(raw.toString('utf8'));
 }
 
-export function evaluatePublicInventory({expectedSha,r118,inventory}={}){
+export function evaluatePublicInventory({expectedSha,r118,inventory,r118RunId}={}){
+  demand(Number.isSafeInteger(r118RunId)&&r118RunId>0,
+    'Exact positive source R118 upstream run ID required');
   demand(SHA40.test(expectedSha||''),'Exact full current main SHA required');
   demand(r118&&typeof r118==='object'&&!Array.isArray(r118)&&
     r118.format==='MARCOSA-R118-LIVE-PRODUCTION-BOUNDARY-v1'&&
@@ -102,6 +104,7 @@ export function evaluatePublicInventory({expectedSha,r118,inventory}={}){
   return {
     format:FORMAT,
     sourceSha:expectedSha,
+    r118UpstreamRunId:r118RunId,
     status:reasons.length?'DRIFT':'PASS',
     note:'Full SHA256 snapshot of presently PUBLIC top-level files. No prior per-file hashes exist to prove historical byte-for-byte unchanged state.',
     scope:'public_top_level_only',
@@ -129,6 +132,7 @@ function main(){
   const sha=process.env.RELEASE_SHA;
   const report=evaluatePublicInventory({
     expectedSha:sha,
+    r118RunId:Number(process.env.R118_RUN_ID),
     r118:safeJson('r118-evidence/marcosa-r118-production-boundary.json',65536),
     inventory:safeJson('r121-remote-public-inventory.json',65536),
   });
