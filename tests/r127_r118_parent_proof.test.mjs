@@ -108,3 +108,19 @@ test('workflow independently fetches BOTH R118 parents and NO_GO artifacts befor
   assert.ok(yaml.indexOf('--verify')<yaml.lastIndexOf('node ops/r122_dual_vps_inventory_gate.mjs'));
   assert.doesNotMatch(yaml,/DEPLOY_SSH_KEY|sudo |rsync --delete|systemctl restart/);
 });
+
+refuses('R127 refuses incomplete R118 GitHub jobs page',p=>{
+  p.first.jobs.total_count=3;
+},/Incomplete R118 GitHub jobs page/);
+refuses('R127 refuses incomplete R118 GitHub artifacts page',p=>{
+  p.second.artifacts.total_count=2;
+},/Incomplete R118 GitHub artifacts page/);
+refuses('R127 refuses artifact with no same-run workflow identity',p=>{
+  delete p.first.artifacts.artifacts[0].workflow_run;
+},/exact parent run/);
+refuses('R127 refuses two real parent runs reusing the same VPS job ID',p=>{
+  p.second.jobs.jobs[1].id=p.first.jobs.jobs[1].id;
+},/Distinct real R118 VPS job and artifact IDs/);
+refuses('R127 refuses two real parent runs reusing the same artifact ID',p=>{
+  p.second.artifacts.artifacts[0].id=p.first.artifacts.artifacts[0].id;
+},/Distinct real R118 VPS job and artifact IDs/);
