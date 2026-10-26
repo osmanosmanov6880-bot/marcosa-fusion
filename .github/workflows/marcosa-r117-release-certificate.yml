@@ -16,7 +16,7 @@ permissions:
   actions: read
 concurrency:
   group: marcosa-r117-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   offline-contract:
     runs-on: ubuntu-latest
