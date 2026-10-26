@@ -69,9 +69,9 @@ jobs:
           [[ "$EXPECTED_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
           LIVE_MAIN="$(git rev-parse HEAD)"
           if [[ "$LIVE_MAIN" != "$EXPECTED_SHA" ]]; then
-            echo "R116_PREVIOUS_RUN_SUPERSEDED=SKIP"
-            echo "### R116 — previous SHA superseded; no remote action" >> "$GITHUB_STEP_SUMMARY"
-            exit 0
+            echo "::error::R116_PREVIOUS_RUN_SUPERSEDED=BLOCKED, no live VPS proof was executed"
+            echo "### R116 — superseded SHA; NO read-only server proof (FAIL)" >> "$GITHUB_STEP_SUMMARY"
+            exit 2
           fi
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           source ops/load-pinned-staging-host.sh
@@ -109,4 +109,34 @@ jobs:
             echo '- No symlink rotation, Nginx changes, production writes or DB reads.'
             echo '- A real rollback requires a separate failure/remediation trigger.'
           } >> "$GITHUB_STEP_SUMMARY"
+          # Write a bounded proof artifact only after every real SSH comparison passed.
+          EXPECTED_SHA="$EXPECTED_SHA" PREVIOUS="$PREVIOUS" COUNT="$COUNT" \
+            node --input-type=module -e '
+              import {writeFileSync} from "node:fs";
+              const sha=process.env.EXPECTED_SHA;
+              const prev=process.env.PREVIOUS;
+              const count=Number(process.env.COUNT);
+              if(!/^[a-f0-9]{40}$/.test(sha)||!/^[a-f0-9]{40}$/.test(prev)||
+                !Number.isSafeInteger(count)||count<3||count>99999)
+                throw Error("Invalid R116 actual VPS rollback attestation");
+              writeFileSync("marcosa-r116-actual-vps-rollback-proof.json",
+                JSON.stringify({
+                  format:"MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1",
+                  sourceSha:sha,previousReleaseSha:prev,
+                  rollbackCandidateAssetsVerified:count,
+                  actualReadOnlyVpsSshCheck:true,
+                  previousFilesAndManifestSha256Verified:true,
+                  productionChanged:false,
+                  productionAuthorized:false,
+                  status:"PASS"
+                },null,2)+"\n",{flag:"wx",mode:0o600});
+            '
           echo "R116_ACTUAL_VPS_ROLLBACK_READINESS=PASS"
+      - name: Publish ONLY proven R116 actual VPS integrity attestation
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r116-actual-vps-rollback-proof
+          path: marcosa-r116-actual-vps-rollback-proof.json
+          retention-days: 14
+          if-no-files-found: error
