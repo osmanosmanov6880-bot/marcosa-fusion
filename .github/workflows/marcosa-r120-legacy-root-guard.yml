@@ -14,8 +14,8 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: marcosa-r120-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  group: marcosa-r120-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
 jobs:
   offline-contract:
     runs-on: ubuntu-latest
@@ -32,6 +32,7 @@ jobs:
           set -euo pipefail
           node --check ops/r120_legacy_root_guard.mjs
           node --test tests/r120_legacy_root_guard.test.mjs
+          node --test tests/r123_upstream_live_gate.test.mjs
   audit-existing-root-fingerprint:
     needs: offline-contract
     if: >-
@@ -66,6 +67,7 @@ jobs:
             echo "::error::Superseded audit; no false PASS on stale production evidence"
             exit 2
           }
+          trap 'rm -rf -- r118-evidence r123-r118-report; rm -f -- r123-r118-run.json r123-r118-jobs.json r123-r118-artifacts.json' EXIT
           mkdir -m 700 r118-evidence
           gh run download "$UPSTREAM_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
@@ -73,6 +75,18 @@ jobs:
             --dir r118-evidence
           test -f r118-evidence/marcosa-r118-production-boundary.json
           test "$(wc -c < r118-evidence/marcosa-r118-production-boundary.json)" -lt 65536
+          # R124: workflow-level R118 success can contain SKIPPED live VPS job.
+          # Prove that the exact R118 upstream RUN also completed its live job
+          # and produced its non-expired NO_GO artifact before accepting hashes.
+          R118_RUN_ID="$UPSTREAM_RUN_ID"
+          export R118_RUN_ID
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID" > r123-r118-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100" > r123-r118-jobs.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/artifacts?per_page=100" > r123-r118-artifacts.json
+          mkdir -m 700 r123-r118-report
+          cp r118-evidence/marcosa-r118-production-boundary.json \
+            r123-r118-report/marcosa-r118-production-boundary.json
+          node ops/r123_upstream_live_gate.mjs
           node ops/r120_legacy_root_guard.mjs r118-evidence/marcosa-r118-production-boundary.json
       - name: Retain only sanitized fingerprint verdict (including a drift alert)
         if: always()
