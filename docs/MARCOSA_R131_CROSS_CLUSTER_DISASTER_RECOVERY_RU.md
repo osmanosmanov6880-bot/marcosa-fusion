@@ -33,3 +33,7 @@ R128 и R130 восстановили настоящую PostgreSQL 17 `pg_dump 
 Для реального GO нужны доступ к существующему Supabase/PG/Storage проекту, проверка legacy модулей issue #135 и явное разрешение владельца. До того **production NO-GO**.
 
 Файлы: `ops/r131_isolated_pg17_cluster_restore.mjs`, `tests/r131_isolated_pg17_cluster_restore.test.mjs`, обновлённый `.github/workflows/marcosa-postgres-rls-reference.yml`.
+
+## Точная атрибуция SHA GitHub Actions
+
+В Pull Request `GITHUB_SHA` обычно является временным тестовым merge-коммитом, а не SHA исходного PR и не доказательством состояния текущего `main`. R131 фиксирует `shaOrigin=github_pr_or_other_ci_ref` для такого запуска; событие, пришедшее именно с `refs/heads/main`, получает `github_main_ref_event`. Поле `currentMainShaIndependentlyReverified` **всегда false**, потому что R131 не сравнивает HEAD с новым удалённым `main` и вообще не является полноценной реальной аттестацией R116–R122. ZIP из PR нельзя переименовать в доказательство нового production SHA.
