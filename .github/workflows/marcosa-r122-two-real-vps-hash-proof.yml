@@ -1,0 +1,102 @@
+name: "MARCOSA | R122 compare TWO actual independent VPS public SHA-256 snapshots (NO CUTOVER)"
+on:
+  # Manual by design. Automatic workflow_run chaining produced hundreds of
+  # pending/cancelled/no-op executions and misleading top-level green statuses.
+  workflow_dispatch:
+    inputs:
+      r121_run_a:
+        description: 'FIRST completed R121 workflow with actual-vps-public-hashes SUCCESS and non-expired artifact'
+        required: true
+        type: string
+      r121_run_b:
+        description: 'SECOND DISTINCT completed R121 workflow with actual-vps-public-hashes SUCCESS and non-expired artifact'
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - "ops/r122_dual_vps_inventory_gate.mjs"
+      - "tests/r122_dual_vps_inventory_gate.test.mjs"
+      - "tests/r122_workflow_contract.test.mjs"
+      - ".github/workflows/marcosa-r122-two-real-vps-hash-proof.yml"
+      - "docs/MARCOSA_R122_DOUBLE_VPS_EVIDENCE_RU.md"
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r122-${{ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test independent real-VPS proof evaluator against fail-closed fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ops/r122_dual_vps_inventory_gate.mjs
+          node --test tests/r122_dual_vps_inventory_gate.test.mjs
+          node --test tests/r122_workflow_contract.test.mjs
+  two-real-vps-public-proof:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify two exact completed R121 live VPS jobs and compare canonical public bytes
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.sha }}
+          R121_RUN_A: ${{ inputs.r121_run_a }}
+          R121_RUN_B: ${{ inputs.r121_run_b }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "::error::R122 source SHA has been superseded; no stale proof"
+            exit 2
+          }
+          [[ "$R121_RUN_A" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
+          [[ "$R121_RUN_B" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
+          [[ "$R121_RUN_A" != "$R121_RUN_B" ]] || exit 2
+          trap 'rm -rf -- r122-a-artifact r122-b-artifact; rm -f -- r122-a-run.json r122-a-jobs.json r122-a-artifacts.json r122-a-report.json r122-b-run.json r122-b-jobs.json r122-b-artifacts.json r122-b-report.json' EXIT
+          for suffix in a b; do
+            if [[ "$suffix" == a ]]; then runid="$R121_RUN_A"; else runid="$R121_RUN_B"; fi
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$runid" > "r122-$suffix-run.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$runid/jobs?per_page=100" > "r122-$suffix-jobs.json"
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs/$runid/artifacts?per_page=100" > "r122-$suffix-artifacts.json"
+            mkdir -m 700 "r122-$suffix-artifact"
+            gh run download "$runid" --repo "$GITHUB_REPOSITORY" \
+              --name marcosa-r121-legacy-public-hashes \
+              --dir "r122-$suffix-artifact"
+            test -f "r122-$suffix-artifact/marcosa-r121-public-file-hashes.json"
+            test "$(wc -c < "r122-$suffix-artifact/marcosa-r121-public-file-hashes.json")" -lt 65536
+            cp "r122-$suffix-artifact/marcosa-r121-public-file-hashes.json" "r122-$suffix-report.json"
+          done
+          node ops/r122_dual_vps_inventory_gate.mjs
+      - name: Retain only a bounded, sanitized, non-production R122 verdict
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r122-two-real-vps-public-proofs
+          path: marcosa-r122-double-real-vps-acceptance.json
+          retention-days: 14
+          if-no-files-found: warn
