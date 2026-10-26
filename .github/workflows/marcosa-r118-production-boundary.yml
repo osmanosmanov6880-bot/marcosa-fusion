@@ -1,9 +1,5 @@
 name: "MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)"
 on:
-  workflow_run:
-    workflows:
-      - "MARCOSA | R117 triple-proof PREVIEW release certificate (NO PRODUCTION)"
-    types: [completed]
   pull_request:
     paths:
       - "ops/production_boundary_r118.mjs"
@@ -37,6 +33,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check ops/production_boundary_r118.mjs
+          node --test tests/r125_manual_release_chain.test.mjs
           node --test tests/production_boundary_r118.test.mjs
           python -m unittest discover -s tests -p 'test_production_parity_audit.py' -v
           python -m py_compile tools/production_parity_audit.py
@@ -44,13 +41,8 @@ jobs:
     needs: offline-contract
     if: >-
       github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
-      ((github.event_name == 'workflow_run' &&
-        github.event.workflow_run.name == 'MARCOSA | R117 triple-proof PREVIEW release certificate (NO PRODUCTION)' &&
-        github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.event == 'workflow_run' &&
-        github.event.workflow_run.head_branch == 'main' &&
-        github.event.workflow_run.head_repository.full_name == github.repository) ||
-       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: marcosa-staging
@@ -66,7 +58,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RELEASE_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
@@ -78,7 +70,7 @@ jobs:
       - name: Inspect real existing production public files, strictly READ ONLY, and redact evidence
         shell: bash
         env:
-          RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          RELEASE_SHA: ${{ github.sha }}
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}

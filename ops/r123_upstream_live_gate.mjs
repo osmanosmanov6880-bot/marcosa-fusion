@@ -29,7 +29,7 @@ export function verifyR118LiveEvidence({repository,expectedSha,upstreamRunId,run
     run.id===upstreamRunId&&run.name===RUN_NAME&&
     run.head_sha===expectedSha&&run.head_branch==='main'&&
     run.head_repository?.full_name===REPO&&
-    run.event==='workflow_run'&&
+    (run.event==='workflow_run'||run.event==='workflow_dispatch')&&
     run.status==='completed'&&run.conclusion==='success',
     'Untrusted, skipped, non-main or outdated R118 run');
 
