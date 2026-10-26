@@ -67,7 +67,7 @@ export function evaluatePublicInventory({expectedSha,r118,inventory}={}){
       'Rejected invalid public asset record');
     return {name:f.name,bytes:f.bytes,sha256:f.sha256};
   });
-  const ordered=[...normalized].sort((a,b)=>a.name.localeCompare(b.name,'en'));
+  const ordered=[...normalized].sort((a,b)=>a.name<b.name?-1:a.name>b.name?1:0);
   demand(JSON.stringify(ordered.map(f=>f.name))===
     JSON.stringify(normalized.map(f=>f.name)),'Public files are not deterministically sorted');
   demand(new Set(normalized.map(f=>f.name)).size===normalized.length,
