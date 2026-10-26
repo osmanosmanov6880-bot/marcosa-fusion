@@ -36,8 +36,15 @@ function safeJson(filename,maximum){
   return JSON.parse(raw.toString('utf8'));
 }
 
-export function evaluatePublicInventory({expectedSha,r118,inventory}={}){
+export function evaluatePublicInventory({expectedSha,r118,inventory,r123Proof,expectedR118RunId}={}){
   demand(SHA40.test(expectedSha||''),'Exact full current main SHA required');
+  demand(Number.isSafeInteger(expectedR118RunId)&&expectedR118RunId>0&&
+    r123Proof?.format==='MARCOSA-R123-VERIFIED-R118-LIVE-UPSTREAM-v1'&&
+    r123Proof.sourceSha===expectedSha&&r123Proof.r118RunId===expectedR118RunId&&
+    r123Proof.offlineJob==='PASS'&&r123Proof.actualNonrootVpsParityJob==='PASS'&&
+    r123Proof.boundedR118NoGoArtifact==='PASS'&&
+    r123Proof.productionCutoverAuthorized===false&&r123Proof.productionFilesChanged===false&&
+    r123Proof.productionDatabasesAccessed===false,'Missing verified R118 parent provenance');
   demand(r118&&typeof r118==='object'&&!Array.isArray(r118)&&
     r118.format==='MARCOSA-R118-LIVE-PRODUCTION-BOUNDARY-v1'&&
     r118.sourceSha===expectedSha&&
@@ -102,6 +109,8 @@ export function evaluatePublicInventory({expectedSha,r118,inventory}={}){
   return {
     format:FORMAT,
     sourceSha:expectedSha,
+    verifiedR118UpstreamRunId:expectedR118RunId,
+    verifiedR118NonrootVpsAttestation:true,
     status:reasons.length?'DRIFT':'PASS',
     note:'Full SHA256 snapshot of presently PUBLIC top-level files. No prior per-file hashes exist to prove historical byte-for-byte unchanged state.',
     scope:'public_top_level_only',
@@ -129,6 +138,8 @@ function main(){
   const sha=process.env.RELEASE_SHA;
   const report=evaluatePublicInventory({
     expectedSha:sha,
+    expectedR118RunId:Number(process.env.R118_RUN_ID),
+    r123Proof:safeJson('r123-r118-upstream-proof.json',8192),
     r118:safeJson('r118-evidence/marcosa-r118-production-boundary.json',65536),
     inventory:safeJson('r121-remote-public-inventory.json',65536),
   });

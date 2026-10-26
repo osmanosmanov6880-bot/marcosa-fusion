@@ -26,6 +26,7 @@ function fixture(id=81001){
     }]},
     report:{format:R121_FORMAT,sourceSha:SHA,status:'PASS',
       scope:'public_top_level_only',completeCurrentPublicHashInventory:true,
+      verifiedR118UpstreamRunId:id*100,verifiedR118NonrootVpsAttestation:true,
       historicalAllFilesUnchangedVerified:false,
       mainProductionRootCutoverAuthorized:false,
       customerStorageOrAuthInspected:false,nonRootReadOnly:true,
@@ -48,6 +49,7 @@ test('two different actual VPS jobs with exactly matching files pass but product
   assert.equal(result.status,'PASS');
   assert.equal(result.independentlyCompletedVpsJobs,true);
   assert.equal(result.r118UpstreamEventIdentityIndependentlyProven,false);
+  assert.deepEqual(result.verifiedR118ParentRunIds,[8100100,8100200]);
   assert.equal(result.historicalAllFilesAlwaysUnchangedProven,false);
   assert.equal(result.productionCutoverAuthorized,false);
   assert.deepEqual(result.runIds,[81001,81002]);
@@ -74,6 +76,12 @@ test('changed R118 baseline fails closed with DRIFT',()=>{
   assert.equal(r.indexOrHistoricalBaselineMismatch,true);
 });
 rejects('identical R121 run ID refused',p=>{p.second=structuredClone(p.first)},/DISTINCT/);
+rejects('same R118 parent fails',p=>{
+  p.second.report.verifiedR118UpstreamRunId=p.first.report.verifiedR118UpstreamRunId;
+},/DISTINCT R118/);
+rejects('missing attested parent fails',p=>{
+  delete p.first.report.verifiedR118UpstreamRunId;
+},/malformed/);
 rejects('duplicated VPS job id refused',p=>{p.second.jobs.jobs[1].id=p.first.jobs.jobs[1].id},/DISTINCT/);
 rejects('duplicated artifact id refused',p=>{p.second.artifacts.artifacts[0].id=p.first.artifacts.artifacts[0].id},/DISTINCT/);
 rejects('offline-only success is never real VPS proof',p=>{p.second.jobs.jobs[1].conclusion='skipped'},/DID NOT pass/);
@@ -107,7 +115,7 @@ rejects('different actual job SHA refused',p=>{p.first.jobs.jobs[1].head_sha='c'
 test('R124 installed contract accepts fixed anti-false-PASS guard markers',()=>{
   const r116='R116_PREVIOUS_RUN_SUPERSEDED=BLOCKED marcosa-r116-actual-vps-rollback-proof';
   const r117='marcosa-r116-actual-vps-rollback-proof NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT';
-  const r121='node ops/r123_upstream_live_gate.mjs\ngh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"\nssh -T -i "$TMP/key"';
+  const r121='node ops/r123_upstream_live_gate.mjs\nR118_RUN_ID: ${{ github.event.workflow_run.id }}\ngh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"\nssh -T -i "$TMP/key"';
   assert.equal(verifyR124Installed({r116,r117,r121}),true);
   assert.throws(()=>verifyR124Installed({r116:'R116_PREVIOUS_RUN_SUPERSEDED=SKIP',r117,r121}),/R116/);
   assert.throws(()=>verifyR124Installed({r116,r117:'no gate',r121}),/R117/);

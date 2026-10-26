@@ -42,6 +42,7 @@ export function verifyR124Installed({r116,r117,r121}={}) {
     'R124 R117 actual R116 artifact requirement not installed on main');
   requireThat(typeof r121==='string' &&
     r121.includes('node ops/r123_upstream_live_gate.mjs') &&
+    r121.includes('R118_RUN_ID: ${{ github.event.workflow_run.id }}') &&
     r121.includes('gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"') &&
     r121.indexOf('node ops/r123_upstream_live_gate.mjs') < r121.indexOf('ssh -T -i "$TMP/key"'),
     'R124 R121 real R118 live job proof must run before SSH on main');
@@ -88,6 +89,8 @@ export function verifySnapshot({runId,run,jobs,artifacts,report,expectedSha}={})
     report.customerStorageOrAuthInspected===false &&
     report.nonRootReadOnly===true && report.noProductionChangesMade===true &&
     report.verdict==='NO_GO' &&
+    positive(report.verifiedR118UpstreamRunId) &&
+    report.verifiedR118NonrootVpsAttestation===true &&
     Array.isArray(report.driftReasons) && report.driftReasons.length===0,
     'R121 report malformed, drifted, outdated or unsafe');
   const files=report.publicFileHashes;
@@ -118,7 +121,8 @@ export function verifySnapshot({runId,run,jobs,artifacts,report,expectedSha}={})
     JSON.stringify([...critical].sort()),
     'R121 critical legacy filenames inconsistent');
   return Object.freeze({
-    runId,actualVpsJobId:live[0].id,artifactId:matching[0].id,
+    runId,r118RunId:report.verifiedR118UpstreamRunId,
+    actualVpsJobId:live[0].id,artifactId:matching[0].id,
     canonicalManifestSha256:report.sha256OfCanonicalPublicManifest,
     indexSha256:index.sha256,baselineIndexSha256:report.verifiedR118OldIndexSha256,
     files:safeFiles,totalBytes:sum,
@@ -132,6 +136,7 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
   requireThat(a.runId!==b.runId && a.actualVpsJobId!==b.actualVpsJobId &&
     a.artifactId!==b.artifactId,
     'Two DISTINCT R121 run IDs, VPS jobs and artifacts are mandatory');
+  requireThat(a.r118RunId!==b.r118RunId,'Two DISTINCT R118 parent runs mandatory');
   const mapA=new Map(a.files.map(f=>[f.name,f]));
   const mapB=new Map(b.files.map(f=>[f.name,f]));
   const added=b.files.filter(f=>!mapA.has(f.name)).map(f=>f.name);
@@ -149,12 +154,14 @@ export function evaluateDoubleProof({expectedSha,first,second}={}) {
     scope:'same_sha_two_separate_read_only_public_top_level_vps_snapshots',
     independentlyCompletedVpsJobs:true,
     r118UpstreamEventIdentityIndependentlyProven:false,
+    r118ParentRunIdsDistinctAndAttestedByR121:true,
     historicalAllFilesAlwaysUnchangedProven:false,
     customerAuthOrPrivateStorageInspected:false,
     productionCutoverAuthorized:false,
     productionFilesChanged:false,
     productionDecision:'NO_GO',
-    runIds:[a.runId,b.runId],vpsJobIds:[a.actualVpsJobId,b.actualVpsJobId],
+    runIds:[a.runId,b.runId],verifiedR118ParentRunIds:[a.r118RunId,b.r118RunId],
+    vpsJobIds:[a.actualVpsJobId,b.actualVpsJobId],
     artifactIds:[a.artifactId,b.artifactId],
     firstManifestSha256:a.canonicalManifestSha256,
     secondManifestSha256:b.canonicalManifestSha256,

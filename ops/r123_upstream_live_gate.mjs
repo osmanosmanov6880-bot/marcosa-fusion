@@ -9,7 +9,7 @@
  * module only checks that metadata and the explicit R118 safety fields;
  * no production credentials, SSH, private files, or modifications.
  */
-import {readFileSync} from 'node:fs';
+import {readFileSync,writeFileSync} from 'node:fs';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -106,6 +106,10 @@ function main(){
     artifacts:readJSON('r123-r118-artifacts.json'),
     report:readJSON('r123-r118-report/marcosa-r118-production-boundary.json',65536),
   });
+  // Locally persist only the sanitized, authenticated upstream identity.
+  // R121 consumes it before creating a public-file inventory artifact.
+  writeFileSync('r123-r118-upstream-proof.json',JSON.stringify(result,null,2)+'\n',
+    {flag:'wx',mode:0o600});
   console.log('R123_REAL_R118_NONROOT_VPS_UPSTREAM=PASS');
   console.log('R123_R118_RUN_ID='+result.r118RunId);
   console.log('R123_RELEASE_SHA='+result.sourceSha);
