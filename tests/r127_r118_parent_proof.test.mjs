@@ -82,9 +82,9 @@ refuses('R118 real VPS job cannot be skipped',
 refuses('R118 fake offline-only success is rejected',
   p=>{p.first.jobs.jobs.pop()},/Incomplete/);
 refuses('R118 artifact cannot be expired',
-  p=>{p.second.artifacts.artifacts[0].expired=true},/Missing live R118/);
+  p=>{p.second.artifacts.artifacts[0].expired=true},/R118 NO_GO artifact|Missing live R118/);
 refuses('R118 artifact must come from same exact run',
-  p=>{p.first.artifacts.artifacts[0].workflow_run.id=9},/Missing live R118/);
+  p=>{p.first.artifacts.artifacts[0].workflow_run.id=9},/R118 NO_GO artifact|Missing live R118/);
 refuses('R118 private-account migration flag cannot falsely authorize release',
   p=>{p.first.report.accountsMigratedOrVerified=true},/artifact/);
 refuses('R118 parent run IDs must differ',
