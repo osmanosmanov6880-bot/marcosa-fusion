@@ -16,6 +16,8 @@ on:
       - "docs/MARCOSA_R75_PRIVATE_RIGHTS_PG_DELIVERY_REFERENCE.sql"
       - "docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql"
       - "tests/postgres/**"
+      - "ops/r130_disposable_storage_restore.mjs"
+      - "tests/r130_disposable_storage_restore.test.mjs"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   push:
     branches: [main]
@@ -33,6 +35,8 @@ on:
       - "docs/MARCOSA_R75_PRIVATE_RIGHTS_PG_DELIVERY_REFERENCE.sql"
       - "docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql"
       - "tests/postgres/**"
+      - "ops/r130_disposable_storage_restore.mjs"
+      - "tests/r130_disposable_storage_restore.test.mjs"
       - ".github/workflows/marcosa-postgres-rls-reference.yml"
   workflow_dispatch:
 permissions:
@@ -174,6 +178,22 @@ jobs:
           test "$PGHOST" = 127.0.0.1
           test "$PGDATABASE" = postgres
           psql -v ON_ERROR_STOP=1 -f tests/postgres/129_pg17_restore_fixture_seed.sql
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: R130 test actual synthetic Storage bytes, restore tampering and tenant bounds
+        run: |
+          set -euo pipefail
+          node --check ops/r130_disposable_storage_restore.mjs
+          node --test tests/r130_disposable_storage_restore.test.mjs
+      - name: R130 seed 2 SHA-named PNG blobs and PRIVATE metadata in disposable source PG17
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = postgres
+          node ops/r130_disposable_storage_restore.mjs seed
+          test -s "$RUNNER_TEMP/marcosa-r130-media-fixtures.sql"
+          psql -v ON_ERROR_STOP=1 -f "$RUNNER_TEMP/marcosa-r130-media-fixtures.sql"
       - name: R128 real disposable PG17 custom dump and restored RLS identity test
         shell: bash
         env:
@@ -223,12 +243,30 @@ jobs:
           echo 'R128_PG17_DISPOSABLE_DUMP_RESTORE_RLS=PASS'
           echo 'R128_REAL_SUPABASE_BACKUP_RESTORE=NOT_VERIFIED'
           echo 'R128_PRODUCTION_CUTOVER=NO_GO'
+      - name: R130 restore synthetic Storage files and cross-check independently restored PG17
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = postgres
+          node ops/r130_disposable_storage_restore.mjs backup
+          node ops/r130_disposable_storage_restore.mjs restore
+          PGDATABASE=marcosa_r128_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/131_r130_restored_storage_acl.sql
+          node ops/r130_disposable_storage_restore.mjs attest
       - name: Preserve only sanitized disposable-database restore acceptance
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: marcosa-r128-pg17-disposable-restore-proof
           path: marcosa-r128-disposable-restore-proof.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Preserve only scrubbed synthetic Storage and restored PG17 acceptance
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r130-disposable-storage-recovery-proof
+          path: marcosa-r130-disposable-storage-restore-proof.json
           retention-days: 7
           if-no-files-found: error
       - name: Assert the test database never targeted external infrastructure
