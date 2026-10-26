@@ -159,17 +159,18 @@ test('missing or malformed trust inputs rejected without claiming production',()
   assert.throws(()=>evaluateCertificate({...example(),jobsByRun:null}));
 });
 
-test('workflow reruns certificate both after Pages and real VPS proof in either order',async()=>{
+test('R117 real triple-proof certificate is manual-only on exact main; PR tests remain',async()=>{
   const {readFileSync}=await import('node:fs');
   const yaml=readFileSync(new URL('../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
-  assert.match(yaml,/workflows:\s*\n\s+- "MARCOSA \| R116 read-only live VPS rollback readiness after each STAGING release"\s*\n\s+- "MARCOSA \| Publish public Network OS preview"/);
-  assert.match(yaml,/github\.event\.workflow_run\.event == 'workflow_run'/);
-  assert.match(yaml,/github\.event\.workflow_run\.event == 'push'/);
+  const on=yaml.split('on:\n')[1].split('permissions:\n')[0];
+  assert.doesNotMatch(on,/^  workflow_run:/m);
+  assert.match(on,/^  workflow_dispatch:/m);
+  assert.match(on,/^  pull_request:/m);
+  assert.match(yaml,/github.event_name == 'workflow_dispatch'/);
+  assert.match(yaml,/github.ref == 'refs\/heads\/main'/);
   assert.match(yaml,/persist-credentials: false/);
-  assert.match(yaml,/github\.event\.workflow_run\.head_branch == 'main'/);
   assert.doesNotMatch(yaml,/permissions:\s*\n\s+contents: write/);
 });
-
 
 test('R117 validates actual downloaded R116 JSON, not only artifact metadata',()=>{
   const proof={

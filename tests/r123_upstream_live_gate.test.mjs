@@ -86,15 +86,25 @@ test('current commit and exact upstream run id must match GitHub API',()=>{
   const z=fixture();z.jobs.jobs[1].head_sha='b'.repeat(40);
   assert.throws(()=>verifyR118LiveEvidence(z),/real read-only/);
 });
-test('wrong repo, pull request branch, fork, manually bypassed R118 refused',()=>{
+test('wrong repo, PR branch, fork and unauthorized event refused',()=>{
   const x=fixture();x.repository='attacker/repo';
   assert.throws(()=>verifyR118LiveEvidence(x),/Wrong repository/);
   const y=fixture();y.run.head_repository.full_name='attacker/repo';
   assert.throws(()=>verifyR118LiveEvidence(y),/Untrusted/);
   const z=fixture();z.run.head_branch='pr-136';
   assert.throws(()=>verifyR118LiveEvidence(z),/Untrusted/);
-  const w=fixture();w.run.event='workflow_dispatch';
+  const w=fixture();w.run.event='pull_request';
   assert.throws(()=>verifyR118LiveEvidence(w),/Untrusted/);
+  const p=fixture();p.run.event='push';
+  assert.throws(()=>verifyR118LiveEvidence(p),/Untrusted/);
+});
+test('a manually dispatched real R118 with successful VPS and NO_GO artifact is trusted',()=>{
+  const x=fixture();x.run.event='workflow_dispatch';
+  const good=verifyR118LiveEvidence(x);
+  assert.equal(good.actualNonrootVpsParityJob,'PASS');
+  assert.equal(good.productionCutoverAuthorized,false);
+  x.jobs.jobs[1].conclusion='skipped';
+  assert.throws(()=>verifyR118LiveEvidence(x),/real read-only VPS job/);
 });
 test('wrong upstream workflow name, duplicated job and wrong job status refused',()=>{
   const x=fixture();x.run.name='unrelated';
@@ -150,12 +160,13 @@ test('R118 live audit must not be cancelled by a second same-SHA workflow event'
   assert.match(yaml,/StrictHostKeyChecking=yes/);
   assert.match(yaml,/permissions:\s*\n\s+contents: read\s*\n\s+actions: read/);
 });
-test('R117 double trigger from Pages plus R116 cannot abort active certificate',()=>{
-  const yaml=readFileSync(new URL(
-    '../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
+test('R117 certificate no longer automatically chains offline Pages/PR workflows',()=>{
+  const yaml=readFileSync(new URL('../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
+  const on=yaml.split('on:\n')[1].split('permissions:\n')[0];
+  assert.doesNotMatch(on,/^  workflow_run:/m);
+  assert.match(on,/^  workflow_dispatch:/m);
+  assert.match(yaml,/github.event_name == 'workflow_dispatch'/);
   assert.match(yaml,/concurrency:[\s\S]*cancel-in-progress: false/);
-  assert.match(yaml,/R116 read-only live VPS rollback readiness/);
-  assert.match(yaml,/Publish public Network OS preview/);
 });
 test('CLI refuses missing approved evidence, never emits a fake PASS',()=>{
   const p=spawnSync(process.execPath,['ops/r123_upstream_live_gate.mjs'],{
