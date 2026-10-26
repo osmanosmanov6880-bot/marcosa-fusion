@@ -101,6 +101,7 @@ jobs:
         shell: bash
         env:
           RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          R118_RUN_ID: ${{ github.event.workflow_run.id }}
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
           DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
           DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -110,6 +111,7 @@ jobs:
           set -euo pipefail
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
           [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$R118_RUN_ID" =~ ^[1-9][0-9]{0,14}$ ]] || exit 2
           [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || exit 2
           source ops/load-pinned-staging-host.sh
           : "${DEPLOY_KEY:?Missing read-only verifier SSH credential}"
