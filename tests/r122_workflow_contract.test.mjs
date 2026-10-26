@@ -28,3 +28,21 @@ test('R122 fetches exact two run artifacts and validates them in Node',()=>{
   assert.match(workflow,/"\$\(git rev-parse HEAD\)" == "\$RELEASE_SHA"/);
   assert.match(workflow,/if-no-files-found: warn/);
 });
+
+test('R127 independently re-fetches the exact TWO upstream R118 live jobs and artifacts',()=>{
+  assert.match(workflow,/node ops\/r127_independent_r118_parents\.mjs --parent-ids/);
+  assert.match(workflow,/actions\/runs\/\$parentid\/jobs\?per_page=100/);
+  assert.match(workflow,/actions\/runs\/\$parentid\/artifacts\?per_page=100/);
+  assert.match(workflow,/gh run download "\$parentid"/);
+  assert.match(workflow,/--name marcosa-r118-production-boundary-no-go/);
+  assert.match(workflow,/node ops\/r127_independent_r118_parents\.mjs --verify/);
+  assert.match(workflow,/node --test tests\/r127_independent_r118_parents\.test\.mjs/);
+  assert.match(workflow,/marcosa-r127-independent-r118-parent-proof\.json/);
+  const fetched=workflow.indexOf('gh run download "$parentid"');
+  const r122=workflow.indexOf('          node ops/r122_dual_vps_inventory_gate.mjs\n');
+  const r127=workflow.indexOf('          node ops/r127_independent_r118_parents.mjs --verify\n');
+  assert.ok(fetched>=0 && r122>fetched && r127>r122);
+  assert.match(workflow,/^  contents: read$/m);
+  assert.match(workflow,/^  actions: read$/m);
+  assert.doesNotMatch(workflow,/DEPLOY_SSH_KEY|secrets\./);
+});
