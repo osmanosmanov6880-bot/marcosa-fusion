@@ -84,6 +84,9 @@ test('R131 source only uses Docker no-network and forbids fake remote SQL/restor
  assert.match(source,/131_r130_restored_storage_acl\.sql/);
  assert.match(source,/verifyRowsAgainstStorage/);
  assert.match(source,/productionCutoverAuthorized:false/);
+ assert.match(source,/shaOrigin:isMainRef/);
+ assert.match(source,/currentMainShaIndependentlyReverified:false/);
+ assert.match(source,/github_pr_or_other_ci_ref/);
  assert.doesNotMatch(source,/https:\/\/.*supabase/);
 });
 test('R131 CLI refuses to contact Docker outside official GitHub local source container',()=>{
