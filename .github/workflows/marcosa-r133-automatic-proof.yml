@@ -1,0 +1,78 @@
+name: "MARCOSA | R133 exact-main automatic evidence cross-check (NO PRODUCTION)"
+on:
+  pull_request:
+    paths:
+      - "ops/r133_one_sha_automatic_evidence_gate.mjs"
+      - "tests/r133_one_sha_automatic_evidence_gate.test.mjs"
+      - ".github/workflows/marcosa-r133-automatic-proof.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r133-${ github.run_id }}
+  cancel-in-progress: false
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Refuse stale SHA, skipped VPS job, foreign artifact, and false production GO
+        run: |
+          set -euo pipefail
+          node --check ops/r133_one_sha_automatic_evidence_gate.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs
+  actual-main-automatic-proof:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Query fixed exact-run GitHub API and inspect actual R114/R116 bounded artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${ github.token }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 2
+          node ops/r133_one_sha_automatic_evidence_gate.mjs
+          test -s marcosa-r133-one-sha-automatic-proof.json
+          # Deliberately not GO:
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const p=JSON.parse(readFileSync('marcosa-r133-one-sha-automatic-proof.json'));
+          assert.equal(p.automaticEvidenceStages,5);
+          assert.equal(p.sourceSha,process.env.GITHUB_SHA);
+          assert.equal(p.productionCutoverAuthorized,false);
+          assert.equal(p.productionDecision,'NO_GO');
+          assert.ok(p.requiredManualEvidenceNotProven.length>=8);
+          console.log('R133_AUTOMATIC_CURRENT_MAIN_ONLY=PASS');
+          console.log('R133_REAL_LEGACY_AUTH_POSTGRES_STORAGE=NOT_VERIFIED');
+          console.log('R133_PRODUCTION_CUTOVER=NO_GO');
+          NODE
+      - name: Retain only bounded NO_GO automated-evidence summary
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r133-exact-main-automatic-evidence-no-go
+          path: marcosa-r133-one-sha-automatic-proof.json
+          retention-days: 14
+          if-no-files-found: error
