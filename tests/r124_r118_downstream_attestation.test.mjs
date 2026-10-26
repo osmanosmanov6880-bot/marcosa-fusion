@@ -104,3 +104,28 @@ test('actual R118 read-only full provenance permits only limited diagnostics, no
   assert.equal(proof.productionFilesChanged,false);
   assert.equal(proof.productionDatabasesAccessed,false);
 });
+
+
+test('R116 stale-SHA read-only job FAILS rather than green-skips',()=>{
+  const yaml=readFileSync(new URL(
+    '../.github/workflows/marcosa-r116-rollback-readiness.yml',import.meta.url),'utf8');
+  assert.match(yaml,/R116_PREVIOUS_RUN_SUPERSEDED=BLOCKED/);
+  assert.match(yaml,/R116_PREVIOUS_RUN_SUPERSEDED=BLOCKED[\s\S]*?exit 2/);
+  assert.doesNotMatch(yaml,/R116_PREVIOUS_RUN_SUPERSEDED=SKIP/);
+});
+test('R116 artifact ONLY after verified SSH response; R117 demands exact same-run proof',()=>{
+  const vps=readFileSync(new URL(
+    '../.github/workflows/marcosa-r116-rollback-readiness.yml',import.meta.url),'utf8');
+  const cert=readFileSync(new URL('../ops/release_certificate_r117.mjs',import.meta.url),'utf8');
+  const test=readFileSync(new URL(
+    '../.github/workflows/marcosa-r117-release-certificate.yml',import.meta.url),'utf8');
+  assert.ok(vps.indexOf("grep -qx 'STAGING_ROLLBACK_PREFLIGHT=PASS'") <
+    vps.indexOf('marcosa-r116-actual-vps-rollback-proof.json'));
+  assert.ok(vps.indexOf('STAGING_ROLLBACK_TARGET_BYTES_VERIFIED=PASS') <
+    vps.indexOf('marcosa-r116-actual-vps-rollback-proof.json'));
+  assert.match(vps,/if-no-files-found: error/);
+  assert.match(cert,/artifacts\?per_page=100/);
+  assert.match(cert,/NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT/);
+  assert.match(cert,/actualVpsProofArtifactId/);
+  assert.match(test,/node --test tests\/release_certificate_r117\.test\.mjs/);
+});
