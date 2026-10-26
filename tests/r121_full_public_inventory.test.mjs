@@ -35,7 +35,7 @@ function proof() {
     criticalPresent:[...CRITICAL].sort(),files,
     rawCustomerData:'DO_NOT_LEAK_PRIVATE_CUSTOMER',
   };
-  return {expectedSha:sha,r118,inventory};
+  return {expectedSha:sha,r118,inventory,r118RunId:9251001};
 }
 test('all actual public hashes collected while production cutover remains NO_GO',()=>{
   const v=evaluatePublicInventory(proof());
@@ -140,4 +140,19 @@ test('hash inventory never requires credentials, root or writes to production',(
   assert.match(yaml,/gh run download/);
   assert.match(yaml,/r121_public_legacy_fingerprints\.py/);
   assert.doesNotMatch(yaml,/sudo |rsync --delete|nginx -s reload|systemctl restart|0\.0\.0\.0/);
+});
+
+test('R126 rejects absent, forged or repeated R118 upstream source identifiers',()=>{
+  for(const bad of [null,0,-1,1.5,'9251001',Number.MAX_SAFE_INTEGER+1]){
+    const x=proof();x.r118RunId=bad;
+    assert.throws(()=>evaluatePublicInventory(x),/R118 upstream run ID/);
+  }
+  const x=proof();delete x.r118RunId;
+  assert.throws(()=>evaluatePublicInventory(x),/R118 upstream run ID/);
+});
+test('R126 records the trusted R118 run ID in the bounded R121 manifest',()=>{
+  const x=proof();const report=evaluatePublicInventory(x);
+  assert.equal(report.r118UpstreamRunId,x.r118RunId);
+  assert.equal(report.verdict,'NO_GO');
+  assert.equal(report.customerStorageOrAuthInspected,false);
 });
