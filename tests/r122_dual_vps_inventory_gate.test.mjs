@@ -30,6 +30,7 @@ function fixture(id=81001){
       mainProductionRootCutoverAuthorized:false,
       customerStorageOrAuthInspected:false,nonRootReadOnly:true,
       noProductionChangesMade:true,verdict:'NO_GO',driftReasons:[],
+      r118UpstreamRunId:id+2000,
       publicFileHashes:files,numberOfHashedPublicFiles:files.length,
       publicBytesHashed:2110,sha256OfCanonicalPublicManifest:hash(files),
       currentProductionIndexSha256:INDEX,verifiedR118OldIndexSha256:BASE,
@@ -48,6 +49,8 @@ test('two different actual VPS jobs with exactly matching files pass but product
   assert.equal(result.status,'PASS');
   assert.equal(result.independentlyCompletedVpsJobs,true);
   assert.equal(result.r118UpstreamEventIdentityIndependentlyProven,false);
+  assert.equal(result.separateR118UpstreamRunsReported,true);
+  assert.deepEqual(result.r118SourceRunIds,[83001,83002]);
   assert.equal(result.historicalAllFilesAlwaysUnchangedProven,false);
   assert.equal(result.productionCutoverAuthorized,false);
   assert.deepEqual(result.runIds,[81001,81002]);
@@ -74,6 +77,9 @@ test('changed R118 baseline fails closed with DRIFT',()=>{
   assert.equal(r.indexOrHistoricalBaselineMismatch,true);
 });
 rejects('identical R121 run ID refused',p=>{p.second=structuredClone(p.first)},/DISTINCT/);
+rejects('two different R121 jobs with SAME R118 source event refused',p=>{p.second.report.r118UpstreamRunId=p.first.report.r118UpstreamRunId},/DISTINCT/);
+rejects('missing R118 run ID refused',p=>{delete p.second.report.r118UpstreamRunId},/malformed/);
+rejects('invalid R118 run ID refused',p=>{p.second.report.r118UpstreamRunId=-4},/malformed/);
 rejects('duplicated VPS job id refused',p=>{p.second.jobs.jobs[1].id=p.first.jobs.jobs[1].id},/DISTINCT/);
 rejects('duplicated artifact id refused',p=>{p.second.artifacts.artifacts[0].id=p.first.artifacts.artifacts[0].id},/DISTINCT/);
 rejects('offline-only success is never real VPS proof',p=>{p.second.jobs.jobs[1].conclusion='skipped'},/DID NOT pass/);
@@ -107,7 +113,7 @@ rejects('different actual job SHA refused',p=>{p.first.jobs.jobs[1].head_sha='c'
 test('R124 installed contract accepts fixed anti-false-PASS guard markers',()=>{
   const r116='R116_PREVIOUS_RUN_SUPERSEDED=BLOCKED marcosa-r116-actual-vps-rollback-proof';
   const r117='marcosa-r116-actual-vps-rollback-proof NO_VERIFIED_ACTUAL_VPS_R116_ARTIFACT';
-  const r121='node ops/r123_upstream_live_gate.mjs\ngh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"\nssh -T -i "$TMP/key"';
+  const r121='node ops/r123_upstream_live_gate.mjs\nR118_RUN_ID: ${{ github.event.workflow_run.id }}\ngh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100"\nssh -T -i "$TMP/key"';
   assert.equal(verifyR124Installed({r116,r117,r121}),true);
   assert.throws(()=>verifyR124Installed({r116:'R116_PREVIOUS_RUN_SUPERSEDED=SKIP',r117,r121}),/R116/);
   assert.throws(()=>verifyR124Installed({r116,r117:'no gate',r121}),/R117/);
