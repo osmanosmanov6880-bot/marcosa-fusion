@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - "tools/r121_public_legacy_fingerprints.py"
+      - "tests/r124_r118_downstream_attestation.test.mjs"
       - "ops/r121_full_public_inventory.mjs"
       - "tests/r121_full_public_inventory.test.mjs"
       - "tests/test_r121_public_legacy_fingerprints.py"
@@ -41,6 +42,7 @@ jobs:
           node --check ops/r121_full_public_inventory.mjs
           node --test tests/r121_full_public_inventory.test.mjs
           node --test tests/r123_upstream_live_gate.test.mjs
+          node --test tests/r124_r118_downstream_attestation.test.mjs
   actual-vps-public-hashes:
     needs: offline-contract
     if: >-
