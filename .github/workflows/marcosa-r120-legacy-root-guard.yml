@@ -7,6 +7,7 @@ on:
   pull_request:
     paths:
       - "ops/r120_legacy_root_guard.mjs"
+      - "tests/r124_r118_downstream_attestation.test.mjs"
       - "tests/r120_legacy_root_guard.test.mjs"
       - ".github/workflows/marcosa-r120-legacy-root-guard.yml"
   workflow_dispatch:
@@ -33,6 +34,7 @@ jobs:
           node --check ops/r120_legacy_root_guard.mjs
           node --test tests/r120_legacy_root_guard.test.mjs
           node --test tests/r123_upstream_live_gate.test.mjs
+          node --test tests/r124_r118_downstream_attestation.test.mjs
   audit-existing-root-fingerprint:
     needs: offline-contract
     if: >-
