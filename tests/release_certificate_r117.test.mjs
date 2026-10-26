@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {evaluateCertificate, R116} from '../ops/release_certificate_r117.mjs';
+import {evaluateCertificate, R116, verifyR116ProofPayload} from '../ops/release_certificate_r117.mjs';
 import {PIPELINES} from '../ops/release_evidence_r114.mjs';
 
 const sha = 'a'.repeat(40);
@@ -168,4 +168,53 @@ test('workflow reruns certificate both after Pages and real VPS proof in either 
   assert.match(yaml,/persist-credentials: false/);
   assert.match(yaml,/github\.event\.workflow_run\.head_branch == 'main'/);
   assert.doesNotMatch(yaml,/permissions:\s*\n\s+contents: write/);
+});
+
+
+test('R117 validates actual downloaded R116 JSON, not only artifact metadata',()=>{
+  const proof={
+    format:'MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1',
+    sourceSha:sha,previousReleaseSha:'e'.repeat(40),
+    rollbackCandidateAssetsVerified:63,
+    actualReadOnlyVpsSshCheck:true,
+    previousFilesAndManifestSha256Verified:true,
+    productionChanged:false,productionAuthorized:false,status:'PASS',
+    rawPrivateCredentials:'never propagate',
+  };
+  const checked=verifyR116ProofPayload(proof,{expectedSha:sha,runId:7103});
+  assert.equal(checked.actualR116VpsArtifactContent,'PASS');
+  assert.equal(checked.previousReleaseSha,'e'.repeat(40));
+  assert.equal(checked.rollbackCandidateAssetsVerified,63);
+  assert.equal(checked.productionAuthorized,false);
+  assert.doesNotMatch(JSON.stringify(checked),/never propagate/);
+});
+test('R117 rejects mismatch SHA, false SSH, mutated production or forged artifact payload',()=>{
+  const valid={
+    format:'MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1',
+    sourceSha:sha,previousReleaseSha:'e'.repeat(40),
+    rollbackCandidateAssetsVerified:63,
+    actualReadOnlyVpsSshCheck:true,
+    previousFilesAndManifestSha256Verified:true,
+    productionChanged:false,productionAuthorized:false,status:'PASS',
+  };
+  for(const change of [
+    {sourceSha:'b'.repeat(40)},
+    {previousReleaseSha:'not-hex'},
+    {rollbackCandidateAssetsVerified:0},
+    {actualReadOnlyVpsSshCheck:false},
+    {previousFilesAndManifestSha256Verified:false},
+    {productionChanged:true},{productionAuthorized:true},
+    {status:'SKIPPED'},{format:'FAKE-VPS-PROOF'},
+  ])assert.throws(()=>verifyR116ProofPayload({...valid,...change},
+    {expectedSha:sha,runId:7103}),/does not attest/);
+  assert.throws(()=>verifyR116ProofPayload(valid,{expectedSha:sha,runId:0}),
+    /Exact R116 proof/);
+});
+test('R117 verifies R116 download content before saving a PASS certificate',async()=>{
+  const {readFileSync}=await import('node:fs');
+  const source=readFileSync(new URL('../ops/release_certificate_r117.mjs',import.meta.url),'utf8');
+  assert.match(source,/gh[\s\S]*?run[\s\S]*?download/);
+  assert.match(source,/R117_R116_ACTUAL_VPS_PROOF_JSON=PASS/);
+  assert.ok(source.indexOf('downloadAndVerifyR116Proof({')<
+    source.indexOf("writeFileSync('marcosa-r117-release-certificate.json'"));
 });
