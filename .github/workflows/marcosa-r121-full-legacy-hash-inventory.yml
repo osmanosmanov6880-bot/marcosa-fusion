@@ -16,8 +16,8 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: marcosa-r121-${{ github.event.workflow_run.head_sha || github.sha }}
-  cancel-in-progress: true
+  group: marcosa-r121-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
 jobs:
   offline-contract:
     runs-on: ubuntu-latest
@@ -40,6 +40,7 @@ jobs:
           python -m py_compile tools/r121_public_legacy_fingerprints.py
           node --check ops/r121_full_public_inventory.mjs
           node --test tests/r121_full_public_inventory.test.mjs
+          node --test tests/r123_upstream_live_gate.test.mjs
   actual-vps-public-hashes:
     needs: offline-contract
     if: >-
@@ -82,6 +83,18 @@ jobs:
             --dir r118-evidence
           test -f r118-evidence/marcosa-r118-production-boundary.json
           test "$(wc -c < r118-evidence/marcosa-r118-production-boundary.json)" -lt 65536
+          # R124: exactly this R118 run must have completed non-root VPS parity.
+          R118_RUN_ID="$UPSTREAM_RUN_ID"
+          export R118_RUN_ID
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID" > r123-r118-run.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/jobs?per_page=100" > r123-r118-jobs.json
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$R118_RUN_ID/artifacts?per_page=100" > r123-r118-artifacts.json
+          mkdir -m 700 r123-r118-report
+          cp r118-evidence/marcosa-r118-production-boundary.json \
+            r123-r118-report/marcosa-r118-production-boundary.json
+          node ops/r123_upstream_live_gate.mjs
+          rm -rf -- r123-r118-report
+          rm -f -- r123-r118-run.json r123-r118-jobs.json r123-r118-artifacts.json
       - name: Stream read-only public hashes from pinned non-root Contabo
         shell: bash
         env:
