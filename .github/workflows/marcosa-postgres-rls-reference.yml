@@ -168,6 +168,69 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/120_reciprocal_blocks_actions.sql
+      - name: R128 reseed disposable restore-only accounts after R30-R84 cleanup tests
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = 127.0.0.1
+          test "$PGDATABASE" = postgres
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/129_pg17_restore_fixture_seed.sql
+      - name: R128 real disposable PG17 custom dump and restored RLS identity test
+        shell: bash
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REPOSITORY" == "osmanosmanov6880-bot/marcosa-fusion" ]] || exit 2
+          [[ "$PGHOST" == "127.0.0.1" && "$PGPORT" == "5432" &&
+             "$PGDATABASE" == "postgres" ]] || exit 2
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/marcosa-r128-only-synthetic-pg17.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          # Use the SAME PostgreSQL 17 client as the isolated service to avoid
+          # pg_dump/server major-version mismatch. Never connect to any remote DB.
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          [[ -s "$DUMP" ]] || exit 2
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          # Compare overall synthetic table cardinalities before and after restore.
+          COUNTS_SQL="SELECT concat((SELECT count(*) FROM auth.users),':',(SELECT count(*) FROM public.marcosa_profiles),':',(SELECT count(*) FROM public.marcosa_worlds),':',(SELECT count(*) FROM public.marcosa_posts),':',(SELECT count(*) FROM public.marcosa_comments))"
+          SOURCE_COUNTS="$(psql -v ON_ERROR_STOP=1 -Atc "$COUNTS_SQL")"
+          psql -v ON_ERROR_STOP=1 -d postgres -c \
+            'CREATE DATABASE marcosa_r128_restored TEMPLATE template0;'
+          # Preserve ACLs and RLS policies: --no-acl would silently break testing.
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --exit-on-error --no-owner \
+            -d marcosa_r128_restored < "$DUMP"
+          RESTORED_COUNTS="$(PGDATABASE=marcosa_r128_restored psql -v ON_ERROR_STOP=1 -Atc "$COUNTS_SQL")"
+          [[ "$SOURCE_COUNTS" == "$RESTORED_COUNTS" ]] || {
+            echo "::error::R128 restored row counts differ from synthetic source"
+            exit 2
+          }
+          PGDATABASE=marcosa_r128_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/130_pg17_restore_rls_isolation.sql
+          # Broken archives MUST be rejected, never treated as a valid snapshot.
+          printf 'CORRUPT-NOT-A-DUMP' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::Damaged PostgreSQL backup unexpectedly accepted"
+            exit 2
+          fi
+          printf '%s\n' \
+            '{"format":"MARCOSA-R128-DISPOSABLE-PG17-RESTORE-v1","source":"synthetic-local-ci-only","pgDumpAndNewDbRestore":"PASS","restoredRlsMultipleIdentities":"PASS","corruptArchiveRejected":true,"realCustomerDataIncluded":false,"realSupabaseAuthOrStorageVerified":false,"productionCutoverAuthorized":false,"verdict":"NO_GO"}' \
+            > marcosa-r128-disposable-restore-proof.json
+          echo 'R128_PG17_DISPOSABLE_DUMP_RESTORE_RLS=PASS'
+          echo 'R128_REAL_SUPABASE_BACKUP_RESTORE=NOT_VERIFIED'
+          echo 'R128_PRODUCTION_CUTOVER=NO_GO'
+      - name: Preserve only sanitized disposable-database restore acceptance
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r128-pg17-disposable-restore-proof
+          path: marcosa-r128-disposable-restore-proof.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Assert the test database never targeted external infrastructure
         run: |
           set -euo pipefail
