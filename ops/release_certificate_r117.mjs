@@ -6,8 +6,10 @@
  * verified Contabo SSH staging deployment, and R116's REAL read-only VPS
  * rollback-candidate verification. No SSH, production, database, or writes.
  */
-import {writeFileSync, appendFileSync} from 'node:fs';
-import {resolve} from 'node:path';
+import {writeFileSync, appendFileSync, readFileSync, mkdtempSync, rmSync} from 'node:fs';
+import {resolve, join} from 'node:path';
+import {tmpdir} from 'node:os';
+import {execFileSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {evaluateRelease, REPO, PIPELINES} from './release_evidence_r114.mjs';
 
@@ -164,11 +166,75 @@ async function collectEvidence(sha, token) {
   return evaluateCertificate({sourceSha:sha, mainSha, runs, jobsByRun, artifactsByRun});
 }
 
+/**
+ * Validate the ACTUAL JSON bytes downloaded from the GitHub Actions R116 run.
+ * GitHub's artifact metadata alone would not prove the attested SHA and
+ * read-only SSH operation were reported in the artifact content.
+ */
+export function verifyR116ProofPayload(payload,{expectedSha,runId}={}){
+  demand(SHA40.test(expectedSha||'')&&Number.isSafeInteger(runId)&&runId>0,
+    'Exact R116 proof source required');
+  demand(payload&&typeof payload==='object'&&!Array.isArray(payload)&&
+    payload.format==='MARCOSA-R116-ACTUAL-NONROOT-VPS-ROLLBACK-PROOF-v1'&&
+    payload.sourceSha===expectedSha&&
+    SHA40.test(payload.previousReleaseSha||'')&&
+    Number.isSafeInteger(payload.rollbackCandidateAssetsVerified)&&
+    payload.rollbackCandidateAssetsVerified>=3&&
+    payload.rollbackCandidateAssetsVerified<=99999&&
+    payload.actualReadOnlyVpsSshCheck===true&&
+    payload.previousFilesAndManifestSha256Verified===true&&
+    payload.productionChanged===false&&
+    payload.productionAuthorized===false&&payload.status==='PASS',
+    'R116 downloaded proof does not attest actual nonroot read-only SSH');
+  return Object.freeze({
+    actualR116VpsArtifactContent:'PASS',
+    actualR116VpsProofRunId:runId,
+    actualR116VpsSourceSha:expectedSha,
+    previousReleaseSha:payload.previousReleaseSha,
+    rollbackCandidateAssetsVerified:payload.rollbackCandidateAssetsVerified,
+    productionAuthorized:false,
+  });
+}
+function downloadAndVerifyR116Proof({sha,rollback,token}){
+  demand(rollback?.status==='PASS'&&
+    Number.isSafeInteger(rollback.runId)&&rollback.runId>0&&
+    Number.isSafeInteger(rollback.actualVpsProofArtifactId)&&
+    rollback.actualVpsProofArtifactId>0,
+    'R116 actual VPS evidence has not passed');
+  demand(typeof token==='string'&&token.length>10,'GitHub action token missing');
+  const tmp=mkdtempSync(join(tmpdir(),'marcosa-r116-proof-'));
+  try{
+    execFileSync('gh',[
+      'run','download',String(rollback.runId),'--repo',REPO,
+      '--name','marcosa-r116-actual-vps-rollback-proof',
+      '--dir',tmp
+    ],{env:{...process.env,GH_TOKEN:token},timeout:30000,
+      encoding:'utf8',maxBuffer:65536,stdio:['ignore','pipe','pipe']});
+    const data=readFileSync(join(tmp,'marcosa-r116-actual-vps-rollback-proof.json'));
+    demand(data.length>50&&data.length<=16384,'Oversized or missing real R116 JSON');
+    return verifyR116ProofPayload(JSON.parse(data.toString('utf8')),
+      {expectedSha:sha,runId:rollback.runId});
+  }finally{
+    rmSync(tmp,{recursive:true,force:true});
+  }
+}
+
 async function main() {
   demand(process.env.GITHUB_REPOSITORY === REPO, 'Wrong repository');
   const sourceSha = process.env.RELEASE_SHA;
   demand(SHA40.test(sourceSha || ''), 'Invalid source SHA');
   const report = await collectEvidence(sourceSha, process.env.GITHUB_TOKEN);
+  if(report.status==='PASS'){
+    const verified=downloadAndVerifyR116Proof({
+      sha:sourceSha,
+      rollback:report.evidence.verifiedVpsRollbackCandidate,
+      token:process.env.GITHUB_TOKEN,
+    });
+    report.evidence.verifiedVpsRollbackCandidate={
+      ...report.evidence.verifiedVpsRollbackCandidate,...verified,
+    };
+    console.log('R117_R116_ACTUAL_VPS_PROOF_JSON=PASS');
+  }
   writeFileSync('marcosa-r117-release-certificate.json',
     JSON.stringify(report,null,2) + '\n',{flag:'wx',mode:0o600});
   console.log('R117_TRIPLE_PROOF_CERTIFICATE=' + report.status);
