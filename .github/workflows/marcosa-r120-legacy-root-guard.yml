@@ -1,0 +1,84 @@
+name: "MARCOSA | R120 legacy public fingerprint drift guard (READ ONLY, NO CUTOVER)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)"
+    types: [completed]
+  pull_request:
+    paths:
+      - "ops/r120_legacy_root_guard.mjs"
+      - "tests/r120_legacy_root_guard.test.mjs"
+      - ".github/workflows/marcosa-r120-legacy-root-guard.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r120-${{ github.event.workflow_run.head_sha || github.sha }}
+  cancel-in-progress: true
+jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify fingerprint drift detection and production NO-GO contract
+        run: |
+          set -euo pipefail
+          node --check ops/r120_legacy_root_guard.mjs
+          node --test tests/r120_legacy_root_guard.test.mjs
+  audit-existing-root-fingerprint:
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.name == 'MARCOSA | R118 actual production compatibility audit (READ ONLY, NO CUTOVER)' &&
+      github.event.workflow_run.event == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Compare current exact SHA and R118's verified READ-ONLY artifact
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ github.event.workflow_run.head_sha }}
+          UPSTREAM_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          [[ "$UPSTREAM_RUN_ID" =~ ^[1-9][0-9]*$ ]] || exit 2
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "::error::Superseded audit; no false PASS on stale production evidence"
+            exit 2
+          }
+          mkdir -m 700 r118-evidence
+          gh run download "$UPSTREAM_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name marcosa-r118-production-boundary-no-go \
+            --dir r118-evidence
+          test -f r118-evidence/marcosa-r118-production-boundary.json
+          test "$(wc -c < r118-evidence/marcosa-r118-production-boundary.json)" -lt 65536
+          node ops/r120_legacy_root_guard.mjs r118-evidence/marcosa-r118-production-boundary.json
+      - name: Retain only sanitized fingerprint verdict (including a drift alert)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r120-legacy-public-fingerprint-report
+          path: marcosa-r120-legacy-fingerprint.json
+          retention-days: 14
+          if-no-files-found: warn
