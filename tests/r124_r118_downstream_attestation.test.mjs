@@ -34,6 +34,23 @@ function verifiedR118({liveResult='success',runResult='success',currentSha=SHA}=
 const r120=readFileSync(new URL('../.github/workflows/marcosa-r120-legacy-root-guard.yml',import.meta.url),'utf8');
 const r121=readFileSync(new URL('../.github/workflows/marcosa-r121-full-legacy-hash-inventory.yml',import.meta.url),'utf8');
 
+// Under GitHub Actions concurrency, cancel-in-progress:false still permits
+// replacing an older PENDING run with a newer PENDING run in the same group.
+// Every genuine upstream event must use a different group, not merely a SHA.
+for(const stage of ['116','117','118','119']){
+  test('R'+stage+' has its own upstream run-id concurrency group (no pending-run eviction)',()=>{
+    const yaml=readFileSync(new URL(
+      '../.github/workflows/marcosa-r'+stage+
+      ({'116':'-rollback-readiness','117':'-release-certificate',
+        '118':'-production-boundary','119':'-vps-social-smoke'}[stage])+'.yml',
+      import.meta.url),'utf8');
+    assert.match(yaml,new RegExp(
+      'group: marcosa-r'+stage+'-\\$\\{\\{ github\\.event\\.workflow_run\\.id \\|\\| github\\.run_id \\}\\}'));
+    assert.match(yaml,/cancel-in-progress: false/);
+    assert.doesNotMatch(yaml,/cancel-in-progress: true/);
+  });
+}
+
 for(const [version,yaml] of [['R120',r120],['R121',r121]]){
   test(version+' requires unique upstream run ID: do not cancel a different actual real-R118 proof',()=>{
     assert.match(yaml,/group: marcosa-r12[01]-\$\{\{ github\.event\.workflow_run\.id \|\| github\.run_id \}\}/);
