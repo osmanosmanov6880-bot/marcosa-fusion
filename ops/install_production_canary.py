@@ -288,14 +288,20 @@ def do_plan(expect: str) -> dict:
             "canaryPath":"/network-os/","rootReplacementAllowed":False}
 
 
-def apply(expect: str,confirm: str) -> dict:
+def apply(expect: str,confirm: str,source_sha: str) -> dict:
     if os.geteuid()!=0 or confirm!="MARCOSA-ADD-ONLY-CANARY":
         raise ValueError("Explicit root-owned approval required for Nginx modification")
+    if not SHA40.fullmatch(source_sha):
+        raise ValueError("Explicit exact approved main SHA required")
     before=do_plan(expect)
+    if before["sourceSha"]!=source_sha:
+        raise ValueError("Approved SHA and currently staged source differ")
     run("nginx","-t")
     raw=CONF.read_bytes()
     patched=prepare_nginx_patch(raw.decode("utf8")).encode()
     sha,files=verify_stage(STAGING)
+    if sha!=source_sha:
+        raise ValueError("STAGING changed during approved canary preflight")
     populate_sidecar(sha,files)
     STATE_DIR.mkdir(mode=0o700,exist_ok=True)
     if STATE_DIR.is_symlink() or STATE.exists():
@@ -407,12 +413,13 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("mode",choices=["plan","apply","rollback"])
     p.add_argument("--expect-config-sha256")
+    p.add_argument("--expect-source-sha")
     p.add_argument("--confirm")
     a=p.parse_args()
     if a.mode=="plan":
         result=do_plan(a.expect_config_sha256 or "")
     elif a.mode=="apply":
-        result=apply(a.expect_config_sha256 or "",a.confirm or "")
+        result=apply(a.expect_config_sha256 or "",a.confirm or "",a.expect_source_sha or "")
     else:
         result=rollback(a.confirm or "")
     print(json.dumps(result,sort_keys=True))
