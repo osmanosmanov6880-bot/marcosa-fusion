@@ -5,11 +5,13 @@ on:
     paths:
       - "ops/install_production_canary.py"
       - "tests/test_canary_install.py"
+      - "tests/test_r139_canary_atomicity.py"
       - ".github/workflows/marcosa-r105-canary-package.yml"
   pull_request:
     paths:
       - "ops/install_production_canary.py"
       - "tests/test_canary_install.py"
+      - "tests/test_r139_canary_atomicity.py"
       - ".github/workflows/marcosa-r105-canary-package.yml"
 permissions:
   contents: read
@@ -26,6 +28,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s tests -p 'test_canary_install.py' -v
+          python -m unittest discover -s tests -p 'test_r139_canary_atomicity.py' -v
           python -m unittest discover -s tests -p 'test_production_canary_readiness.py' -v
           python -m py_compile ops/install_production_canary.py ops/production_canary_readiness.py
           python ops/install_production_canary.py --help >/dev/null
