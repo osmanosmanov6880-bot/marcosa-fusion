@@ -235,8 +235,9 @@ async function main(){
   // completed R116 event. Both must match the checked-out current main.
   const sourceSha=process.env.GITHUB_SHA;
   const eventName=process.env.GITHUB_EVENT_NAME;
+  const isManual=process.env.GITHUB_EVENT_NAME==='workflow_dispatch';
   let payload;
-  if(eventName!=='workflow_dispatch'){
+  if(!isManual){
     fail(typeof process.env.GITHUB_EVENT_PATH==='string',
       'R136 trusted event file required');
     payload=JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
