@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 2
           node --check ops/r133_one_sha_automatic_evidence_gate.mjs
-          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs tests/r137_five_stage_readiness.test.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs tests/r137_five_stage_readiness.test.mjs tests/r138_r114_payload_readiness.test.mjs
       - name: Await R48 Pages STAGING R114 R116 on one current SHA (R137)
         env:
           GH_TOKEN: ${{ github.token }}
@@ -43,11 +43,15 @@ jobs:
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
-          import {awaitR133Inputs} from './ops/r136_trusted_r116_trigger.mjs';
+          import {awaitR133Inputs,awaitR114ActualPass} from './ops/r136_trusted_r116_trigger.mjs';
+          import {execFileSync} from 'node:child_process';
+          import {mkdtempSync,readFileSync,lstatSync,rmSync} from 'node:fs';
+          import {tmpdir} from 'node:os';
+          import {join} from 'node:path';
           import {STAGES} from './ops/r133_one_sha_automatic_evidence_gate.mjs';
           const repo='osmanosmanov6880-bot/marcosa-fusion',token=process.env.GH_TOKEN;
           const githubGet=async path=>{
-            if(!/^\/(?:git\/ref\/heads\/main|actions\/workflows\/marcosa-[a-z0-9-]+\.yml\/runs\?branch=main&head_sha=[a-f0-9]{40}&per_page=100)$/.test(path))
+            if(!/^\/(?:git\/ref\/heads\/main|actions\/workflows\/marcosa-[a-z0-9-]+\.yml\/runs\?branch=main&head_sha=[a-f0-9]{40}&per_page=100|actions\/runs\/[1-9][0-9]*\/artifacts\?per_page=100)$/.test(path))
               throw Error('R137 refused GitHub API path');
             const r=await fetch('https://api.github.com/repos/'+repo+path,{
               redirect:'error',
@@ -69,6 +73,41 @@ jobs:
           if(result.productionDecision!=='NO_GO'||result.stagesReady!==5)
             throw Error('R137 no production GO or partial readiness permitted');
           console.log('R137_FIVE_STAGE_READINESS=PASS');
+          const loadProof=async run=>{
+            const metadata=await githubGet('/actions/runs/'+run.id+'/artifacts?per_page=100');
+            if(!Array.isArray(metadata?.artifacts)||
+                !Number.isSafeInteger(metadata.total_count)||
+                metadata.total_count!==metadata.artifacts.length||
+                metadata.total_count>100)throw Error('R138 incomplete R114 artifact listing');
+            const match=metadata.artifacts.filter(a=>
+              a?.name==='marcosa-r114-release-evidence');
+            if(match.length!==1||match[0].expired!==false||
+               match[0].workflow_run?.id!==run.id||
+               !Number.isSafeInteger(match[0].size_in_bytes)||
+               match[0].size_in_bytes<100||match[0].size_in_bytes>65536)
+              throw Error('R138 actual R114 artifact unavailable, expired or wrong run');
+            const folder=mkdtempSync(join(tmpdir(),'marcosa-r138-'));
+            try{
+              execFileSync('gh',['run','download',String(run.id),
+                '--repo',repo,'--name','marcosa-r114-release-evidence',
+                '--dir',folder],{env:{...process.env,GH_TOKEN:token},
+                timeout:25000,maxBuffer:16384,stdio:['ignore','pipe','pipe']});
+              const file=join(folder,'marcosa-r114-release-evidence.json');
+              const stat=lstatSync(file);
+              if(!stat.isFile()||stat.isSymbolicLink()||
+                 stat.size<100||stat.size>65536)
+                throw Error('R138 invalid bounded R114 JSON file');
+              return JSON.parse(readFileSync(file,'utf8'));
+            }finally{rmSync(folder,{recursive:true,force:true});}
+          };
+          const proof=await awaitR114ActualPass({
+            sourceSha:process.env.GITHUB_SHA,listRuns:githubGet,
+            loadProof,getCurrentMain,
+            pause:ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+          });
+          if(proof.productionDecision!=='NO_GO')
+            throw Error('R138 never permits production');
+          console.log('R138_R114_ACTUAL_PAYLOAD=PASS');
           NODE
       - name: Inspect real R48 Pages STAGING R114 R116 jobs and proofs, never production
         env:
