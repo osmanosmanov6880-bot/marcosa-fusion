@@ -7,7 +7,7 @@ non-root SSH credential. Future updates use restricted owner-only sidecar trees.
 
 Usage:
   python3 ops/install_production_canary.py plan --expect-config-sha256 HASH
-  sudo python3 ops/install_production_canary.py apply --expect-config-sha256 HASH --confirm MARCOSA-ADD-ONLY-CANARY
+  sudo python3 ops/install_production_canary.py apply --expect-config-sha256 HASH --expect-source-sha MAIN_SHA --confirm MARCOSA-ADD-ONLY-CANARY
   sudo python3 ops/install_production_canary.py rollback --confirm MARCOSA-REMOVE-ONLY-CANARY
 """
 from __future__ import annotations
