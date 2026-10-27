@@ -7,7 +7,7 @@ non-root SSH credential. Future updates use restricted owner-only sidecar trees.
 
 Usage:
   python3 ops/install_production_canary.py plan --expect-config-sha256 HASH
-  sudo python3 ops/install_production_canary.py apply --expect-config-sha256 HASH --confirm MARCOSA-ADD-ONLY-CANARY
+  sudo python3 ops/install_production_canary.py apply --expect-config-sha256 HASH --expect-source-sha MAIN_SHA --confirm MARCOSA-ADD-ONLY-CANARY
   sudo python3 ops/install_production_canary.py rollback --confirm MARCOSA-REMOVE-ONLY-CANARY
 """
 from __future__ import annotations
@@ -288,14 +288,20 @@ def do_plan(expect: str) -> dict:
             "canaryPath":"/network-os/","rootReplacementAllowed":False}
 
 
-def apply(expect: str,confirm: str) -> dict:
+def apply(expect: str,confirm: str,source_sha: str) -> dict:
     if os.geteuid()!=0 or confirm!="MARCOSA-ADD-ONLY-CANARY":
         raise ValueError("Explicit root-owned approval required for Nginx modification")
+    if not SHA40.fullmatch(source_sha):
+        raise ValueError("Explicit exact approved main SHA required")
     before=do_plan(expect)
+    if before["sourceSha"]!=source_sha:
+        raise ValueError("Approved SHA and currently staged source differ")
     run("nginx","-t")
     raw=CONF.read_bytes()
     patched=prepare_nginx_patch(raw.decode("utf8")).encode()
     sha,files=verify_stage(STAGING)
+    if sha!=source_sha:
+        raise ValueError("STAGING changed during approved canary preflight")
     populate_sidecar(sha,files)
     STATE_DIR.mkdir(mode=0o700,exist_ok=True)
     if STATE_DIR.is_symlink() or STATE.exists():
@@ -306,6 +312,12 @@ def apply(expect: str,confirm: str) -> dict:
         raise ValueError("Unexpected backup collision")
     backup.write_bytes(raw)
     backup.chmod(0o600)
+    # Explicit authorization is only durable after HTTPS, recovery-state and
+    # root-owned marker writes ALL succeed. Never leave an approved sidecar
+    # behind when even the final chmod/write fails.
+    marker=CANARY/".canary-approved"
+    if marker.exists() or marker.is_symlink():
+        raise ValueError("Unexpected preexisting canary approval")
     snippet_created=False
     try:
         if not SNIPPET.parent.is_dir():
@@ -326,28 +338,37 @@ def apply(expect: str,confirm: str) -> dict:
                 raise ValueError("Public canary HTTPS bytes differ from trusted index")
         if sha_file(LEGACY/"index.html",5_000_000)!=before["liveRootSha256"]:
             raise ValueError("Unexpected change in original MARCOSA production root")
+        state={"format":"MARCOSA-CANARY-R105","sourceSha":sha,
+               "beforeConfigSha256":before["beforeConfigSha256"],
+               "afterConfigSha256":before["afterConfigSha256"],
+               "liveRootSha256":before["liveRootSha256"],
+               "backup":str(backup),"snippetSha256":digest(NGINX_SNIPPET.encode())}
+        STATE.write_text(json.dumps(state,indent=2)+"\n")
+        STATE.chmod(0o600)
+        marker.write_text(MARK)
+        marker.chmod(0o444)
     except Exception:
-        # Always attempt to reinstate the precise original Nginx site file.
-        write_atomic(CONF,raw,0o644)
+        # Final-state and marker writes belong to the SAME rollback boundary
+        # as Nginx activation and HTTPS readback. Fail closed if reload fails.
+        restored=False
         try:
+            write_atomic(CONF,raw,0o644)
             run("nginx","-t")
             run("systemctl","reload","nginx")
+            restored=True
         finally:
-            if snippet_created and SNIPPET.is_file():
-                SNIPPET.unlink()
+            # An incomplete approval marker must never let a subsequent
+            # non-root CI delivery promote an unapproved canary.
+            if marker.is_file() and not marker.is_symlink():
+                marker.unlink()
+            if restored:
+                if snippet_created and SNIPPET.is_file() and not SNIPPET.is_symlink():
+                    SNIPPET.unlink()
+                if STATE.is_file() and not STATE.is_symlink():
+                    STATE.unlink()
+        # Keep the unapproved sidecar and root backup for operator inspection,
+        # never silently delete the original app or the only rollback evidence.
         raise
-    state={"format":"MARCOSA-CANARY-R105","sourceSha":sha,
-           "beforeConfigSha256":before["beforeConfigSha256"],
-           "afterConfigSha256":before["afterConfigSha256"],
-           "liveRootSha256":before["liveRootSha256"],
-           "backup":str(backup),"snippetSha256":digest(NGINX_SNIPPET.encode())}
-    STATE.write_text(json.dumps(state,indent=2)+"\n")
-    STATE.chmod(0o600)
-    marker=CANARY/".canary-approved"
-    if marker.exists() or marker.is_symlink():
-        raise ValueError("Unexpected preexisting canary approval")
-    marker.write_text(MARK)
-    marker.chmod(0o444)
     return {"canaryUrl":URL,"sourceSha":sha,"assetsVerified":len(files),
             "liveRootUnchanged":True,"productionAppReplaced":False,
             "nginxConfigTestPassed":True,"revertPrepared":True}
@@ -392,12 +413,13 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("mode",choices=["plan","apply","rollback"])
     p.add_argument("--expect-config-sha256")
+    p.add_argument("--expect-source-sha")
     p.add_argument("--confirm")
     a=p.parse_args()
     if a.mode=="plan":
         result=do_plan(a.expect_config_sha256 or "")
     elif a.mode=="apply":
-        result=apply(a.expect_config_sha256 or "",a.confirm or "")
+        result=apply(a.expect_config_sha256 or "",a.confirm or "",a.expect_source_sha or "")
     else:
         result=rollback(a.confirm or "")
     print(json.dumps(result,sort_keys=True))
