@@ -122,3 +122,65 @@ export async function awaitR133Inputs({sourceSha,stages,listRuns,getCurrentMain,
   }
   throw Error('R137 timed out waiting for all five current SHA stages');
 }
+
+/**
+ * R138: R114 may finish "success" with a PENDING artifact when STAGING
+ * finishes before the slower Pages HTTPS readback. Wait for the actual
+ * latest SAME-SHA R114 artifact to say PASS, then let R133 independently
+ * verify jobs, provenance and R114/R116 artifact contents again.
+ */
+export async function awaitR114ActualPass({
+  sourceSha,listRuns,loadProof,getCurrentMain,pause,attempts=12,
+}={}){
+  fail(SHA.test(sourceSha||''),'R138 exact SHA required');
+  fail(typeof listRuns==='function'&&typeof loadProof==='function'&&
+    typeof getCurrentMain==='function'&&typeof pause==='function'&&
+    Number.isInteger(attempts)&&attempts>=1&&attempts<=16,
+    'R138 bounded GitHub read-only proof verification required');
+  const path='/actions/workflows/'+R136_R114_FILE+
+    '/runs?branch=main&head_sha='+sourceSha+'&per_page=100';
+  for(let attempt=0;attempt<attempts;attempt++){
+    fail(await getCurrentMain()===sourceSha,
+      'R138 main changed; old R114 evidence forbidden');
+    const listing=await listRuns(path);
+    fail(listing&&Array.isArray(listing.workflow_runs)&&
+      Number.isSafeInteger(listing.total_count)&&
+      listing.total_count>=0&&listing.total_count<=100&&
+      listing.total_count===listing.workflow_runs.length,
+      'R138 incomplete GitHub R114 listing refused');
+    const matching=listing.workflow_runs.filter(r=>r&&
+      Number.isSafeInteger(r.id)&&r.id>0&&
+      r.name===R136_R114_NAME&&r.event==='workflow_run'&&
+      r.head_branch==='main'&&r.head_repository?.full_name===R136_REPO&&
+      r.head_sha===sourceSha).sort((a,b)=>b.id-a.id);
+    const run=matching[0];
+    if(run?.status==='completed'){
+      fail(run.conclusion==='success',
+        'R138 newest actual R114 run failed; older success forbidden');
+      const report=await loadProof(run);
+      fail(report&&typeof report==='object'&&!Array.isArray(report)&&
+        report.format==='MARCOSA-R114-DUAL-RELEASE-EVIDENCE-v1'&&
+        report.sourceSha===sourceSha&&report.mainSha===sourceSha&&
+        report.currentMain===true&&report.productionAuthorized===false&&
+        report.productionCutoverVerified===false&&
+        report.privateAccountsOrDatabaseVerified===false,
+        'R138 invalid actual R114 artifact identity or unsafe release flags');
+      if(report.status==='PASS'){
+        fail(report.channels?.pages?.status==='PASS'&&
+          report.channels?.staging?.status==='PASS'&&
+          report.sourceBasedPublicPagesVerified===true&&
+          report.sourceBasedRestrictedStagingVerified===true,
+          'R138 R114 PASS missing verified Pages/STAGING sources');
+        fail(await getCurrentMain()===sourceSha,
+          'R138 main moved during R114 actual payload verification');
+        return Object.freeze({sourceSha,r114RunId:run.id,
+          status:'R114_ACTUAL_SAME_SHA_PAYLOAD_PASS',
+          productionDecision:'NO_GO'});
+      }
+      fail(report.status==='PENDING',
+        'R138 terminal R114 artifact is not PASS and cannot be used');
+    }
+    if(attempt<attempts-1)await pause(15000);
+  }
+  throw Error('R138 no actual PASS R114 artifact for current SHA within bounded wait');
+}
