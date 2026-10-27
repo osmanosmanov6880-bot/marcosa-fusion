@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 2
           node --check ops/r133_one_sha_automatic_evidence_gate.mjs
-          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs tests/r137_five_stage_readiness.test.mjs
       - name: Await R48 Pages STAGING R114 R116 on one current SHA (R137)
         env:
           GH_TOKEN: ${{ github.token }}
