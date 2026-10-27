@@ -6,6 +6,7 @@ on:
       - "tests/r133_one_sha_automatic_evidence_gate.test.mjs"
       - "tests/r134_r133_github_expressions.test.mjs"
       - "tests/r136_trusted_r116_trigger.test.mjs"
+      - "tests/r137_five_stage_readiness.test.mjs"
       - "ops/r136_trusted_r116_trigger.mjs"
       - ".github/workflows/marcosa-r136-auto-proof.yml"
       - ".github/workflows/marcosa-r133-automatic-proof.yml"
@@ -31,7 +32,7 @@ jobs:
         run: |
           set -euo pipefail
           node --check ops/r133_one_sha_automatic_evidence_gate.mjs
-          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs tests/r137_five_stage_readiness.test.mjs
   actual-main-automatic-proof:
     needs: offline-contract
     if: >-

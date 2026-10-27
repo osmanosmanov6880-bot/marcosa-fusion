@@ -63,3 +63,62 @@ export async function awaitR114({sourceSha,listRuns,pause,attempts=16}={}){
   }
   throw Error('R136 exact-main R114 did not complete successfully within bounded retries');
 }
+
+/**
+ * R137: after a legitimate R116 completion, Pages HTTPS byte readback can
+ * still be running. Never run R133 until ALL its independent workflows are
+ * completed on the same CURRENT main SHA. This is a readiness barrier only:
+ * the R133 strict job/artifact verifier remains authoritative.
+ */
+export async function awaitR133Inputs({sourceSha,stages,listRuns,getCurrentMain,pause,attempts=24}={}){
+  fail(SHA.test(sourceSha||''),'R137 exact SHA required');
+  fail(stages&&typeof stages==='object'&&!Array.isArray(stages)&&
+    ['r48','pages','staging','r114','r116'].every(k=>Object.hasOwn(stages,k))&&
+    Object.keys(stages).length===5,'R137 exactly five trusted stages required');
+  fail(typeof listRuns==='function'&&typeof getCurrentMain==='function'&&
+    typeof pause==='function'&&Number.isInteger(attempts)&&
+    attempts>=1&&attempts<=24,'R137 bounded read-only polling required');
+  for(let attempt=0;attempt<attempts;attempt++){
+    fail(await getCurrentMain()===sourceSha,
+      'R137 main changed before verification; stale SHA refused');
+    const pending=[];
+    for(const key of ['r48','pages','staging','r114','r116']){
+      const stage=stages[key];
+      fail(stage&&/^[a-z0-9-]+\.yml$/.test(stage.file)&&
+        typeof stage.name==='string'&&stage.name.startsWith('MARCOSA | ' )&&
+        ['push','workflow_run'].includes(stage.event),
+        'R137 untrusted workflow definition');
+      const path='/actions/workflows/'+stage.file+
+        '/runs?branch=main&head_sha='+sourceSha+'&per_page=100';
+      const listing=await listRuns(path);
+      fail(listing&&Array.isArray(listing.workflow_runs)&&
+        Number.isSafeInteger(listing.total_count)&&
+        listing.total_count>=0&&listing.total_count<=100&&
+        listing.total_count===listing.workflow_runs.length,
+        'R137 incomplete or paginated GitHub run listing: '+key);
+      const matching=listing.workflow_runs.filter(r=>r&&
+        Number.isSafeInteger(r.id)&&r.id>0&&
+        r.name===stage.name&&r.event===stage.event&&
+        r.head_sha===sourceSha&&r.head_branch==='main'&&
+        r.head_repository?.full_name===R136_REPO)
+        .sort((a,b)=>b.id-a.id);
+      const latest=matching[0];
+      if(!latest||latest.status!=='completed'){
+        pending.push(key);
+      }else{
+        fail(latest.conclusion==='success',
+          'R137 required '+key+' most recent exact-SHA workflow failed: '+
+          String(latest.conclusion||'unknown'));
+      }
+    }
+    fail(await getCurrentMain()===sourceSha,
+      'R137 main advanced during verification; stale SHA refused');
+    if(!pending.length)return Object.freeze({
+      sourceSha,stagesReady:5,attempt:attempt+1,
+      status:'READY_FOR_R133_STRICT_JOB_ARTIFACT_VERIFICATION',
+      productionDecision:'NO_GO',
+    });
+    if(attempt<attempts-1)await pause(15000);
+  }
+  throw Error('R137 timed out waiting for all five current SHA stages');
+}
