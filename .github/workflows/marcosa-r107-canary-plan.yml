@@ -1,33 +1,112 @@
 name: "MARCOSA | R107 preflight additive Nginx canary plan on VPS (read-only)"
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows:
+      - "MARCOSA | Build, test and deploy STAGING"
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type AUDIT-MARCOSA-CANARY-READONLY for current main VPS preflight"
+        required: true
+        type: string
+  pull_request:
     paths:
       - ".github/workflows/marcosa-r107-canary-plan.yml"
-      - "ops/install_production_canary.py"
-      - "tests/test_canary_install.py"
-  workflow_dispatch:
+      - "ops/r140_canary_preflight_gate.mjs"
+      - "tests/r140_canary_current_sha_gate.test.mjs"
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: marcosa-r107-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
 jobs:
+  offline-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Refuse stale R107 plan and untrusted source events
+        run: |
+          set -euo pipefail
+          node --check ops/r140_canary_preflight_gate.mjs
+          node --test tests/r140_canary_current_sha_gate.test.mjs
+          python -m unittest discover -s tests -p 'test_canary_install.py' -v
+          python -m unittest discover -s tests -p 'test_r139_canary_atomicity.py' -v
+          python -m py_compile ops/install_production_canary.py
   canary-plan:
-    if: github.repository == 'osmanosmanov6880-bot/marcosa-fusion' && github.ref == 'refs/heads/main'
+    needs: offline-contract
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.ref == 'refs/heads/main' &&
+      ((github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_sha == github.sha) ||
+       (github.event_name == 'workflow_dispatch' &&
+        inputs.confirmation == 'AUDIT-MARCOSA-CANARY-READONLY'))
     runs-on: ubuntu-latest
     timeout-minutes: 7
     environment: marcosa-staging
+    env:
+      RELEASE_SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
-      - name: Prove plan logic offline; no root execution in CI
+      - name: Prove exact trusted upstream STAGING and CURRENT main (R140)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRMATION: ${{ inputs.confirmation || '' }}
         run: |
-          python -m unittest discover -s tests -p 'test_canary_install.py' -v
-          python -m py_compile ops/install_production_canary.py
-      - name: Validate approved Nginx hash and source-integrity on actual Contabo as NONROOT
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$RELEASE_SHA" ]] || {
+            echo "::error::R140 checked-out main is not upstream STAGING source"
+            exit 2
+          }
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import {verifyR140Trigger} from './ops/r140_canary_preflight_gate.mjs';
+          const sourceSha=process.env.RELEASE_SHA;
+          const eventName=process.env.GITHUB_EVENT_NAME;
+          const payload=JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
+          verifyR140Trigger({
+            eventName,repository:process.env.GITHUB_REPOSITORY,
+            ref:process.env.GITHUB_REF,sourceSha,
+            confirmation:process.env.CONFIRMATION,payload,
+          });
+          const u='https://api.github.com/repos/osmanosmanov6880-bot/marcosa-fusion/git/ref/heads/main';
+          const response=await fetch(u,{
+            redirect:'error',
+            headers:{Authorization:'Bearer '+process.env.GH_TOKEN,
+              Accept:'application/vnd.github+json'},
+            signal:AbortSignal.timeout(12000),
+          });
+          if(!response.ok)throw Error('R140 current main API refused: '+response.status);
+          const actual=(await response.json()).object?.sha;
+          if(actual!==sourceSha)throw Error('R140 main moved; stale R107 plan refused');
+          console.log('R140_TRUSTED_CURRENT_SHA=PASS '+sourceSha);
+          NODE
+      - name: Verify Nginx and exactly current STAGING release on real VPS (no root)
         shell: bash
         env:
           DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
@@ -36,9 +115,11 @@ jobs:
           DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
           EXPECTED_DEPLOY_KEY_FP: SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0
           APPROVED_NGINX_SHA256: 24d71ff2c19d6f2f5a976f1e08e942875a16e3be0e5a86cf5d22c35b0acc956a
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           [[ "$DEPLOY_USER" == "marcosa-deploy" ]] || exit 2
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]] || exit 2
           source ops/load-pinned-staging-host.sh
           : "${DEPLOY_KEY:?Missing restricted deploy key}"
           umask 077
@@ -49,37 +130,41 @@ jobs:
           chmod 600 "$TMP/key" "$TMP/known_hosts"
           FP="$(ssh-keygen -y -P '' -f "$TMP/key" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
           [[ "$FP" == "$EXPECTED_DEPLOY_KEY_FP" ]] || exit 2
-          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" \
-            --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
-          ssh -i "$TMP/key" -p "$DEPLOY_PORT" \
-            -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12 \
-            -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts" \
-            "$DEPLOY_USER@$DEPLOY_HOST" \
-            "python3 - plan --expect-config-sha256 $APPROVED_NGINX_SHA256" \
-            < ops/install_production_canary.py > canary-plan-r107.json
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT"             --known-hosts "$TMP/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          ssh -i "$TMP/key" -p "$DEPLOY_PORT"             -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=12             -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TMP/known_hosts"             "$DEPLOY_USER@$DEPLOY_HOST"             "python3 - plan --expect-config-sha256 $APPROVED_NGINX_SHA256"             < ops/install_production_canary.py > canary-plan-r107.json
           node --input-type=module <<'NODE'
           import {readFileSync,appendFileSync} from 'node:fs';
+          import {verifyR140Plan} from './ops/r140_canary_preflight_gate.mjs';
           const p=JSON.parse(readFileSync('canary-plan-r107.json','utf8'));
-          if(p.beforeConfigSha256!=='24d71ff2c19d6f2f5a976f1e08e942875a16e3be0e5a86cf5d22c35b0acc956a' ||
-             !/^[a-f0-9]{64}$/.test(p.afterConfigSha256||'') ||
-             !/^[a-f0-9]{40}$/.test(p.sourceSha||'') ||
-             p.rootReplacementAllowed!==false || p.canaryPath!=='/network-os/' ||
-             p.stagingAssetsVerified<3) throw Error('Unexpected canary readiness report');
-          console.log(JSON.stringify(p,null,2));
+          const u='https://api.github.com/repos/osmanosmanov6880-bot/marcosa-fusion/git/ref/heads/main';
+          const r=await fetch(u,{redirect:'error',
+            headers:{Authorization:'Bearer '+process.env.GH_TOKEN,
+              Accept:'application/vnd.github+json'},
+            signal:AbortSignal.timeout(12000)});
+          if(!r.ok)throw Error('R140 failed to reconfirm current main: '+r.status);
+          const result=verifyR140Plan({
+            plan:p,sourceSha:process.env.RELEASE_SHA,
+            currentMainSha:(await r.json()).object?.sha,
+          });
+          if(result.productionDecision!=='NO_GO')
+            throw Error('R140 never approves production');
+          console.log('R140_EXACT_MAIN_REAL_VPS_PREFLIGHT=PASS');
+          console.log('R140_PRODUCTION=NO_GO');
           appendFileSync(process.env.GITHUB_STEP_SUMMARY,[
-            '### R107 — real server additive canary PLAN (READ ONLY)',
-            '- Verified Nginx SHA-256: '+p.beforeConfigSha256,
-            '- Proposed canary-only configuration SHA-256: '+p.afterConfigSha256,
-            '- Source-pinned staging assets checked: '+p.stagingAssetsVerified,
-            '- Live legacy home SHA-256: '+p.liveRootSha256,
-            '- No Nginx configuration changed. No root. No production changes.',
-            '- A separate one-time manual administrative apply remains mandatory.',
+            '### R140 — exact-main real VPS canary PLAN (READ ONLY)',
+            '- Source SHA: '+result.sourceSha,
+            '- Verified Nginx baseline SHA-256: '+p.beforeConfigSha256,
+            '- Proposed additive config SHA-256: '+p.afterConfigSha256,
+            '- Verified STAGING assets: '+result.stagingAssetsVerified,
+            '- Legacy index SHA-256: '+p.liveRootSha256,
+            '- Browser storage same-origin risk: NOT RESOLVED',
+            '- No Nginx, DNS, root, Auth or production changes; NO_GO',
             ''
           ].join('\n'));
           NODE
       - uses: actions/upload-artifact@v4
         with:
-          name: marcosa-canary-r107-verified-plan
+          name: marcosa-canary-r140-current-main-vps-plan-no-go
           path: canary-plan-r107.json
           retention-days: 14
           if-no-files-found: error
