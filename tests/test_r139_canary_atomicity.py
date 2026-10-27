@@ -50,7 +50,7 @@ class CanaryAtomicityTests(unittest.TestCase):
         (legacy/'index.html').write_bytes(b'legacy')
         expected=hashlib.sha256(CONFIG.encode()).hexdigest()
         after=hashlib.sha256(mod.prepare_nginx_patch(CONFIG).encode()).hexdigest()
-        before={'beforeConfigSha256':expected,'afterConfigSha256':after,
+        before={'sourceSha':SHA,'beforeConfigSha256':expected,'afterConfigSha256':after,
                 'liveRootSha256':'legacy-digest'}
         patches=[
           patch.multiple(mod,CONF=site,SNIPPET=snippet,CANARY=canary,
