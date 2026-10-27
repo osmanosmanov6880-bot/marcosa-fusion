@@ -84,7 +84,7 @@ class CanaryAtomicityTests(unittest.TestCase):
                     return orig_chmod(path,mode,*args,**kwargs)
                 with patch.object(Path,'write_text',new=fail_write),patch.object(Path,'chmod',new=fail_chmod):
                     with self.assertRaisesRegex(OSError,'injected'):
-                        mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY')
+                        mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY',SHA)
                 self.assertEqual(site.read_text(),CONFIG)
                 self.assertFalse(snippet.exists(),'failed apply left active Nginx snippet')
                 self.assertFalse(marker.exists(),'failed apply left approval marker')
@@ -103,12 +103,27 @@ class CanaryAtomicityTests(unittest.TestCase):
     def test_marker_chmod_failure_restores_nginx_and_revokes_approval(self):
         self.inject('marker_chmod')
 
+    def test_stale_or_missing_exact_main_sha_rejected_before_changes(self):
+        with tempfile.TemporaryDirectory() as d:
+            site,snippet,canary,state,state_dir,expected,patches=self.harness(d)
+            for p in patches:p.start()
+            try:
+                with self.assertRaisesRegex(ValueError,'currently staged source differ'):
+                    mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY','b'*40)
+                with self.assertRaisesRegex(ValueError,'Explicit exact approved main SHA'):
+                    mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY','')
+                self.assertEqual(site.read_text(),CONFIG)
+                self.assertFalse(snippet.exists())
+                self.assertFalse((canary/'.canary-approved').exists())
+            finally:
+                for p in reversed(patches):p.stop()
+
     def test_valid_https_then_root_state_and_approval(self):
         with tempfile.TemporaryDirectory() as d:
             site,snippet,canary,state,state_dir,expected,patches=self.harness(d)
             for p in patches:p.start()
             try:
-                result=mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY')
+                result=mod.apply(expected,'MARCOSA-ADD-ONLY-CANARY',SHA)
                 self.assertEqual(result['sourceSha'],SHA)
                 self.assertTrue(result['liveRootUnchanged'])
                 self.assertTrue(result['revertPrepared'])
