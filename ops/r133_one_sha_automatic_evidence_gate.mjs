@@ -11,6 +11,7 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {resolve} from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {verifyR136Trigger} from './r136_trusted_r116_trigger.mjs';
 
 export const REPO='osmanosmanov6880-bot/marcosa-fusion';
 export const FORMAT='MARCOSA-R133-SAME-SHA-AUTOMATED-EVIDENCE-NO-GO-v1';
@@ -230,11 +231,21 @@ async function collect(sha,token){
 }
 async function main(){
   fail(process.argv.length===2,'R133 takes no arbitrary arguments');
-  fail(process.env.GITHUB_REPOSITORY===REPO&&
-    process.env.GITHUB_REF==='refs/heads/main'&&
-    process.env.GITHUB_EVENT_NAME==='workflow_dispatch',
-    'R133 actual proof runs only by explicit operator dispatch on main');
+  // Manual R133 remains available; automatic R136 accepts ONLY a trusted
+  // completed R116 event. Both must match the checked-out current main.
   const sourceSha=process.env.GITHUB_SHA;
+  const eventName=process.env.GITHUB_EVENT_NAME;
+  const isManual=process.env.GITHUB_EVENT_NAME==='workflow_dispatch';
+  let payload;
+  if(!isManual){
+    fail(typeof process.env.GITHUB_EVENT_PATH==='string',
+      'R136 trusted event file required');
+    payload=JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH,'utf8'));
+  }
+  verifyR136Trigger({
+    eventName,repository:process.env.GITHUB_REPOSITORY,
+    ref:process.env.GITHUB_REF,sourceSha,payload,
+  });
   fail(SHA.test(sourceSha||''),'No exact main SHA');
   const checkout=execFileSync('git',['rev-parse','HEAD'],{
     encoding:'utf8',timeout:8000}).trim();

@@ -1,0 +1,84 @@
+name: "MARCOSA | R136 trusted R116-triggered exact-main automatic proof (NO PRODUCTION)"
+on:
+  workflow_run:
+    workflows:
+      - "MARCOSA | R116 read-only live VPS rollback readiness after each STAGING release"
+    types: [completed]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: marcosa-r136-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+jobs:
+  automatic-readonly-proof:
+    if: >-
+      github.repository == 'osmanosmanov6880-bot/marcosa-fusion' &&
+      github.ref == 'refs/heads/main' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.head_sha == github.sha
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify exact main and R136 hostile-event regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 2
+          node --check ops/r133_one_sha_automatic_evidence_gate.mjs
+          node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs
+      - name: Await same-SHA R114 safely (bounded read-only API)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {awaitR114} from './ops/r136_trusted_r116_trigger.mjs';
+          const repo='osmanosmanov6880-bot/marcosa-fusion',token=process.env.GH_TOKEN;
+          const listRuns=async path=>{
+            const r=await fetch('https://api.github.com/repos/'+repo+path,{
+              redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},
+              signal:AbortSignal.timeout(12000),
+            });
+            if(!r.ok)throw Error('R114 read-only GitHub API failed: '+r.status);
+            return r.json();
+          };
+          await awaitR114({sourceSha:process.env.GITHUB_SHA,listRuns,
+            pause:ms=>new Promise(resolve=>setTimeout(resolve,ms))});
+          NODE
+      - name: Inspect real R48 Pages STAGING R114 R116 jobs and proofs, never production
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node ops/r133_one_sha_automatic_evidence_gate.mjs
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          import assert from 'node:assert/strict';
+          const p=JSON.parse(readFileSync('marcosa-r133-one-sha-automatic-proof.json','utf8'));
+          assert.equal(p.sourceSha,process.env.GITHUB_SHA);
+          assert.equal(p.automaticEvidenceStages,5);
+          assert.equal(p.productionDecision,'NO_GO');
+          assert.equal(p.productionCutoverAuthorized,false);
+          console.log('R136_EXACT_MAIN_AUTOMATIC_PROOF=PASS');
+          console.log('R136_PRODUCTION=NO_GO');
+          NODE
+      - name: Save bounded NO-GO evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r136-current-main-automatic-proof-no-go
+          path: marcosa-r133-one-sha-automatic-proof.json
+          retention-days: 14
+          if-no-files-found: error
