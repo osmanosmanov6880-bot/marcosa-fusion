@@ -36,25 +36,39 @@ jobs:
           [[ "$(git rev-parse HEAD)" == "$GITHUB_SHA" ]] || exit 2
           node --check ops/r133_one_sha_automatic_evidence_gate.mjs
           node --test tests/r133_one_sha_automatic_evidence_gate.test.mjs tests/r134_r133_github_expressions.test.mjs tests/r136_trusted_r116_trigger.test.mjs
-      - name: Await same-SHA R114 safely (bounded read-only API)
+      - name: Await R48 Pages STAGING R114 R116 on one current SHA (R137)
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
-          import {awaitR114} from './ops/r136_trusted_r116_trigger.mjs';
+          import {awaitR133Inputs} from './ops/r136_trusted_r116_trigger.mjs';
+          import {STAGES} from './ops/r133_one_sha_automatic_evidence_gate.mjs';
           const repo='osmanosmanov6880-bot/marcosa-fusion',token=process.env.GH_TOKEN;
-          const listRuns=async path=>{
+          const githubGet=async path=>{
+            if(!/^\/(?:git\/ref\/heads\/main|actions\/workflows\/marcosa-[a-z0-9-]+\.yml\/runs\?branch=main&head_sha=[a-f0-9]{40}&per_page=100)$/.test(path))
+              throw Error('R137 refused GitHub API path');
             const r=await fetch('https://api.github.com/repos/'+repo+path,{
-              redirect:'error',headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},
+              redirect:'error',
+              headers:{Authorization:'Bearer '+token,Accept:'application/vnd.github+json'},
               signal:AbortSignal.timeout(12000),
             });
-            if(!r.ok)throw Error('R114 read-only GitHub API failed: '+r.status);
+            if(!r.ok)throw Error('R137 read-only GitHub API failed: '+r.status);
             return r.json();
           };
-          await awaitR114({sourceSha:process.env.GITHUB_SHA,listRuns,
-            pause:ms=>new Promise(resolve=>setTimeout(resolve,ms))});
+          const getCurrentMain=async()=>{
+            const ref=await githubGet('/git/ref/heads/main');
+            return ref.object?.sha;
+          };
+          const result=await awaitR133Inputs({
+            sourceSha:process.env.GITHUB_SHA,stages:STAGES,
+            listRuns:githubGet,getCurrentMain,
+            pause:ms=>new Promise(resolve=>setTimeout(resolve,ms)),
+          });
+          if(result.productionDecision!=='NO_GO'||result.stagesReady!==5)
+            throw Error('R137 no production GO or partial readiness permitted');
+          console.log('R137_FIVE_STAGE_READINESS=PASS');
           NODE
       - name: Inspect real R48 Pages STAGING R114 R116 jobs and proofs, never production
         env:
