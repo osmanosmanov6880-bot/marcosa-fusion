@@ -396,6 +396,9 @@ async function loadPublicProfile(){
   const card=node('article','','post profile-post');
   const context=node('a','Мир '+post.world,'eyebrow');context.href='/w/'+encodeURIComponent(post.world);
   card.append(context,node('p',post.body,'post-body'));
+  const permalink=systemNode('a','dynamic.posts.permalink','Постоянная ссылка','post-permalink');
+  permalink.href='/w/'+encodeURIComponent(post.world)+'#post-'+encodeURIComponent(post.id);
+  card.append(permalink);
   posts.append(card);
  }
  $('public-profile-empty').hidden=isPrivate||Boolean(result.worlds.length||result.posts.length);
@@ -743,13 +746,15 @@ async function discover(query){
  await loadReactionSummaries(area);
  if(!found.worlds.length&&!found.posts.length)area.append(systemNode('p','dynamic.discover.empty','По этому запросу нет опубликованных материалов.'));
 }
-async function openWorld(slug){
+async function openWorld(slug,targetPostId=null){
  if(!/^[a-z][a-z0-9_-]{2,39}$/.test(slug))throw Error('Недопустимый адрес мира');
+ if(targetPostId!==null&&(!Number.isSafeInteger(Number(targetPostId))||Number(targetPostId)<1))throw Error('Недопустимый адрес публикации');
  const serial=++state.worldOpenSerial;
- const [detail,posts,approved]=await Promise.all([
+ const [detail,posts,approved,target]=await Promise.all([
   api('/worlds/'+encodeURIComponent(slug)),
   api('/worlds/'+encodeURIComponent(slug)+'/posts'),
-  api('/sponsors/approved')
+  api('/sponsors/approved'),
+  targetPostId===null?Promise.resolve(null):api('/worlds/'+encodeURIComponent(slug)+'/posts/'+encodeURIComponent(targetPostId))
  ]);
  if(serial!==state.worldOpenSerial)return; // Ignore stale load after close or newer navigation.
  const world=detail.world;
@@ -764,7 +769,8 @@ async function openWorld(slug){
  $('world-detail-meta').textContent='@'+world.owner+' · '+world.followers_count+' подписчиков · '+world.posts_count+' публикаций';
  $('world-cover-report-panel').hidden=!(state.me&&state.me.username!==world.owner&&world.hasCover);
  const list=$('world-detail-posts');clear(list);
- for(const item of posts.items)list.append(postCard(item));
+ if(target&&!posts.items.some(item=>Number(item.id)===Number(target.item.id)))list.append(postCard(target.item,false,{anchor:true}));
+ for(const item of posts.items)list.append(postCard(item,false,{anchor:true}));
  await loadReactionSummaries(list);
  if(!posts.items.length)list.append(systemNode('p','dynamic.stories.empty','Здесь пока нет опубликованных историй.','muted'));
  if(posts.nextCursor)list.append(systemNode('p','dynamic.stories.more','Показаны последние 20 историй.','muted'));
@@ -781,6 +787,12 @@ async function openWorld(slug){
  panel.hidden=false;
  const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  panel.scrollIntoView({behavior:reduce?'instant':'smooth',block:'start'});
+ if(targetPostId!==null){
+  const targetCard=$('post-'+Number(targetPostId));
+  if(!targetCard)throw Error('Публикация больше недоступна');
+  targetCard.scrollIntoView({behavior:reduce?'instant':'smooth',block:'center'});
+  targetCard.focus({preventScroll:true});return;
+ }
  $('world-detail-title').focus({preventScroll:true});
 }
 async function discussion(postId,region){
@@ -847,9 +859,10 @@ async function loadReactionSummaries(container){
  const byId=new Map(result.items.map(item=>[Number(item.postId),item]));
  for(const wrapper of wrappers)renderReactionSummary(wrapper,byId.get(Number(wrapper.dataset.postId)));
 }
-function postCard(post,own=false){
+function postCard(post,own=false,{anchor=false}={}){
  const card=node('article','','post');
  card.dataset.postId=String(post.id);
+ if(anchor){card.id='post-'+Number(post.id);card.tabIndex=-1;}
  const byline=node('span','','eyebrow');
  if(own)byline.textContent='МОЯ ЗАПИСЬ / '+post.status;
  else{
@@ -858,6 +871,11 @@ function postCard(post,own=false){
  }
  card.append(byline);
  card.append(node('p',post.body,'post-body'));
+ if(post.world&&(post.status==='published'||!own)){
+  const permalink=systemNode('a','dynamic.posts.permalink','Постоянная ссылка','post-permalink');
+  permalink.href='/w/'+encodeURIComponent(post.world)+'#post-'+encodeURIComponent(post.id);
+  card.append(permalink);
+ }
  if(post.status==='published'||!own){
   const reactions=node('div','','post-reactions');reactions.dataset.postId=String(post.id);reactions.dataset.i18nAriaLabel='reaction.group';reactions.setAttribute('role','group');reactions.setAttribute('aria-label',localText('reaction.group','Реакции на публикацию'));
   for(const [kind,[key,label]] of Object.entries(reactionCatalog)){
@@ -989,7 +1007,11 @@ async function activity(reset=true){
  for(const event of result.items){
   const line=node('article','','activity-item');
   line.append(node('strong','@'+event.actor+' · '+(labels[event.kind]||'действие в мире')));
-  if(event.world)line.append(node('span','World / '+event.world));
+  if(event.world&&event.post_id){
+   const link=systemNode('a','dynamic.posts.permalink','Открыть публикацию','post-permalink');
+   link.href='/w/'+encodeURIComponent(event.world)+'#post-'+encodeURIComponent(event.post_id);
+   line.append(link);
+  }else if(event.world)line.append(node('span','World / '+event.world));
   line.append(node('small',new Date(event.created_at).toLocaleString('ru-RU')+(event.read_at?'':' · НОВОЕ')));
   target.append(line);
  }
@@ -1340,8 +1362,11 @@ $('world-close').addEventListener('click',()=>{
  closeWorldAndRestoreFocus();
 });
 window.addEventListener('hashchange',()=>{
+ const targetPost=location.hash.match(/^#post-([1-9][0-9]{0,14})$/);
+ const pathWorld=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
- if(requested)run(()=>openWorld(requested));
+ if(targetPost&&pathWorld)run(()=>openWorld(pathWorld[1],Number(targetPost[1])));
+ else if(requested)run(()=>openWorld(requested));
  else if(!$('world-detail').hidden){
   if(/^\/w\/[a-z][a-z0-9_-]{2,39}$/.test(location.pathname))
    history.replaceState(null,'','/#worlds');
@@ -1471,8 +1496,9 @@ if(document.body.dataset.profilePage==='true'){
  .then(()=>{
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
   const route=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
+  const targetPost=location.hash.match(/^#post-([1-9][0-9]{0,14})$/);
   const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):(route?.[1]||'');
-  if(requested)run(()=>openWorld(requested));
+  if(requested)run(()=>openWorld(requested,targetPost?Number(targetPost[1]):null));
  })
  .catch(e=>notice(e.message));
 })();
