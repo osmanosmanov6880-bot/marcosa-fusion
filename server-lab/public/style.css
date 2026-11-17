@@ -92,6 +92,10 @@ dialog form{display:grid;gap:17px}
 .reaction-button:hover:not(:disabled),.reaction-button:focus-visible{border-color:#c4a77d;background:#19283a;color:#fff;outline:none}
 .reaction-button.is-selected{border-color:#d1b181;background:#292a2a;color:#f2d7ae}
 .reaction-button:disabled{cursor:default;opacity:.74}
+.post-permalink{display:inline-block;margin:6px 0 10px;color:#d9bf99;font-size:11px;text-decoration-thickness:1px;text-underline-offset:3px}
+.post-permalink:focus-visible{outline:2px solid #f2d7ad;outline-offset:3px;border-radius:2px}
+.post:target{border-color:#d5b887;box-shadow:0 0 0 2px #d5b88733,0 18px 42px #0005}
+.post:focus{outline:2px solid #d5b887;outline-offset:4px}
 .comment-item{padding:13px 0;border-bottom:1px solid #d8bfa324}
 .comment-item strong{display:block;color:#ebcc9f;font:750 11px/1.4 var(--sans)}
 .comment-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin:7px 0;color:#e6e4e2;font-size:14px;line-height:1.6}
