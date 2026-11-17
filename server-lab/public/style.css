@@ -87,6 +87,11 @@ dialog form{display:grid;gap:17px}
 .discussion[open] summary:after{content:"−"}
 .discussion summary:focus-visible{outline:3px solid #f2d7ad;outline-offset:3px}
 .comment-region{padding:8px 0 3px}
+.post-reactions{display:flex;flex-wrap:wrap;gap:8px;margin:15px 0 4px}
+.reaction-button{min-height:38px;padding:7px 12px;border:1px solid #b7c5d52b;border-radius:999px;background:#111b2a;color:#dce4ed;font:650 11px/1.2 var(--sans);cursor:pointer;transition:border-color .15s,background .15s,color .15s}
+.reaction-button:hover:not(:disabled),.reaction-button:focus-visible{border-color:#c4a77d;background:#19283a;color:#fff;outline:none}
+.reaction-button.is-selected{border-color:#d1b181;background:#292a2a;color:#f2d7ae}
+.reaction-button:disabled{cursor:default;opacity:.74}
 .comment-item{padding:13px 0;border-bottom:1px solid #d8bfa324}
 .comment-item strong{display:block;color:#ebcc9f;font:750 11px/1.4 var(--sans)}
 .comment-copy{white-space:pre-wrap;overflow-wrap:anywhere;margin:7px 0;color:#e6e4e2;font-size:14px;line-height:1.6}
