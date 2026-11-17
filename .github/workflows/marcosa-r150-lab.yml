@@ -44,4 +44,5 @@ jobs:
         run: |
           set -euo pipefail
           node --test server-lab/test/*.test.mjs
-          node --test tools/finance/model.test.mjs
+          node --test tools/finance/model.test.mjs tools/finance/analysis.test.mjs
+          node tools/finance/analyze.mjs > /tmp/marcosa-r151-financial-stress.json
