@@ -29,8 +29,18 @@ test('R148: direct publication links resolve only to published, visible and unbl
   assert.equal((await req('/worlds/wrong-world/posts/'+published.data.id,{cookie:visitor.cookie})).status,404);
   assert.doesNotMatch(JSON.stringify(link.data),/email|password|salt|session/);
   let html=await req('/w/'+author.world.slug,{html:true});assert.equal(html.status,200);assert.match(html.data,/og:url/);
+  const savedPath='/posts/'+published.data.id+'/save';
+  assert.equal((await req(savedPath,{cookie:visitor.cookie,method:'POST',json:{}})).status,201);
   await req('/me/profile',{cookie:author.cookie,method:'PATCH',json:{visibility:'private'}});
   assert.equal((await req('/worlds/'+author.world.slug+'/posts/'+published.data.id,{cookie:visitor.cookie})).status,404,'private profile does not leak through a copied link');
+  for(const endpoint of ['/posts','/worlds/'+author.world.slug+'/posts','/me/saved']){
+   const result=await req(endpoint,{cookie:visitor.cookie});
+   assert.equal(result.status,200);
+   assert.ok(!result.data.items.some(row=>row.id===published.data.id),endpoint);
+  }
+  assert.equal((await req('/discover?q=Directly',{cookie:visitor.cookie})).data.posts.length,0);
+  assert.equal((await req('/posts/'+published.data.id+'/comments',{cookie:visitor.cookie})).status,404);
+  assert.equal((await req(savedPath,{cookie:visitor.cookie,method:'POST',json:{}})).status,404);
   assert.equal((await req('/users/author148/follow',{cookie:visitor.cookie,method:'POST',json:{}})).status,202);
   assert.equal((await req('/users/visitor148/follow-request',{cookie:author.cookie,method:'POST',json:{decision:'accept'}})).status,200);
   link=await req('/worlds/'+author.world.slug+'/posts/'+published.data.id,{cookie:visitor.cookie});assert.equal(link.status,200,'approved follower can open the permanent link');

@@ -326,18 +326,21 @@ async function loadSavedIds(){
  const result=await api('/me/saved/ids');
  state.savedIds=new Set(result.ids);
 }
+let savedSerial=0;
 async function saved(reset=true){
  if(!state.me)return;
+ const member=state.me,serial=++savedSerial;
  const params=new URLSearchParams();
  if(!reset&&state.savedCursor)params.set('cursor',state.savedCursor);
  const result=await api('/me/saved?'+params.toString());
+ if(serial!==savedSerial||member!==state.me)return;
  const list=$('saved-list');
  if(reset)clear(list);
- for(const post of result.items)list.append(postCard(post));
- await loadReactionSummaries(list);
- if(reset&&!result.items.length)list.append(systemNode('p','dynamic.saved.empty','В коллекции пока нет доступных публикаций.','muted'));
  state.savedCursor=result.nextCursor;
  $('saved-more').hidden=!state.savedCursor;
+ await appendPostPage(list,result.items);
+ if(serial!==savedSerial||member!==state.me)return;
+ if(reset&&!result.items.length)list.append(systemNode('p','dynamic.saved.empty','В коллекции пока нет доступных публикаций.','muted'));
 }
 async function loadInsights(){
  if(!state.me)return;
@@ -772,6 +775,7 @@ async function openWorld(slug,targetPostId=null){
  if(target&&!posts.items.some(item=>Number(item.id)===Number(target.item.id)))list.append(postCard(target.item,false,{anchor:true}));
  for(const item of posts.items)list.append(postCard(item,false,{anchor:true}));
  await loadReactionSummaries(list);
+ if(serial!==state.worldOpenSerial)return;
  if(!posts.items.length)list.append(systemNode('p','dynamic.stories.empty','Здесь пока нет опубликованных историй.','muted'));
  if(posts.nextCursor)list.append(systemNode('p','dynamic.stories.more','Показаны последние 20 историй.','muted'));
  const spons=$('world-detail-sponsor');clear(spons);
@@ -840,24 +844,45 @@ async function discussion(postId,region){
 }
 const reactionCatalog={like:['reaction.like','Нравится'],insightful:['reaction.insightful','Полезно'],support:['reaction.support','Поддерживаю'],celebrate:['reaction.celebrate','Поздравляю']};
 function renderReactionSummary(wrapper,summary){
- if(!wrapper||!summary)return;
+ wrapper.hidden=!summary;
  for(const button of wrapper.querySelectorAll('[data-reaction]')){
-  const kind=button.dataset.reaction,count=Number(summary.counts?.[kind]||0),[key,label]=reactionCatalog[kind];
+  const kind=button.dataset.reaction,count=Number(summary?.counts?.[kind]||0),[key,label]=reactionCatalog[kind];
+  button.disabled=!summary||!state.me||wrapper.dataset.owner===state.me.username;
   button.dataset.i18nDynamicPrefix=key;
   button.dataset.i18nSuffix=count?' · '+count:'';
   button.textContent=localText(key,label)+button.dataset.i18nSuffix;
-  button.setAttribute('aria-pressed',String(summary.mine===kind));
-  button.classList.toggle('is-selected',summary.mine===kind);
+  button.setAttribute('aria-pressed',String(summary?.mine===kind));
+  button.classList.toggle('is-selected',summary?.mine===kind);
  }
 }
-async function loadReactionSummaries(container){
- const wrappers=[...(container.matches?.('.post-reactions[data-post-id]')?[container]:[]),...container.querySelectorAll('.post-reactions[data-post-id]')];
- if(!wrappers.length)return;
- const unique=[...new Set(wrappers.map(item=>Number(item.dataset.postId)))].slice(0,30);
- if(!unique.length)return;
- const result=await api('/posts/reactions?ids='+unique.join(','));
- const byId=new Map(result.items.map(item=>[Number(item.postId),item]));
- for(const wrapper of wrappers)renderReactionSummary(wrapper,byId.get(Number(wrapper.dataset.postId)));
+const latestReactionRead=new WeakMap();
+const pendingReactions=new Set();
+async function readReactionBars(wrappers){
+ const groups=new Map();
+ const request=Symbol();
+ for(const wrapper of wrappers){
+  const id=wrapper.dataset.postId;
+  if(!groups.has(id))groups.set(id,[]);
+  groups.get(id).push(wrapper);
+  latestReactionRead.set(wrapper,request);
+ }
+ const ids=[...groups.keys()];
+ // The API accepts 30 IDs and 180 characters per request.
+ while(ids.length){
+  const batch=[ids.shift()];
+  while(ids.length && batch.length<30 && batch.join(',').length+1+ids[0].length<=180)
+   batch.push(ids.shift());
+  const result=await api('/posts/reactions?ids='+batch.join(','));
+  const summaries=new Map(result.items.map(item=>[String(item.postId),item]));
+  for(const id of batch){
+   for(const wrapper of groups.get(id)){
+    if(latestReactionRead.get(wrapper)===request)renderReactionSummary(wrapper,summaries.get(id));
+   }
+  }
+ }
+}
+function loadReactionSummaries(container){
+ return readReactionBars(container.querySelectorAll('.post-reactions[data-post-id]'));
 }
 function postCard(post,own=false,{anchor=false}={}){
  const card=node('article','','post');
@@ -878,15 +903,20 @@ function postCard(post,own=false,{anchor=false}={}){
  }
  if(post.status==='published'||!own){
   const reactions=node('div','','post-reactions');reactions.dataset.postId=String(post.id);reactions.dataset.i18nAriaLabel='reaction.group';reactions.setAttribute('role','group');reactions.setAttribute('aria-label',localText('reaction.group','Реакции на публикацию'));
+  reactions.dataset.owner=own?state.me?.username:post.username;
+  reactions.hidden=true;
   for(const [kind,[key,label]] of Object.entries(reactionCatalog)){
    const button=systemNode('button',key,label,'reaction-button');button.type='button';button.dataset.reaction=kind;
-   if(!state.me||post.username===state.me.username)button.disabled=true;
+   button.disabled=true;
    button.setAttribute('aria-pressed','false');
    button.addEventListener('click',()=>run(async()=>{
-    const selected=button.getAttribute('aria-pressed')==='true';
-    if(selected)await api('/posts/'+post.id+'/reaction','DELETE',{});
-    else await api('/posts/'+post.id+'/reaction','POST',{reaction:kind});
-    await loadReactionSummaries(card);
+    if(pendingReactions.has(post.id)||button.disabled)return;
+    pendingReactions.add(post.id);
+    try{
+     const selected=button.getAttribute('aria-pressed')==='true';
+     await api('/posts/'+post.id+'/reaction',selected?'DELETE':'POST',selected?{}:{reaction:kind});
+     await readReactionBars(document.querySelectorAll('.post-reactions[data-post-id="'+post.id+'"]'));
+    }finally{pendingReactions.delete(post.id);}
    },'Реакция обновлена'));
    reactions.append(button);
   }
@@ -920,9 +950,11 @@ function postCard(post,own=false,{anchor=false}={}){
    const wasSaved=state.savedIds.has(postId);
    await api('/posts/'+postId+'/save',wasSaved?'DELETE':'POST',{});
    if(wasSaved)state.savedIds.delete(postId);else state.savedIds.add(postId);
-   toggle.dataset.i18nDynamic=wasSaved?'dynamic.posts.save':'dynamic.posts.saved';
+   for(const toggle of document.querySelectorAll('article.post[data-post-id="'+postId+'"] .saved-toggle')){
+    toggle.dataset.i18nDynamic=wasSaved?'dynamic.posts.save':'dynamic.posts.saved';
     toggle.textContent=localText(toggle.dataset.i18nDynamic,wasSaved?'Сохранить':'Сохранено ✓');
-   toggle.setAttribute('aria-pressed',String(!wasSaved));
+    toggle.setAttribute('aria-pressed',String(!wasSaved));
+   }
    await Promise.all([saved(true),onboarding()]);
   },state.savedIds.has(postId)?'Сохранение обновлено':'Публикация добавлена в твою коллекцию'));
   actions.append(toggle);
@@ -1020,15 +1052,28 @@ async function activity(reset=true){
  state.activityCursor=result.nextCursor;
  $('activity-more').hidden=!state.activityCursor;
 }
+async function appendPostPage(container,items){
+ const bars=[];
+ for(const item of items){
+  const card=postCard(item);
+  container.append(card);
+  const bar=card.querySelector('.post-reactions');
+  if(bar)bars.push(bar);
+ }
+ await readReactionBars(bars);
+}
+let feedSerial=0;
 async function feed(reset=true){
+ const serial=++feedSerial;
  const params=new URLSearchParams({limit:'12'});
  if(!reset&&state.cursor)params.set('cursor',state.cursor);
  const result=await api((state.feedScope==='following'?'/feed/following?':'/posts?')+params.toString());
+ if(serial!==feedSerial)return;
  const wrap=$('feed-list');if(reset)clear(wrap);
- for(const post of result.items)wrap.append(postCard(post));
- await loadReactionSummaries(wrap);
  state.cursor=result.nextCursor;
  $('more').hidden=!state.cursor;
+ await appendPostPage(wrap,result.items);
+ if(serial!==feedSerial)return;
  if(reset&&!result.items.length){
   const key=state.feedScope==='following'?'dynamic.feed.following.empty':'dynamic.feed.public.empty';
   const message=state.feedScope==='following'?'В подписках пока нет опубликованных записей. Подпишись на интересный World.':'Пока нет публичных публикаций. Создай первую запись в своём мире.';
@@ -1364,7 +1409,7 @@ $('world-close').addEventListener('click',()=>{
 window.addEventListener('hashchange',()=>{
  const targetPost=location.hash.match(/^#post-([1-9][0-9]{0,14})$/);
  const pathWorld=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
- const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):'';
+ const requested=location.hash.match(/^#world-([a-z][a-z0-9_-]{2,39})$/)?.[1]||'';
  if(targetPost&&pathWorld)run(()=>openWorld(pathWorld[1],Number(targetPost[1])));
  else if(requested)run(()=>openWorld(requested));
  else if(!$('world-detail').hidden){
@@ -1497,7 +1542,7 @@ if(document.body.dataset.profilePage==='true'){
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
   const route=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
   const targetPost=location.hash.match(/^#post-([1-9][0-9]{0,14})$/);
-  const requested=location.hash.startsWith('#world-')?decodeURIComponent(location.hash.slice(7)):(route?.[1]||'');
+  const requested=location.hash.match(/^#world-([a-z][a-z0-9_-]{2,39})$/)?.[1]||route?.[1]||'';
   if(requested)run(()=>openWorld(requested,targetPost?Number(targetPost[1]):null));
  })
  .catch(e=>notice(e.message));

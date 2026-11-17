@@ -6,6 +6,7 @@
 (()=>{
 'use strict';
 const CATALOG=Object.freeze({
+ 'series.nav':['Авторские сезоны','Creator seasons'],
  'locale.label':['Язык','Language'],
  'nav.skip':['Перейти к основному содержанию','Skip to main content'],
  'feed.tabsAria':['Показать публикации','Show posts'],
