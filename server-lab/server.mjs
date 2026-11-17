@@ -344,6 +344,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   if(method==='DELETE'&&['/api/account','/api/me/retention-consent'].includes(route))return true;
   // Members retain control over subscriptions and their own viewing marks during an incident.
   if(method==='DELETE'&&/^\/api\/series\/[a-z0-9-]+\/(?:subscription|metrics\/attendance)$/.test(route))return true;
+  if(method==='DELETE'&&/^\/api\/me\/series-reminders\/[1-9][0-9]{0,14}$/.test(route))return true;
   if(method!=='POST')return false;
   if(['/api/auth/login','/api/auth/logout',
     '/api/me/security/revoke-others','/api/me/security/change-password',

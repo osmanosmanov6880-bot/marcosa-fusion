@@ -30,7 +30,7 @@
     finally{button.disabled=false;}
    });
   }else{
-   const response=await fetch('/api/me/series-reminders');
+   const [response,continueResponse]=await Promise.all([fetch('/api/me/series-reminders'),fetch('/api/me/series-continue')]);
    if(response.status===401)return;
    if(!response.ok)throw Error('Не удалось загрузить новые эпизоды.');
    const {items}=await response.json();
@@ -42,9 +42,34 @@
     const li=document.createElement('li'),link=document.createElement('a');
     link.href='/w/'+encodeURIComponent(item.world)+'#post-'+item.postId;
     link.textContent=item.seriesTitle+' · '+item.position+'. '+item.episodeTitle;
-    li.append(link);list.append(li);
+    const dismiss=document.createElement('button');
+    dismiss.type='button'; dismiss.textContent='Скрыть';
+    dismiss.setAttribute('aria-label','Скрыть напоминание о выпуске '+item.episodeTitle);
+    dismiss.addEventListener('click',async()=>{
+     dismiss.disabled=true;
+     try{
+      const result=await fetch('/api/me/series-reminders/'+item.episodeId,{method:'DELETE',headers:{'Content-Type':'application/json'},body:'{}'});
+      if(!result.ok)throw Error('Не удалось скрыть напоминание.');
+      li.remove();status.textContent='Напоминание скрыто.';
+     }catch(error){status.textContent=error.message;dismiss.disabled=false;}
+    });
+    li.append(link,dismiss);list.append(li);
    }
    inbox.append(list);
+   if(continueResponse.ok){
+    const progress=await continueResponse.json();
+    const title=document.createElement('h2');title.textContent='Продолжить чтение';inbox.append(title);
+    if(!progress.items.length){const empty=document.createElement('p');empty.textContent='Все доступные выпуски отмечены или подписок пока нет.';inbox.append(empty);}
+    const reading=document.createElement('ul');
+    for(const item of progress.items){
+     const li=document.createElement('li'),link=document.createElement('a');
+     link.href='/series/'+encodeURIComponent(item.slug)+'#episode-'+item.episodeId;
+     link.textContent=item.seriesTitle+' · '+item.position+'. '+item.episodeTitle;
+     li.append(link);reading.append(li);
+    }
+    inbox.append(reading);
+   }else if(continueResponse.status!==401)throw Error('Не удалось загрузить продолжение чтения.');
+   inbox.append(status);
   }
  }catch(error){status.textContent=error.message;(panel||inbox).append(status);}
 })();

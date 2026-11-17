@@ -98,8 +98,16 @@ export async function handleSeries(ctx) {
   const raw=query.get('q')||'';
   check(raw.length<=72,400,'Поиск ограничен 72 символами');
   const search=raw.trim().normalize('NFC');
-  const items=db.prepare(seriesQuery+` AND ($search='' OR instr(lower(s.title),lower($search))>0 OR instr(lower(s.description),lower($search))>0 OR instr(lower(u.username),lower($search))>0)
-   ORDER BY s.id DESC LIMIT 100`).all({viewer:viewerId,search});
+  // Stable keyset pagination: no private series should leak across pages.
+  const cursorRaw=query.get('cursor')||'';
+  check(!cursorRaw || (/^[1-9][0-9]{0,14}$/.test(cursorRaw) && Number.isSafeInteger(Number(cursorRaw))),400,'Неверный курсор сезонов');
+  const cursor=cursorRaw?Number(cursorRaw):null;
+  const pageSize=20;
+  const rows=db.prepare(seriesQuery+` AND ($search='' OR instr(lower(s.title),lower($search))>0 OR instr(lower(s.description),lower($search))>0 OR instr(lower(u.username),lower($search))>0)
+   AND ($cursor IS NULL OR s.id < $cursor)
+   ORDER BY s.id DESC LIMIT $limit`).all({viewer:viewerId,search,cursor,limit:pageSize+1});
+  const nextCursor=rows.length>pageSize?String(rows[pageSize-1].id):null;
+  const items=rows.slice(0,pageSize);
   const episodeSummary=new Map();
   if(items.length){
    const placeholders=items.map(()=>'?').join(',');
@@ -112,12 +120,13 @@ export async function handleSeries(ctx) {
    }
   }
   const results=items.map(item=>({...describe(item),...(episodeSummary.get(item.id)||{episodeCount:0,firstEpisodeId:null})}));
-  if(route==='/api/series') respond(200,{items:results,query:search});
+  const nextPage=nextCursor?'/series?'+new URLSearchParams(search?{q:search,cursor:nextCursor}:{cursor:nextCursor}).toString():null;
+  if(route==='/api/series') respond(200,{items:results,query:search,nextCursor});
   else {
    const worlds=viewerId?db.prepare('SELECT id,title FROM worlds WHERE owner_id=? ORDER BY created_at DESC').all(viewerId):[];
    const cards=results.map(s=>`<article class="post"><p class="eyebrow">@${escape(s.author)}</p><h2><a class="post-permalink" href="/series/${escape(s.slug)}">${escape(s.title)}</a></h2><p>${escape(s.description)}</p><p>Опубликовано выпусков: ${s.episodeCount}</p>${s.firstEpisodeId?`<a class="post-permalink" href="/series/${escape(s.slug)}#episode-${s.firstEpisodeId}">Начать с первого выпуска</a>`:'<span>Первый выпуск готовится</span>'}</article>`).join('');
    const empty=search?'По этому запросу доступных сезонов не найдено.':'Пока нет доступных сезонов.';
-   page(res,'Авторские сезоны',`<h1>Авторские сезоны</h1><form method="get" action="/series" role="search"><label>Название, тема или автор <input name="q" maxlength="72" value="${escape(search)}"></label><button type="submit">Найти</button></form><section id="series-reminders"></section>${cards||`<p>${empty}</p>`}${viewerId?createForm(worlds):'<a href="/">Войти в MARCOSA</a>'}`);
+   page(res,'Авторские сезоны',`<h1>Авторские сезоны</h1><form method="get" action="/series" role="search"><label>Название, тема или автор <input name="q" maxlength="72" value="${escape(search)}"></label><button type="submit">Найти</button></form><section id="series-reminders"></section>${cards||`<p>${empty}</p>`}${nextPage?`<nav aria-label="Страницы сезонов"><a class="post-permalink" href="${escape(nextPage)}">Следующие сезоны</a></nav>`:''}${viewerId?createForm(worlds):'<a href="/">Войти в MARCOSA</a>'}`);
   }
   return true;
  }
