@@ -68,7 +68,18 @@ function episodeForm(db, season) {
  <label>Публикация<select name="postId">${posts.map(p=>`<option value="${p.id}">${escape(p.body.slice(0,80))}</option>`).join('')}</select></label>
  <label>Название эпизода<input name="title" required maxlength="100"></label><button>Добавить эпизод</button></form>` :
  '<p>Сначала опубликуйте запись в этом мире. <a href="/">Открыть кабинет</a></p>';
- return `<details><summary>Редактировать сезон</summary>${picker}<form id="next-release" class="form-block">${nextField}<button>Обновить дату</button></form></details>`;
+ const entries=db.prepare('SELECT id,position,title FROM series_episodes WHERE series_id=? ORDER BY position').all(season.id);
+ const editorData=escape(JSON.stringify(entries));
+ return `<details><summary>Редактировать сезон</summary>
+ <form id="series-meta" class="form-block">
+ <label>Название сезона<input name="title" required maxlength="100" value="${escape(season.title)}"></label>
+ <label>Описание<textarea name="description" maxlength="600">${escape(season.description)}</textarea></label>
+ ${nextField}
+ <button>Сохранить сведения</button></form>
+ ${picker}
+ <div id="episode-editor" data-episodes="${editorData}"><h3>Управление выпусками</h3>
+ <p>Меняйте названия и порядок, удаляйте только связь с сезоном. Сами публикации остаются.</p></div>
+ </details>`;
 }
 
 function describe(row) {
@@ -154,9 +165,14 @@ export async function handleSeries(ctx) {
  if (!api) return false;
  check(user,401,'Нужен вход');check(user.id===season.owner_id,403,'Только автор сезона');
  if(method==='PATCH' && !action) {
-  check(Object.keys(body).length===1 && 'nextAt' in body,400,'Ожидается дата следующего выпуска');
-  const nextAt=dateField(body.nextAt,check);db.prepare('UPDATE series SET next_at=? WHERE id=?').run(nextAt,season.id);
-  respond(200,{nextAt});return true;
+  const keys=Object.keys(body);
+  check(keys.length>0 && keys.every(x=>['title','description','nextAt'].includes(x)),400,'Недопустимые поля сезона');
+  const title=('title' in body)?textField(body.title,100,check):season.title;
+  const description=('description' in body)?textField(body.description,600,check):season.description;
+  const nextAt=('nextAt' in body)?dateField(body.nextAt,check):season.next_at;
+  db.prepare('UPDATE series SET title=?,description=?,next_at=? WHERE id=? AND owner_id=?')
+   .run(title,description,nextAt,season.id,user.id);
+  respond(200,{...describe({...season,title,description,next_at:nextAt})});return true;
  }
  if(method==='POST' && action==='episodes') {
   const title=textField(body.title,100,check);

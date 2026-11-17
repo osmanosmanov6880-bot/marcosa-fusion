@@ -16,6 +16,7 @@ import {sanitizePngCover,MAX_COVER_BYTES} from './media/safe-png.mjs';
 import {measureModerationQueues} from './ops/moderation-queue-health.mjs';
 
 import {initSeries,handleSeries} from './series.mjs';
+import {handleSeriesEditor} from './series-editor.mjs';
 import {initVotes,handleVotes,exportUserVotes} from './votes.mjs';
 import {initSubscriptions,handleSubscriptions,onEpisode} from './series-subscriptions.mjs';
 import {initMetrics,handleMetrics,exportAttendance} from './series-metrics.mjs';
@@ -411,7 +412,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      body=await readJSON(req);
     }
     const context={db,req,res,route,method,query,viewer,user:viewer,body,send,check,now,atomic,onEpisode};
-    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeries]){
+    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesEditor,handleSeries]){
      if(await handler(context))return;
     }
     if(route==='/votes.js'&&method==='GET'){
