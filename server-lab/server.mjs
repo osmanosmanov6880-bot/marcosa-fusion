@@ -753,6 +753,14 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     check(world&&(world.visibility==='public'||world.owner_id===viewer),404,'Мир не найден');
     send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,viewer,cursor,21),20));return;
    }
+   const worldPost=route.match(/^\/api\/worlds\/([a-z0-9_-]{3,45})\/posts\/([1-9][0-9]{0,14})$/);
+   if(method==='GET'&&worldPost){
+    const viewer=who(req)?.id||'',id=int(worldPost[2]);
+    const item=db.prepare("SELECT p.id,p.body,p.created_at,p.status,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,w.visibility AS world_visibility,w.owner_id,u.id AS author_id,u.username,COALESCE(profile.visibility,'public') AS profile_visibility FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id LEFT JOIN profile_cards profile ON profile.user_id=u.id WHERE p.id=? AND w.slug=? AND p.status='published'").get(id,worldPost[1]);
+    check(item&&(item.world_visibility==='public'||item.owner_id===viewer)&&(!viewer||!isBlocked(viewer,item.author_id))&&canReadProfile(viewer,item.author_id,item.profile_visibility),404,'Публикация не найдена');
+    delete item.world_visibility;delete item.owner_id;delete item.author_id;delete item.profile_visibility;
+    send(res,200,{item,scope:'published-world-post',production:false});return;
+   }
    // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
    const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/followers$/);
    if(method==='GET'&&followRead){
