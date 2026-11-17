@@ -35,7 +35,7 @@ async function account(page,base,username){
 }
 async function publish(page,base,text){
  await page.goto(base+'/',{waitUntil:'domcontentloaded'});
- await page.locator('#post-world option').first().waitFor({timeout:12000});
+ await page.locator('#post-world option').first().waitFor({state:'attached',timeout:12000});
  await page.locator('#post-form textarea[name="body"]').fill(text);
  await page.locator('#post-form button[value="published"]').click();
  await page.waitForFunction(value=>document.querySelector('#my-posts')?.textContent.includes(value),text,{timeout:12000});
