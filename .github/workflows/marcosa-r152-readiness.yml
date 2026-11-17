@@ -41,6 +41,7 @@ jobs:
           node --test ops/payment-contract/stripe-sandbox-contract.test.mjs
           node --test ops/payment-contract/offline-refund-reconciliation.test.mjs
           node --test ops/payment-contract/creator-earnings-r152.test.mjs
+          node --test ops/payment-contract/creator-ledger-audit-r153.test.mjs
 
   isolated-disaster-recovery:
     runs-on: ubuntu-24.04
