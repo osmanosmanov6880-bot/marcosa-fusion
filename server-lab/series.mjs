@@ -74,8 +74,8 @@ function episodeForm(db, season) {
  <form id="series-meta" class="form-block">
  <label>Название сезона<input name="title" required maxlength="100" value="${escape(season.title)}"></label>
  <label>Описание<textarea name="description" maxlength="600">${escape(season.description)}</textarea></label>
- ${nextField}
  <button>Сохранить сведения</button></form>
+ <form id="next-release" class="form-block">${nextField}<button>Обновить дату</button></form>
  ${picker}
  <div id="episode-editor" data-episodes="${editorData}"><h3>Управление выпусками</h3>
  <p>Меняйте названия и порядок, удаляйте только связь с сезоном. Сами публикации остаются.</p></div>
@@ -168,7 +168,7 @@ export async function handleSeries(ctx) {
   const keys=Object.keys(body);
   check(keys.length>0 && keys.every(x=>['title','description','nextAt'].includes(x)),400,'Недопустимые поля сезона');
   const title=('title' in body)?textField(body.title,100,check):season.title;
-  const description=('description' in body)?textField(body.description,600,check):season.description;
+  const description=('description' in body)?textField(body.description,600,check,true):season.description;
   const nextAt=('nextAt' in body)?dateField(body.nextAt,check):season.next_at;
   db.prepare('UPDATE series SET title=?,description=?,next_at=? WHERE id=? AND owner_id=?')
    .run(title,description,nextAt,season.id,user.id);

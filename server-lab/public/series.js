@@ -28,7 +28,8 @@ attach('new-series','/api/series','POST',data=>({...data,nextAt:dateValue(data.n
 if(slug) {
  const path='/api/series/'+encodeURIComponent(slug);
  attach('new-episode',path+'/episodes','POST',data=>({...data,postId:Number(data.postId)}),()=>location.reload());
- attach('series-meta',path,'PATCH',data=>({...data,nextAt:dateValue(data.nextAt)}),()=>location.reload());
+ attach('series-meta',path,'PATCH',data=>data,()=>location.reload());
+ attach('next-release',path,'PATCH',data=>({nextAt:dateValue(data.nextAt)}),()=>location.reload());
  const editor=document.getElementById('episode-editor');
  if(editor) {
   let entries=JSON.parse(editor.dataset.episodes||'[]');
