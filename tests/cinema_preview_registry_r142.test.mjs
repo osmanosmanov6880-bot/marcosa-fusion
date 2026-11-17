@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 const read = path => readFileSync(new URL('../' + path, import.meta.url), 'utf8');
 const registry = JSON.parse(read('inventory/cinema_preview_registry_r142.json'));
 const player = read('site/cinema-pilot.js');
+const page = read('site/cinema-pilot.html');
 const csv = read('inventory/film-sites.csv');
 
 test('R142 cinema preview registry contains exactly the six selectable source-backed works', () => {
@@ -17,7 +18,7 @@ test('R142 cinema preview registry contains exactly the six selectable source-ba
     assert.match(item.preview_route, /^\/film-[a-z0-9-]+\.html$/);
     assert.ok(item.source_reference);
     assert.ok(item.evidence);
-    assert.ok(player.includes('data-cp-film="' + item.slug + '"'), 'missing cinema selector: ' + item.slug);
+    assert.ok(page.includes('data-cp-film="' + item.slug + '"'), 'missing cinema selector: ' + item.slug);
     assert.ok(player.includes("'./film-" + item.slug + ".html'"), 'missing preview route in player: ' + item.slug);
     assert.equal(item.external_domain, null, 'do not infer a project domain from source code');
     assert.equal(item.rights_status, 'pending');
