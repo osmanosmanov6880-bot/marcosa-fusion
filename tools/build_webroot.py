@@ -18,7 +18,7 @@ from r25_grade_cinematic_assets import place as place_director_grade
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "site"
 OUTPUT = ROOT / "dist"
-PUBLIC_FILES = ("index.html", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css", "social-transfer.js")
+PUBLIC_FILES = ("index.html", "ecosystem.html", "ecosystem.css", "ecosystem.js", "ecosystem-manifest.json", "network.css", "network.js", "immersive.css", "immersive.js", "stories.html", "stories.css", "stories.js", "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html", "social.html", "social-core.css", "social-core.js", "marcosa-brand.css", "marcosa-brand.js", "marcosa-mark.svg", "marcosa-cinematic.css", "marcosa-gateway.js", "marcosa-quiet.css", "marcosa-quiet.js", "marcosa-nocturne.css", "marcosa-director.css", "marcosa-director.js", "marcosa-social-first.css", "social-journal.js", "marcosa-journal.css", "social-transfer.js")
 MARKER = ".marcosa-preview-generated"
 
 
@@ -260,6 +260,35 @@ def build() -> dict:
         raise RuntimeError("R22 live cinematic gateway is incomplete")
     if 'href="./cinema-pilot.html"' not in html or 'href="./cinema-pilot.html"' not in atlas:
         raise RuntimeError("R16 public cinema is not reachable from MARCOSA landing and source atlas")
+    # R141: source directory is explicitly NOT a production integration certificate.
+    ecosystem = json.loads((SOURCE / "ecosystem-manifest.json").read_text(encoding="utf-8"))
+    if (ecosystem.get("schema") != "marcosa-ecosystem-public-sources/v1"
+            or ecosystem.get("productionAuthorized") is not False
+            or ecosystem.get("legacyReplacementAuthorized") is not False
+            or ecosystem.get("integratedProductionAppsVerified") != 0
+            or ecosystem.get("repositoryCount") != 23):
+        raise RuntimeError("R141 public source registry could claim production")
+    entries = ecosystem.get("entries")
+    if not isinstance(entries, list) or len(entries) != 23:
+        raise RuntimeError("R141 public repository inventory incomplete")
+    names = set()
+    for item in entries:
+        name = item.get("repository", "") if isinstance(item, dict) else ""
+        if (not isinstance(name, str) or not name or name in names
+                or item.get("sourceUrl") !=
+                    "https://github.com/osmanosmanov6880-bot/" + name
+                or item.get("productionVerified") is not False
+                or item.get("marcosaRuntimeIntegrated") is not False):
+            raise RuntimeError("R141 public source provenance or release status invalid")
+        names.add(name)
+    portal = (SOURCE / "ecosystem.html").read_text(encoding="utf-8")
+    if not all(x in portal for x in (
+            'src="./ecosystem.js"', 'href="./ecosystem.css"',
+            'production-no-go', 'href="./social.html"',
+            'href="./cinema-pilot.html"', 'href="./creator.html"')):
+        raise RuntimeError("R141 ecosystem page incomplete")
+    if 'href="./ecosystem.html"' not in html:
+        raise RuntimeError("R141 ecosystem not discoverable from MARCOSA home")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:
