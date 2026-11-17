@@ -582,7 +582,7 @@ function resetMessageSurface(){
 async function loadNotificationSettings(){
  if(!state.me)return;
  const res=await api('/me/notification-settings'),form=$('notification-settings-form');
- for(const name of ['follows','comments','sponsorships'])
+ for(const name of ['follows','comments','reactions','sponsorships'])
   form.elements[name].checked=res.settings[name];
  $('notification-settings-status').textContent='Сохранено на сервере · только уведомления в кабинете';
 }
@@ -985,7 +985,7 @@ async function activity(reset=true){
  const result=await api('/me/activity?'+params.toString());
  const target=$('activity-list');
  if(reset)clear(target);
- const labels={new_follow:'подписался на твой мир',post_comment:'прокомментировал твою запись',sponsor_proposal:'предложил тестовое размещение',sponsor_accepted:'принял предложение',sponsor_rejected:'отклонил предложение',sponsor_approved:'заявка прошла модерацию',sponsor_revoked:'отозвал рекламное согласие'};
+ const labels={new_follow:'подписался на твой мир',post_comment:'прокомментировал твою запись',post_reaction:localText('dynamic.activity.reaction','отреагировал на твою публикацию'),sponsor_proposal:'предложил тестовое размещение',sponsor_accepted:'принял предложение',sponsor_rejected:'отклонил предложение',sponsor_approved:'заявка прошла модерацию',sponsor_revoked:'отозвал рекламное согласие'};
  for(const event of result.items){
   const line=node('article','','activity-item');
   line.append(node('strong','@'+event.actor+' · '+(labels[event.kind]||'действие в мире')));
@@ -1281,7 +1281,7 @@ $('saved-more').addEventListener('click',()=>run(()=>saved(false)));
 $('blocks-refresh').addEventListener('click',()=>run(loadBlocks,'Список блокировок обновлён'));
 $('notification-settings-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
- const settings=Object.fromEntries(['follows','comments','sponsorships'].map(k=>[k,form.elements[k].checked]));
+ const settings=Object.fromEntries(['follows','comments','reactions','sponsorships'].map(k=>[k,form.elements[k].checked]));
  run(async()=>{
   await api('/me/notification-settings','PATCH',settings);
   await Promise.all([loadNotificationSettings(),activity(true)]);
