@@ -119,7 +119,7 @@ class PublicPreviewTests(unittest.TestCase):
         dist = ROOT / "dist"
         files = {p.name for p in dist.iterdir() if p.is_file()}
         self.assertEqual(files, {
-            "index.html", "network.css", "network.js",
+            "index.html", "ecosystem.html", "ecosystem.css", "ecosystem.js", "ecosystem-manifest.json", "network.css", "network.js",
             "immersive.css", "immersive.js",
             "stories.html", "stories.css", "stories.js",
             "creator.html", "creator.css", "creator.js", "creator-vault.js", "creator-backup.js", "creator-crypto.js", "creator-standalone.js", "creator-playtest.js", "film-network.html", "film-network.css", "film-network.js", "film-continuity.js", "source-hub.html", "source-hub.css", "source-hub.js", "cinema-pilot.html", "cinema-pilot.css", "cinema-pilot.js", "film-internet-v-humanity.html", "film-protocol-zero.html", "film-adverse-judge.html", "film-signal-worlds.html", "film-opspilot.html", "film-intentgraph.html",
@@ -131,6 +131,15 @@ class PublicPreviewTests(unittest.TestCase):
             "visual-archive-director.webp", "visual-control-director.webp", "visual-station-director.webp",
             "build-manifest.json", ".marcosa-preview-generated",
         })
+        # R141: the new public file set must be integrity-bound by the same
+        # deterministic SHA256 manifest and must never claim live backend cutover.
+        ecosystem = json.loads((dist / "ecosystem-manifest.json").read_text(encoding="utf-8"))
+        self.assertFalse(ecosystem["productionAuthorized"])
+        self.assertFalse(ecosystem["legacyReplacementAuthorized"])
+        self.assertEqual(ecosystem["repositoryCount"], len(ecosystem["entries"]))
+        self.assertEqual(ecosystem["integratedProductionAppsVerified"], 0)
+        self.assertTrue(all(not entry["productionVerified"]
+                            for entry in ecosystem["entries"]))
         manifest = json.loads((dist / "build-manifest.json").read_text(encoding="utf-8"))
         for name, digest in manifest["files"].items():
             self.assertEqual(digest, hashlib.sha256((dist / name).read_bytes()).hexdigest())
