@@ -334,6 +334,7 @@ async function saved(reset=true){
  const list=$('saved-list');
  if(reset)clear(list);
  for(const post of result.items)list.append(postCard(post));
+ await loadReactionSummaries(list);
  if(reset&&!result.items.length)list.append(systemNode('p','dynamic.saved.empty','В коллекции пока нет доступных публикаций.','muted'));
  state.savedCursor=result.nextCursor;
  $('saved-more').hidden=!state.savedCursor;
@@ -739,6 +740,7 @@ async function discover(query){
   });area.append(btn);
  }
  for(const post of found.posts)area.append(postCard(post));
+ await loadReactionSummaries(area);
  if(!found.worlds.length&&!found.posts.length)area.append(systemNode('p','dynamic.discover.empty','По этому запросу нет опубликованных материалов.'));
 }
 async function openWorld(slug){
@@ -763,6 +765,7 @@ async function openWorld(slug){
  $('world-cover-report-panel').hidden=!(state.me&&state.me.username!==world.owner&&world.hasCover);
  const list=$('world-detail-posts');clear(list);
  for(const item of posts.items)list.append(postCard(item));
+ await loadReactionSummaries(list);
  if(!posts.items.length)list.append(systemNode('p','dynamic.stories.empty','Здесь пока нет опубликованных историй.','muted'));
  if(posts.nextCursor)list.append(systemNode('p','dynamic.stories.more','Показаны последние 20 историй.','muted'));
  const spons=$('world-detail-sponsor');clear(spons);
@@ -823,8 +826,30 @@ async function discussion(postId,region){
   },'Ответ опубликован');
  });
 }
+const reactionCatalog={like:['reaction.like','Нравится'],insightful:['reaction.insightful','Полезно'],support:['reaction.support','Поддерживаю'],celebrate:['reaction.celebrate','Поздравляю']};
+function renderReactionSummary(wrapper,summary){
+ if(!wrapper||!summary)return;
+ for(const button of wrapper.querySelectorAll('[data-reaction]')){
+  const kind=button.dataset.reaction,count=Number(summary.counts?.[kind]||0),[key,label]=reactionCatalog[kind];
+  button.dataset.i18nDynamicPrefix=key;
+  button.dataset.i18nSuffix=count?' · '+count:'';
+  button.textContent=localText(key,label)+button.dataset.i18nSuffix;
+  button.setAttribute('aria-pressed',String(summary.mine===kind));
+  button.classList.toggle('is-selected',summary.mine===kind);
+ }
+}
+async function loadReactionSummaries(container){
+ const wrappers=[...(container.matches?.('.post-reactions[data-post-id]')?[container]:[]),...container.querySelectorAll('.post-reactions[data-post-id]')];
+ if(!wrappers.length)return;
+ const unique=[...new Set(wrappers.map(item=>Number(item.dataset.postId)))].slice(0,30);
+ if(!unique.length)return;
+ const result=await api('/posts/reactions?ids='+unique.join(','));
+ const byId=new Map(result.items.map(item=>[Number(item.postId),item]));
+ for(const wrapper of wrappers)renderReactionSummary(wrapper,byId.get(Number(wrapper.dataset.postId)));
+}
 function postCard(post,own=false){
  const card=node('article','','post');
+ card.dataset.postId=String(post.id);
  const byline=node('span','','eyebrow');
  if(own)byline.textContent='МОЯ ЗАПИСЬ / '+post.status;
  else{
@@ -833,6 +858,22 @@ function postCard(post,own=false){
  }
  card.append(byline);
  card.append(node('p',post.body,'post-body'));
+ if(post.status==='published'||!own){
+  const reactions=node('div','','post-reactions');reactions.dataset.postId=String(post.id);reactions.setAttribute('role','group');reactions.setAttribute('aria-label','Реакции на публикацию');
+  for(const [kind,[key,label]] of Object.entries(reactionCatalog)){
+   const button=systemNode('button',key,label,'reaction-button');button.type='button';button.dataset.reaction=kind;
+   if(!state.me||post.username===state.me.username)button.disabled=true;
+   button.setAttribute('aria-pressed','false');
+   button.addEventListener('click',()=>run(async()=>{
+    const selected=button.getAttribute('aria-pressed')==='true';
+    if(selected)await api('/posts/'+post.id+'/reaction','DELETE',{});
+    else await api('/posts/'+post.id+'/reaction','POST',{reaction:kind});
+    await loadReactionSummaries(card);
+   },'Реакция обновлена'));
+   reactions.append(button);
+  }
+  card.append(reactions);
+ }
  const actions=node('div','','post-actions');
  if(own){
   if(post.status!=='hidden'){
@@ -963,6 +1004,7 @@ async function feed(reset=true){
  const result=await api((state.feedScope==='following'?'/feed/following?':'/posts?')+params.toString());
  const wrap=$('feed-list');if(reset)clear(wrap);
  for(const post of result.items)wrap.append(postCard(post));
+ await loadReactionSummaries(wrap);
  state.cursor=result.nextCursor;
  $('more').hidden=!state.cursor;
  if(reset&&!result.items.length){
@@ -974,6 +1016,7 @@ async function feed(reset=true){
 async function myPosts(){
  const result=await api('/me/posts'),wrap=$('my-posts');clear(wrap);
  for(const post of result.items)wrap.append(postCard(post,true));
+ await loadReactionSummaries(wrap);
  if(!result.items.length)wrap.append(systemNode('p','dynamic.drafts.empty','Черновиков пока нет.'));
 }
 async function sponsors(){
