@@ -287,8 +287,8 @@ def build() -> dict:
             'production-no-go', 'href="./social.html"',
             'href="./cinema-pilot.html"', 'href="./creator.html"')):
         raise RuntimeError("R141 ecosystem page incomplete")
-    if 'href="./ecosystem.html"' not in html:
-        raise RuntimeError("R141 ecosystem not discoverable from MARCOSA home")
+    if 'href="./ecosystem.html"' in html:
+        raise RuntimeError("R142 mixed source catalogue must not appear in primary MARCOSA navigation")
     manifest = {"release_kind": "public_static_preview_only", "files": {}}
     tmp = Path(tempfile.mkdtemp(prefix=".dist-pending-", dir=ROOT))
     try:

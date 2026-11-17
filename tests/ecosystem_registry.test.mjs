@@ -49,7 +49,9 @@ test('R141 connects real MARCOSA preview routes, not fictitious app endpoints', 
   }
   assert.ok(page.includes('src="./ecosystem.js"'));
   assert.ok(page.includes('href="./ecosystem.css"'));
-  assert.ok(home.includes('href="./ecosystem.html"'));
+  assert.doesNotMatch(home, /href="\.\/ecosystem\.html"/);
+  assert.match(build, /mixed source catalogue must not appear in primary MARCOSA navigation/);
+  assert.match(page, /production-no-go/);
   for (const file of ['ecosystem.html', 'ecosystem.css', 'ecosystem.js', 'ecosystem-manifest.json']) {
     assert.ok(build.includes('"' + file + '"'), 'Missing static allowlist file ' + file);
   }

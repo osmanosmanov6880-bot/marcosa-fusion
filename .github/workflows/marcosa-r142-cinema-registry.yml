@@ -1,0 +1,42 @@
+name: "MARCOSA | R142 source-verified cinema preview registry (NO PRODUCTION)"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "inventory/cinema_preview_registry_r142.json"
+      - "inventory/film-sites.csv"
+      - "site/cinema-pilot.js"
+      - "tests/cinema_preview_registry_r142.test.mjs"
+      - ".github/workflows/marcosa-r142-cinema-registry.yml"
+  push:
+    branches: [main]
+    paths:
+      - "inventory/cinema_preview_registry_r142.json"
+      - "inventory/film-sites.csv"
+      - "site/cinema-pilot.js"
+      - "tests/cinema_preview_registry_r142.test.mjs"
+      - ".github/workflows/marcosa-r142-cinema-registry.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: marcosa-r142-cinema-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  source-and-domain-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check source-backed preview records and unverified domain slots
+        run: |
+          set -euo pipefail
+          node --test tests/cinema_preview_registry_r142.test.mjs
+          echo "R142_CINEMA_PREVIEW_SOURCE_CHECK=PASS"
+          echo "R142_EXTERNAL_FILM_DOMAINS_VERIFIED=0"
+          echo "R142_PRODUCTION_AUTHORIZED=NO"

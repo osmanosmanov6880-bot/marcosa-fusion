@@ -16,11 +16,14 @@ test('R23 replaces the visual homepage with a social-first editorial experience'
   assert.ok(html.includes(marker),'missing new real element: '+marker);
  assert.match(html,/Место, где/);
  assert.match(html,/Открыть сообщество/);
- assert.equal((html.match(/data-q23-search=/g)||[]).length,5);
- // R141 extends the R23 directory but must preserve each original route.
- for(const route of ['social.html','cinema-pilot.html','creator.html','source-hub.html','ecosystem.html']){
-  assert.ok(html.includes('href="./'+route+'"'),'lost or missing homepage route: '+route);
+ assert.equal((html.match(/data-q23-search=/g)||[]).length,4);
+ // R142 removes the mixed source catalogue from primary navigation while preserving the page files for rollback.
+ for(const route of ['social.html','cinema-pilot.html','creator.html','source-hub.html']){
+  assert.ok(html.includes('href="./'+route+'"'),'lost or missing primary route: '+route);
  }
+ assert.equal(html.includes('href="./ecosystem.html"'),false,'mixed catalogue must stay out of primary navigation');
+ for(const name of ['ecosystem.html','ecosystem.css','ecosystem.js','ecosystem-manifest.json'])
+  assert.ok(read(name),'catalogue source must remain available for rollback');
 
  for(const unused of ['50K+','12K+','1M+'])assert.equal(html.includes(unused),false);
  assert.ok(html.includes('id="mn-dialog"'),'existing live source-network tools cannot be deleted');

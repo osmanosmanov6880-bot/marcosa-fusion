@@ -1,0 +1,82 @@
+{
+  "schema": "marcosa-cinema-preview-registry/v1",
+  "release": "R142",
+  "scope": "MARCOSA static preview only",
+  "external_domains_verified": 0,
+  "commercial_rights": "pending review",
+  "source_policy": "record only preview routes and source references supported by the MARCOSA codebase; never infer an external domain from a source repository",
+  "records": [
+    {
+      "slug": "internet-v-humanity",
+      "title": "THE INTERNET v. HUMANITY",
+      "preview_route": "/film-internet-v-humanity.html",
+      "source_type": "repository_snapshot",
+      "source_reference": "osmanosmanov6880-bot/internet-v-humanity@4c492d30656d16a908f0dbd851a703f815b2d34e",
+      "evidence": "inventory/playable_cinema_r16.json",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    },
+    {
+      "slug": "protocol-zero",
+      "title": "PROTOCOL ZERO — Наследники сигнала",
+      "preview_route": "/film-protocol-zero.html",
+      "source_type": "repository_snapshot",
+      "source_reference": "osmanosmanov6880-bot/protocol-zero@0f1841c0e56e47f7413bea9948e66200409e7a7a",
+      "evidence": "inventory/playable_cinema_r16.json; R18 source-pinned build",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    },
+    {
+      "slug": "adverse-judge",
+      "title": "ADVERSE JUDGE — THE TRIAL OF PROMISES",
+      "preview_route": "/film-adverse-judge.html",
+      "source_type": "repository_snapshot",
+      "source_reference": "osmanosmanov6880-bot/adverse-judge@f48a00510984a3da2d5527cd01ef8a51f102881e",
+      "evidence": "inventory/playable_cinema_r16.json; R18 source-pinned build",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    },
+    {
+      "slug": "signal-worlds",
+      "title": "SIGNAL WORLDS — Сигнал из будущего",
+      "preview_route": "/film-signal-worlds.html",
+      "source_type": "archive_derived_snapshot",
+      "source_reference": "SIGNAL_WORLDS_v1.0.0/public/cinema/",
+      "evidence": "inventory/playable_cinema_r19.json",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    },
+    {
+      "slug": "opspilot",
+      "title": "OpsPilot Spectrum — Сигнал 04:17",
+      "preview_route": "/film-opspilot.html",
+      "source_type": "archive_derived_snapshot",
+      "source_reference": "Cinema_Standalone/",
+      "evidence": "inventory/playable_cinema_r19.json",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    },
+    {
+      "slug": "intentgraph",
+      "title": "IntentGraph Cosmic — Сигнал среди миллиардов",
+      "preview_route": "/film-intentgraph.html",
+      "source_type": "archive_derived_snapshot",
+      "source_reference": "IntentGraph_Cosmic_ONE_v4.5/web/cinema/",
+      "evidence": "inventory/playable_cinema_r19.json",
+      "external_domain": null,
+      "rights_status": "pending",
+      "production_verified": false
+    }
+  ],
+  "unverified_external_site_slots": {
+    "file": "inventory/film-sites.csv",
+    "count": 43,
+    "status": "unverified_missing_domain",
+    "included_as_launch_targets": false
+  }
+}

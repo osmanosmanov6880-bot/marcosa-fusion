@@ -15,8 +15,8 @@
  <a class="so-brand m-orbit-identity" href="./index.html" aria-label="MARCOSA — Network OS">
   <img src="./marcosa-mark.svg" width="46" height="46" alt=""><span>MARCOSA<small>THE SOCIAL EDITION / COMMUNITY</small></span>
  </a>
- <nav class="so-main-nav" aria-label="Основные разделы"><a href="./index.html">МИРЫ</a><a href="./cinema-pilot.html">КИНОТЕАТР</a><a href="./creator.html">СТУДИЯ</a></nav>
- <span class="so-live"><i aria-hidden="true"></i> PRIVATE NOTES / PUBLIC PREVIEW</span>
+ <nav class="so-main-nav" aria-label="Основные разделы"><a href="#so-feed">ЛЕНТА</a><a href="#so-circles">КРУГИ</a><a href="#so-creators">АВТОРЫ</a></nav>
+ <span class="so-live"><i aria-hidden="true"></i> SOCIAL PREVIEW · БЕТА НЕ ПОДКЛЮЧЕНА</span>
 </header>
 <main>
 <section class="so-hero" aria-labelledby="so-main-title">
@@ -25,7 +25,7 @@
   <h1 id="so-main-title">Каждая идея<br>достойна <em>внимания.</em></h1>
   <p>Открывай истории, сохраняй то, что вдохновляет, и начинай собственные проекты. Спокойное пространство для интересных людей и содержательных идей.</p>
   <div class="so-hero-actions"><a class="so-primary" href="#so-feed">СМОТРЕТЬ ЛЕНТУ ↗</a><a class="so-outline" href="#so-draft">НАПИСАТЬ ЗАМЕТКУ</a></div>
-  <p class="so-honesty">Публичное превью: аккаунты, публикация постов и сообщения пока не подключены. Личные заметки хранятся только на вашем устройстве.</p>
+  <p class="so-honesty">Это визуальное превью: регистрация, публикация, подписки и сообщения не подключены. Не создавай здесь ожидание работающего аккаунта.</p>
  </div>
  <div class="so-art" aria-hidden="true">
   <span class="so-art-sun"></span><span class="so-art-ring"></span>
@@ -43,20 +43,20 @@
  <aside class="so-side" aria-label="Разделы социальной платформы">
   <h2>ВАШЕ ПРОСТРАНСТВО</h2>
   <a class="active" href="#so-feed"><span>✧</span> ЛЕНТА</a>
-  <a href="./cinema-pilot.html"><span>▶</span> КИНОМИРЫ</a>
-  <a href="./creator.html"><span>✦</span> СОЗДАНИЕ ИСТОРИЙ</a>
-  <a href="./source-hub.html"><span>◎</span> ПРОЕКТЫ И КОД</a>
+  <a href="#so-circles" id="so-circles"><span>◉</span> ТЕМАТИЧЕСКИЕ КРУГИ</a>
+  <a href="#so-creators" id="so-creators"><span>✦</span> АВТОРЫ И ИСТОРИИ</a>
+  <a href="#so-feed"><span>⌕</span> ИНТЕРЕСНОЕ</a>
   <a href="#so-draft"><span>✎</span> ЛИЧНЫЕ ЗАМЕТКИ</a>
-  <div class="so-side-note">01 / ОБЩИЙ БРЕНД<br>Разные миры. Один MARCOSA.</div>
+  <div class="so-side-note">MARCOSA<br>Люди · Истории · Сообщества</div>
  </aside>
  <section class="so-stream" id="so-feed" aria-labelledby="so-feed-title">
-  <div class="so-stream-head"><div><p class="so-overline">MARCOSA / ЛЕНТА ИЗ РЕАЛЬНЫХ ИСТОЧНИКОВ</p><h2 id="so-feed-title">Истории и идеи <em>в центре внимания.</em></h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">4 проекта</span></div>
-  <div class="so-search-wrap"><label for="so-search" class="so-search-label">ПОИСК ПО МИРАМ</label><input id="so-search" type="search" placeholder="Кино, студия, Signal, проекты…" autocomplete="off" maxlength="80"></div>
-  <div class="so-filters" role="group" aria-label="Фильтры ленты">
-   <button type="button" class="active" data-so-filter="all" aria-pressed="true">ВСЕ МИРЫ</button>
+  <div class="so-stream-head"><div><p class="so-overline">MARCOSA / СОЦИАЛЬНЫЙ ПРЕДПРОСМОТР</p><h2 id="so-feed-title">Лента <em>для своих интересов.</em></h2></div><span class="so-stream-count" id="so-count" role="status" aria-live="polite">ДЕМО-КАРТОЧКИ</span></div>
+  <div class="so-search-wrap"><label for="so-search" class="so-search-label">ПОИСК ПО ИНТЕРЕСАМ</label><input id="so-search" type="search" placeholder="Фото, путешествия, творчество…" autocomplete="off" maxlength="80"></div>
+  <div class="so-filters" role="group" aria-label="Фильтры тематического контента">
+   <button type="button" class="active" data-so-filter="all" aria-pressed="true">ВСЕ ИНТЕРЕСЫ</button>
    <button type="button" data-so-filter="cinema" aria-pressed="false">КИНО</button>
    <button type="button" data-so-filter="create" aria-pressed="false">ТВОРЧЕСТВО</button>
-   <button type="button" data-so-filter="source" aria-pressed="false">ПРОЕКТЫ</button>
+   <button type="button" data-so-filter="source" aria-pressed="false">СООБЩЕСТВА</button>
    <button type="button" data-so-filter="saved" aria-pressed="false">СОХРАНЁННОЕ</button>
   </div>
   <article class="so-personal-note" id="so-personal-note" aria-labelledby="so-personal-note-title" hidden>
@@ -183,6 +183,6 @@
  </div>
 </section>
 </main>
-<footer class="so-footer">© MARCOSA / SOCIAL CORE · PUBLIC VISUAL EXPERIENCE <span>NO ACCOUNTS · NO THIRD-PARTY TRACKERS · NO FAKE FOLLOWERS</span></footer>
+<footer class="so-footer">© MARCOSA · СОЦИАЛЬНАЯ СЕТЬ · ВИЗУАЛЬНОЕ ПРЕВЬЮ <span>NO ACCOUNTS · NO THIRD-PARTY TRACKERS · NO FAKE FOLLOWERS</span></footer>
 </div>
 </body></html>
