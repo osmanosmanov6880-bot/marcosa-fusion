@@ -1,0 +1,73 @@
+name: "MARCOSA | R152 offline creator and recovery gates"
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "codex/**"
+    paths:
+      - "ops/payment-contract/**"
+      - "ops/test/r152.disaster-recovery.test.mjs"
+      - "ops/staging/r152-readiness.*"
+      - ".github/workflows/marcosa-r152-readiness.yml"
+  pull_request:
+    paths:
+      - "ops/payment-contract/**"
+      - "ops/test/r152.disaster-recovery.test.mjs"
+      - "ops/staging/r152-readiness.*"
+      - ".github/workflows/marcosa-r152-readiness.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-creator-finance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check creator accounting syntax
+        run: |
+          node --check ops/payment-contract/creator-earnings-r152.mjs
+          node --check ops/payment-contract/creator-earnings-r152.test.mjs
+      - name: Verify R76 paid receipts, R86 refunds and R152 creator reconciliation
+        run: |
+          node --test ops/payment-contract/stripe-sandbox-contract.test.mjs
+          node --test ops/payment-contract/offline-refund-reconciliation.test.mjs
+          node --test ops/payment-contract/creator-earnings-r152.test.mjs
+
+  isolated-disaster-recovery:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate create-only backups and creator-aware restore
+        run: |
+          node --test ops/test/local-backup-restore.test.mjs
+          node --test ops/test/r152.disaster-recovery.test.mjs
+
+  staging-preflight-no-deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify fail-closed release contract
+        run: |
+          node --test ops/staging/r152-readiness.test.mjs
+          node ops/staging/r152-readiness.mjs
