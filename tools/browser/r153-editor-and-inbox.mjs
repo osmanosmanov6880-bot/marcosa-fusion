@@ -4,6 +4,7 @@
  */
 import {chromium} from 'playwright';
 import {createApp} from '../../server-lab/server.mjs';
+import {onEpisode} from '../../server-lab/series-subscriptions.mjs';
 import {mkdtemp,mkdir,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
@@ -28,7 +29,8 @@ try{
   const creds={username:name,email:name+'@example.invalid',password:'long-r153-playwright-password',inviteCode:'r153-chromium-editor-invite'};
   await api('/auth/register',{method:'POST',body:creds});
   const login=await api('/auth/login',{method:'POST',body:creds});
-  return{cookie:login.cookie,world:(await api('/auth/me',{cookie:login.cookie})).json.worlds[0].id};
+  const me=(await api('/auth/me',{cookie:login.cookie})).json;
+  return{cookie:login.cookie,world:me.worlds[0].id,userId:me.user.id};
  }
  browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
  for(const {size,width,height} of [
@@ -110,7 +112,19 @@ try{
   await readerPage.locator('#series-tools').getByRole('button',{name:/я посмотрел выпуск/}).first().waitFor({timeout:12000});
   ensure(!(await api(route+'/metrics/attendance',{cookie:reader.cookie})).json.episodes[0].marked,
    'Reader failed to remove voluntary attendance mark');
-  for(let i=0;i<23;i++)await publish('R153 new subscriber chapter '+i+' '+size);
+  // Keep ordinary editorial actions through HTTP, but seed the large inbox
+  // pagination fixture directly to avoid bypassing the real anti-spam budget.
+  const seriesId=app.db.prepare('SELECT id FROM series WHERE slug=?').get(slug).id;
+  const insertPost=app.db.prepare("INSERT INTO posts(world_id,author_id,body,status,created_at,updated_at) VALUES(?,?,?,'published',?,?)");
+  const insertEpisode=app.db.prepare('INSERT INTO series_episodes(series_id,post_id,position,title,created_at) VALUES(?,?,?,?,?)');
+  let position=app.db.prepare('SELECT COALESCE(MAX(position),0) AS n FROM series_episodes WHERE series_id=?').get(seriesId).n;
+  for(let i=0;i<23;i++){
+   const title='R153 new subscriber chapter '+i+' '+size;
+   const stamp=Date.now()+i;
+   const postId=Number(insertPost.run(author.world,author.userId,title,stamp,stamp).lastInsertRowid);
+   const episodeId=Number(insertEpisode.run(seriesId,postId,++position,title,stamp).lastInsertRowid);
+   onEpisode(app.db,seriesId,episodeId);
+  }
   await readerPage.goto(base+'/series',{waitUntil:'domcontentloaded'});
   const more=readerPage.getByRole('button',{name:'Показать ещё'});
   await more.waitFor({timeout:12000});
