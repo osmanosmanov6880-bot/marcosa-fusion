@@ -152,6 +152,7 @@ const CATALOG=Object.freeze({
  "dynamic.world.block":["Заблокировать @","Block @"],
  "dynamic.discussion.title":["Обсуждение","Discussion"],
  "reaction.like":["Нравится","Like"],
+ "reaction.group":["Реакции на публикацию","Reactions to this post"],
  "reaction.insightful":["Полезно","Helpful"],
  "reaction.support":["Поддерживаю","Support"],
  "reaction.celebrate":["Поздравляю","Celebrate"],
