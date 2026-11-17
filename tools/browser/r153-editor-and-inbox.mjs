@@ -64,11 +64,15 @@ try{
   ]);
   ensure((await api(route,{cookie:author.cookie})).json.series.title==='R153 Edited Season',
    'Metadata title was not persisted');
+  await page.locator('#episode-editor').evaluate(el=>{el.closest('details').open=true});
   const list=page.locator('#episode-editor li');
-  await list.first().getByRole('button',{name:'Ниже'}).click();
-  await page.waitForLoadState('domcontentloaded');
+  await Promise.all([
+   page.waitForNavigation({waitUntil:'domcontentloaded',timeout:15000}),
+   list.first().getByRole('button',{name:'Ниже'}).click()
+  ]);
   let episodes=(await api(route,{cookie:author.cookie})).json.episodes;
   ensure(episodes[0].id===posts[1].episodeId,'Editorial order not persisted');
+  await page.locator('#episode-editor').evaluate(el=>{el.closest('details').open=true});
   const edit=page.locator('#episode-editor li').first();
   await edit.locator('input').fill('R153 Updated Chapter');
   await Promise.all([
@@ -77,6 +81,7 @@ try{
   ]);
   episodes=(await api(route,{cookie:author.cookie})).json.episodes;
   ensure(episodes[0].title==='R153 Updated Chapter','Episode rename not persisted');
+  await page.locator('#episode-editor').evaluate(el=>{el.closest('details').open=true});
   page.once('dialog',dialog=>dialog.accept());
   await Promise.all([
    page.waitForNavigation({waitUntil:'domcontentloaded',timeout:15000}),
