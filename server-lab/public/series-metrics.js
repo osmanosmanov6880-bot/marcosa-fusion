@@ -40,6 +40,8 @@
    for (const e of data.episodes) {
     const control=button(e.title+(e.marked?' · отмечено':' · я посмотрел выпуск'),()=>api('/attendance','POST',{episodeId:e.id,consent:true}));
     control.disabled=e.marked;section.append(control);
+    if(e.marked) section.append(button('Снять отметку с выпуска «'+e.title+'»',
+      ()=>api('/attendance/'+e.id,'DELETE',{})));
    }
    if (data.episodes.some(e=>e.marked)) section.append(button('Удалить мои отметки',()=>api('/attendance','DELETE',{})));
   }

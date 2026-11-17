@@ -61,6 +61,21 @@ export async function handleMetrics(ctx) {
   res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8'});
   res.end(await readFile(script)); return true;
  }
+ // Allow a reader to withdraw exactly ONE voluntary mark even after losing access.
+ const single=route.match(/^\/api\/series\/([a-z][a-z0-9-]{2,47})\/metrics\/attendance\/([1-9][0-9]{0,14})$/);
+ if(single){
+  check(method==='DELETE',405,'Метод недоступен');
+  const actor=user||viewer;
+  check(actor?.id,401,'Войдите в аккаунт');
+  check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===0,
+   400,'Удаление не принимает дополнительные поля');
+  const episodeId=Number(single[2]);
+  check(Number.isSafeInteger(episodeId),400,'Неверный номер эпизода');
+  const removed=db.prepare(`DELETE FROM series_attendance WHERE episode_id=? AND viewer_id=?
+   AND EXISTS(SELECT 1 FROM series_episodes e JOIN series s ON s.id=e.series_id
+   WHERE e.id=series_attendance.episode_id AND s.slug=?)`).run(episodeId,actor.id,single[1]).changes;
+  send(res,200,{removed:true,erased:removed===1},{'Cache-Control':'private, no-store'});return true;
+ }
  const routeMatch=route.match(/^\/api\/series\/([a-z0-9-]+)\/metrics(?:\/(attendance|effort))?$/);
  if (!routeMatch) return false;
  const [,slug,action] = routeMatch;
@@ -69,6 +84,8 @@ export async function handleMetrics(ctx) {
  const erase=action==='attendance' && method==='DELETE';
  // Members can revoke their own marks even after losing access to the season.
  if (erase) {
+  check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===0,
+   400,'Удаление не принимает дополнительные поля');
   db.prepare('DELETE FROM series_attendance WHERE viewer_id=? AND episode_id IN (SELECT e.id FROM series_episodes e JOIN series s ON s.id=e.series_id WHERE s.slug=?)').run(actor.id,slug);
   send(res,200,{removed:true});return true;
  }
