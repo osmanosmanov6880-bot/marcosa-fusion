@@ -240,4 +240,8 @@ The existing lab UI now includes a responsive inbox, direct-request flow, group 
 
 The existing account model now supports editable public/private author profiles, public profile discovery, direct share pages, and profile data export. Profile visibility does not override the independent visibility of each World or post. Implementation boundary and validation: [`docs/MARCOSA_R144_AUTHOR_PROFILES_RU.md`](docs/MARCOSA_R144_AUTHOR_PROFILES_RU.md), [`server-lab/test/r144.profiles.test.mjs`](server-lab/test/r144.profiles.test.mjs).
 
+## R145 — people follow graph and consent for private profiles
+
+Person follows are independent of World follows. Public follows activate immediately; a private profile requires owner approval, accepted follows contribute creator posts to the Following feed, and bilateral blocks remove user-follow edges. Implementation and test boundary: [`docs/MARCOSA_R145_PEOPLE_FOLLOW_GRAPH_RU.md`](docs/MARCOSA_R145_PEOPLE_FOLLOW_GRAPH_RU.md), [`server-lab/test/r145.user_follows.test.mjs`](server-lab/test/r145.user_follows.test.mjs).
+
 This is **not production messaging**: no Supabase/PostgreSQL deployment, media attachments, push/email delivery, guaranteed encryption or public API. The server remains loopback-only; static preview and real MARCOSA production remain unchanged.
