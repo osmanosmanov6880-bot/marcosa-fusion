@@ -1,0 +1,242 @@
+{
+  "schema": "marcosa-ecosystem-public-sources/v1",
+  "snapshotDate": "2026-11-17",
+  "source": "GitHub repository metadata observed via connected account",
+  "scope": "public_source_directory_only",
+  "productionAuthorized": false,
+  "legacyReplacementAuthorized": false,
+  "integratedProductionAppsVerified": 0,
+  "repositoryCount": 23,
+  "entries": [
+    {
+      "repository": "marcosa-fusion",
+      "title": "MARCOSA FUSION",
+      "category": "platform",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/marcosa-fusion",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osmanx-world",
+      "title": "OSMANX WORLD",
+      "category": "platform",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osmanx-world",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osmanx-omnichat",
+      "title": "OSMANX OMNICHAT",
+      "category": "business",
+      "sourceStatus": "docs",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osmanx-omnichat",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osmanx-app-factory",
+      "title": "OSMANX APP FACTORY",
+      "category": "business",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osmanx-app-factory",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osmanx-retail-intelligence",
+      "title": "OSMANX RETAIL INTELLIGENCE",
+      "category": "business",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osmanx-retail-intelligence",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osgard-world",
+      "title": "OSGARD WORLD",
+      "category": "worlds",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osgard-world",
+      "sourceBranch": "master",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osgard-universe",
+      "title": "OSGARD UNIVERSE",
+      "category": "worlds",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osgard-universe",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osgard-empire",
+      "title": "OSGARD EMPIRE",
+      "category": "worlds",
+      "sourceStatus": "stub",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osgard-empire",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "zion-9-worlds",
+      "title": "ZION-9 WORLDS",
+      "category": "worlds",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/zion-9-worlds",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "SkillCred",
+      "title": "SKILLCRED",
+      "category": "business",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/SkillCred",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "BRUMO.CLUB",
+      "title": "BRUMO CLUB",
+      "category": "platform",
+      "sourceStatus": "docs",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/BRUMO.CLUB",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osa-global-intelligence",
+      "title": "OSA GLOBAL INTELLIGENCE",
+      "category": "research",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osa-global-intelligence",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "osa-global-intelligence-2",
+      "title": "OSA GLOBAL INTELLIGENCE 2",
+      "category": "research",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/osa-global-intelligence-2",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "proofos-global-intelligence",
+      "title": "PROOFOS GLOBAL INTELLIGENCE",
+      "category": "research",
+      "sourceStatus": "stub",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/proofos-global-intelligence",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "universa-work",
+      "title": "UNIVERSA WORK",
+      "category": "business",
+      "sourceStatus": "stub",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/universa-work",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "impossible-ventures",
+      "title": "IMPOSSIBLE VENTURES",
+      "category": "worlds",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/impossible-ventures",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "breakthrough-engineering-adventure",
+      "title": "BREAKTHROUGH ENGINEERING",
+      "category": "worlds",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/breakthrough-engineering-adventure",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "adverse-judge",
+      "title": "ADVERSE JUDGE",
+      "category": "cinema",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/adverse-judge",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "protocol-zero",
+      "title": "PROTOCOL ZERO",
+      "category": "cinema",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/protocol-zero",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "internet-v-humanity",
+      "title": "THE INTERNET v. HUMANITY",
+      "category": "cinema",
+      "sourceStatus": "source",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/internet-v-humanity",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "impossible-ventures-cinematic-engine",
+      "title": "IMPOSSIBLE CINEMATIC ENGINE",
+      "category": "cinema",
+      "sourceStatus": "docs",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/impossible-ventures-cinematic-engine",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "remix-arena",
+      "title": "REMIX ARENA",
+      "category": "worlds",
+      "sourceStatus": "stub",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/remix-arena",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    },
+    {
+      "repository": "-",
+      "title": "UNTITLED REPOSITORY",
+      "category": "research",
+      "sourceStatus": "stub",
+      "sourceUrl": "https://github.com/osmanosmanov6880-bot/-",
+      "sourceBranch": "main",
+      "productionVerified": false,
+      "marcosaRuntimeIntegrated": false
+    }
+  ]
+}

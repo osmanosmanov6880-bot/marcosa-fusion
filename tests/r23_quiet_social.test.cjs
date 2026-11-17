@@ -16,7 +16,12 @@ test('R23 replaces the visual homepage with a social-first editorial experience'
   assert.ok(html.includes(marker),'missing new real element: '+marker);
  assert.match(html,/Место, где/);
  assert.match(html,/Открыть сообщество/);
- assert.equal((html.match(/data-q23-search=/g)||[]).length,4);
+ assert.equal((html.match(/data-q23-search=/g)||[]).length,5);
+ // R141 extends the R23 directory but must preserve each original route.
+ for(const route of ['social.html','cinema-pilot.html','creator.html','source-hub.html','ecosystem.html']){
+  assert.ok(html.includes('href="./'+route+'"'),'lost or missing homepage route: '+route);
+ }
+
  for(const unused of ['50K+','12K+','1M+'])assert.equal(html.includes(unused),false);
  assert.ok(html.includes('id="mn-dialog"'),'existing live source-network tools cannot be deleted');
  assert.ok(html.includes('id="m22-experience"'),'preserve previous source for rollback');

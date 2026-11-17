@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru" data-m-world="ecosystem">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#070b13">
+  <meta name="marcosa-release-scope" content="public-source-catalogue-only; production-no-go">
+  <meta name="description" content="MARCOSA ECOSYSTEM: проверенный реестр публичных GitHub-исходников и работающие локальные разделы MARCOSA. Никаких ложных заявлений о production.">
+  <title>MARCOSA — Ecosystem / All Worlds</title>
+  <link rel="icon" href="./marcosa-mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./ecosystem.css">
+  <script src="./ecosystem.js" defer></script>
+</head>
+<body>
+<div class="ec-shell">
+  <header class="ec-header">
+    <a class="ec-logo" href="./index.html" aria-label="MARCOSA — главная"><img src="./marcosa-mark.svg" alt="" width="40" height="40"><span>MARCOSA<small>ECOSYSTEM / PREVIEW</small></span></a>
+    <nav aria-label="Навигация"><a href="./index.html">Главная</a><a href="./social.html">Сообщество</a><a href="./cinema-pilot.html">Кино</a><a href="./creator.html">Студия</a></nav>
+  </header>
+  <main>
+    <section class="ec-hero" aria-labelledby="ec-title">
+      <p class="ec-eyebrow"><span class="ec-dot" aria-hidden="true"></span> 01 / ЕДИНАЯ ЭКОСИСТЕМА · SOURCE-FIRST</p>
+      <h1 id="ec-title">Разные проекты.<br><em>Одна точка входа.</em></h1>
+      <p class="ec-lead">MARCOSA собирает миры, инструменты, кино и инженерные продукты в одном каталоге. Здесь можно открыть встроенные демоверсии и перейти к подтверждённым публичным исходникам. Наличие исходника ещё не означает, что сервис опубликован.</p>
+      <div class="ec-actions"><a class="ec-primary" href="#ec-projects">Исследовать проекты <span aria-hidden="true">↗</span></a><a class="ec-secondary" href="#ec-live">Открыть встроенные разделы</a></div>
+      <div class="ec-stats" role="group" aria-label="Состояние каталога">
+        <div><strong id="ec-count" aria-live="polite">—</strong><span>публичных репозиториев в снимке</span></div>
+        <div><strong id="ec-code" aria-live="polite">—</strong><span>с материалами для проверки</span></div>
+        <div><strong id="ec-live-count">0</strong><span>подтверждённых внешних production-интеграций</span></div>
+      </div>
+    </section>
+    <section id="ec-live" class="ec-section" aria-labelledby="ec-live-title">
+      <div class="ec-section-heading"><div><p class="ec-eyebrow">02 / ВСТРОЕННОЕ ПРЕВЬЮ</p><h2 id="ec-live-title">Уже внутри MARCOSA</h2></div><p>Локальные функции публичного статического превью — без настоящих аккаунтов, платежей или синхронизации с действующей базой.</p></div>
+      <div class="ec-feature-grid">
+        <a href="./social.html" class="ec-feature"><span class="ec-index">01 · SOCIAL</span><strong>Сообщество</strong><span>Лента, закладки и личные черновики в браузере.</span><i aria-hidden="true">↗</i></a>
+        <a href="./cinema-pilot.html" class="ec-feature"><span class="ec-index">02 · CINEMA</span><strong>Интерактивное кино</strong><span>Автономные истории и разные финалы.</span><i aria-hidden="true">↗</i></a>
+        <a href="./creator.html" class="ec-feature"><span class="ec-index">03 · CREATOR</span><strong>Студия историй</strong><span>Редактор, локальное сохранение и экспорт.</span><i aria-hidden="true">↗</i></a>
+        <a href="./film-network.html" class="ec-feature"><span class="ec-index">04 · FILM NETWORK</span><strong>Связь сюжетов</strong><span>Планирование продолжений и обзор сценариев.</span><i aria-hidden="true">↗</i></a>
+      </div>
+    </section>
+    <section id="ec-projects" class="ec-section" aria-labelledby="ec-project-title">
+      <div class="ec-section-heading"><div><p class="ec-eyebrow">03 / ПУБЛИЧНЫЕ ИСХОДНИКИ</p><h2 id="ec-project-title">Атлас наших проектов</h2></div><p>Записи основаны на метаданных GitHub. Для закрытых репозиториев исходники и адреса намеренно не раскрываются.</p></div>
+      <div class="ec-toolbar">
+        <label class="ec-search"><span class="ec-sr-only">Поиск по проектам</span><input id="ec-search" type="search" maxlength="100" autocomplete="off" placeholder="Найти проект…"></label>
+        <div class="ec-filters" role="group" aria-label="Категория проекта">
+          <button type="button" data-ec-filter="all" aria-pressed="true">Все</button>
+          <button type="button" data-ec-filter="platform" aria-pressed="false">Платформы</button>
+          <button type="button" data-ec-filter="business" aria-pressed="false">Для бизнеса</button>
+          <button type="button" data-ec-filter="worlds" aria-pressed="false">Миры</button>
+          <button type="button" data-ec-filter="cinema" aria-pressed="false">Кино</button>
+          <button type="button" data-ec-filter="research" aria-pressed="false">Исследования</button>
+        </div>
+      </div>
+      <p id="ec-result" class="ec-result" role="status" aria-live="polite">Загрузка реестра…</p>
+      <div class="ec-grid" id="ec-grid" aria-label="Исходники проектов"></div>
+      <p class="ec-disclosure">«Исходники доступны» ≠ «приложение развёрнуто». Отдельные сервисы требуют собственной инфраструктуры, проверки зависимостей, секретов и договорённостей о маршрутах. Ни один внешний проект не помечен работающим на marcosa.club без независимого HTTPS readback.</p>
+    </section>
+    <section class="ec-bottom" aria-labelledby="ec-next-title">
+      <p class="ec-eyebrow">04 / RELEASE BOUNDARY</p><h2 id="ec-next-title">Сначала доказательства. Затем публикация.</h2>
+      <p>Главный marcosa.club и его legacy-приложение, аккаунты и Supabase не затрагиваются этой страницей. Новый код попадает только в публичный preview и изолированный STAGING после прохождения GitHub Actions. Подмена основного production запрещена без проверенного восстановления данных, legacy-совместимости и отдельного человеческого GO.</p>
+    </section>
+  </main>
+  <footer><span>MARCOSA / ECOSYSTEM R141</span><span>PUBLIC SOURCE DIRECTORY · NO PRODUCTION CUTOVER</span><a href="./index.html">Вернуться на главную</a></footer>
+</div>
+</body>
+</html>
