@@ -123,7 +123,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 /* R142 social-first navigation and preview treatments */
 .so-main-nav a{letter-spacing:.12em}
 .so-live{max-width:230px;text-align:right;font-size:.62rem;line-height:1.45}
-.so-hero-copy h1{max-width:11ch}
+.so-hero-copy h1{max-width:none}
 .so-side a[href^="#"]{scroll-margin-top:2rem}
 .so-side-note{border-top:1px solid rgba(201,177,126,.22);padding-top:1rem;color:#c8c5c0;line-height:1.8}
 @media(max-width:720px){.so-live{display:none}.so-main-nav{gap:.8rem}.so-main-nav a{font-size:.58rem}}
