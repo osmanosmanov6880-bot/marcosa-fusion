@@ -36,5 +36,12 @@ test('R142 keeps the 43 unverified site slots separate from preview films', () =
   const rows = csv.trim().split(/\r?\n/);
   assert.equal(rows.length, 44);
   assert.ok(rows.slice(1).every(row => /unverified_missing_domain/.test(row)));
-  assert.ok(rows.slice(1).every(row => /^FILM-\d{2},,,,,,,unverified_missing_domain,$/.test(row)));
+  for (const [index, row] of rows.slice(1).entries()) {
+    const columns = row.split(',');
+    assert.equal(columns.length, 8);
+    assert.equal(columns[0], 'FILM-' + String(index + 1).padStart(2, '0'));
+    assert.ok(columns.slice(1, 6).every(value => value === ''));
+    assert.equal(columns[6], 'unverified_missing_domain');
+    assert.equal(columns[7], '');
+  }
 });
