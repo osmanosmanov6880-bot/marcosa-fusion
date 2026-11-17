@@ -498,6 +498,11 @@ dialog form{display:grid;gap:17px}
 .profile-world>a{font:600 19px var(--sans);color:var(--ink)}
 .profile-world p{color:var(--muted);white-space:pre-wrap}
 .profile-world small{color:var(--gold)}
+.profile-follow-action{margin:10px 0 20px;min-width:190px;min-height:44px}
+.follow-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.follow-row>a{min-width:125px;color:var(--gold);font-weight:650}
+.follow-row>small{color:var(--muted);margin-right:auto}
+.user-following-panel,.user-follow-requests-panel{margin-top:16px}
 .profile-post{margin:12px 0}
 .profile-post .eyebrow a,.person-link{color:var(--gold);text-decoration-thickness:1px;text-underline-offset:3px}
 .profile-public-link{overflow-wrap:anywhere}

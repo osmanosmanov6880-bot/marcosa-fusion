@@ -72,6 +72,9 @@ const SCHEMA=[
  'CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT \'member\' CHECK(role IN (\'member\',\'moderator\')), created_at INTEGER NOT NULL)',
  "CREATE TABLE IF NOT EXISTS profile_cards (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,display_name TEXT NOT NULL DEFAULT '' CHECK(length(display_name)<=50),bio TEXT NOT NULL DEFAULT '' CHECK(length(bio)<=400),interests_json TEXT NOT NULL DEFAULT '[]',website TEXT NOT NULL DEFAULT '' CHECK(length(website)<=200),visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private')),updated_at INTEGER NOT NULL)",
  'CREATE INDEX IF NOT EXISTS idx_profile_visibility ON profile_cards(visibility,user_id)',
+ "CREATE TABLE IF NOT EXISTS user_follows (follower_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,followed_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,status TEXT NOT NULL CHECK(status IN ('pending','active','declined')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(follower_id,followed_id),CHECK(follower_id<>followed_id))",
+ 'CREATE INDEX IF NOT EXISTS idx_user_follows_target ON user_follows(followed_id,status,created_at DESC)',
+ 'CREATE INDEX IF NOT EXISTS idx_user_follows_source ON user_follows(follower_id,status,created_at DESC)',
  'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', visibility TEXT NOT NULL DEFAULT \'public\' CHECK(visibility IN (\'public\',\'private\')), created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
@@ -223,7 +226,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   myWorlds:db.prepare('SELECT id,slug,title,description,category,visibility,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover,(SELECT review_status FROM world_covers c WHERE c.world_id=worlds.id) AS coverStatus FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
   feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND (w.visibility='public' OR w.owner_id=?) AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
+  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND (EXISTS(SELECT 1 FROM world_follows wf WHERE wf.world_id=p.world_id AND wf.user_id=?) OR EXISTS(SELECT 1 FROM user_follows uf WHERE uf.followed_id=p.author_id AND uf.follower_id=? AND uf.status='active')) AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
  const readProfile=(userId)=>{
   const row=db.prepare('SELECT display_name AS displayName,bio,interests_json,website,visibility,updated_at AS updatedAt FROM profile_cards WHERE user_id=?').get(userId);
@@ -273,6 +276,13 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  }
  function ensureNoBlock(a,b){
   check(!isBlocked(a,b),403,'Взаимодействие между аккаунтами ограничено');
+ }
+ function userFollowState(followerId,followedId){
+  return db.prepare('SELECT status,created_at AS createdAt FROM user_follows WHERE follower_id=? AND followed_id=?').get(followerId,followedId)||null;
+ }
+ function canReadProfile(viewerId,targetId,visibility){
+  if(visibility==='public'||viewerId===targetId)return true;
+  return Boolean(viewerId&&db.prepare("SELECT 1 FROM user_follows WHERE follower_id=? AND followed_id=? AND status='active'").get(viewerId,targetId));
  }
  function conversationMembers(id){
   return db.prepare('SELECT u.id,u.username,m.role FROM conversation_members m JOIN users u ON u.id=m.user_id WHERE m.conversation_id=? ORDER BY m.joined_at,u.username').all(id);
@@ -345,13 +355,14 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    if(method==='GET'&&profilePage){
     const viewer=who(req)?.id||'';
     const person=db.prepare("SELECT u.id,u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio,COALESCE(p.interests_json,'[]') AS interests_json,COALESCE(p.website,'') AS website,COALESCE(p.visibility,'public') AS visibility FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE u.username=?").get(profilePage[1]);
-    check(person&&(person.visibility==='public'||viewer===person.id)&&(!viewer||!isBlocked(viewer,person.id)),404,'Профиль не найден');
-    const title=htmlAttr(person.display_name||'@'+person.username)+' · MARCOSA';
-    const description=htmlAttr(person.bio||'Профиль участника MARCOSA');
+    check(person&&(!viewer?person.visibility==='public':!isBlocked(viewer,person.id)),404,'Профиль не найден');
+    const profileReadable=canReadProfile(viewer,person.id,person.visibility);
+    const title=htmlAttr(profileReadable?(person.display_name||'@'+person.username):'Закрытый профиль')+' · MARCOSA';
+    const description=htmlAttr(profileReadable?(person.bio||'Профиль участника MARCOSA'):'Этот профиль доступен подписчикам.');
     const canonical=htmlAttr('http://'+verifiedHost+'/u/'+person.username);
     const meta=['<meta name="description" content="'+description+'">','<meta name="robots" content="noindex,nofollow">','<meta property="og:type" content="profile">','<meta property="og:site_name" content="MARCOSA">','<meta property="og:title" content="'+title+'">','<meta property="og:description" content="'+description+'">','<meta property="og:url" content="'+canonical+'">'];
     const template=await readFile(new URL('./public/index.html',import.meta.url),'utf8');
-    const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>').replace('<body>','<body data-profile-page="true" data-profile-user="'+htmlAttr(person.username)+'">').replace('</head>',meta.join('\n')+'\n</head>');
+    const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>').replace('<body>','<body data-profile-page="true" data-profile-user="'+htmlAttr(person.username)+'" data-profile-readable="'+String(profileReadable)+'">').replace('</head>',meta.join('\n')+'\n</head>');
     res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Robots-Tag':'noindex, nofollow','Cache-Control':'private, no-store'});res.end(html);return;
    }
    // R68: real World metadata HTML for shares. Always noindex in this lab.
@@ -410,7 +421,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      foreignKeys=db.prepare('PRAGMA foreign_key_check').all().length===0;
      const names=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name));
      requiredTables=['users','profile_cards','worlds','posts','world_follows','world_covers',
-      'world_cover_rights','reports','profile_cards','pilot_invites','beta_retention_consents',
+      'world_cover_rights','reports','user_follows','pilot_invites','beta_retention_consents',
       'conversations','conversation_members','messages','message_reports']
       .every(name=>names.has(name));
     }catch{
@@ -466,12 +477,18 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    if(method==='GET'&&personRoute){
     const viewer=who(req)?.id||'';
     const person=db.prepare("SELECT u.id,u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio,COALESCE(p.interests_json,'[]') AS interests_json,COALESCE(p.website,'') AS website,COALESCE(p.visibility,'public') AS visibility FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE u.username=?").get(personRoute[1]);
-    check(person&&(person.visibility==='public'||viewer===person.id)&&(!viewer||!isBlocked(viewer,person.id)),404,'Профиль не найден');
+    check(person&&(!viewer?person.visibility==='public':!isBlocked(viewer,person.id)),404,'Профиль не найден');
+    const profileReadable=canReadProfile(viewer,person.id,person.visibility);
+    if(!profileReadable){
+     const relationship=viewer?userFollowState(viewer,person.id):null;
+     send(res,200,{person:{username:person.username,visibility:'private'},relationship:{state:relationship?.status||'none',following:false},worlds:[],posts:[],scope:'private-profile-request',production:false});return;
+    }
     let interests=[];try{interests=JSON.parse(person.interests_json);}catch{}
     const worlds=db.prepare("SELECT slug,title,description,category,(SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers FROM worlds w WHERE w.owner_id=? AND w.visibility='public' ORDER BY w.created_at DESC LIMIT 12").all(person.id);
     const posts=db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? AND p.status='published' AND w.visibility='public' ORDER BY p.id DESC LIMIT 12").all(person.id);
-    const followers=db.prepare("SELECT count(*) AS n FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE w.owner_id=? AND w.visibility='public'").get(person.id).n;
-    send(res,200,{person:{username:person.username,displayName:person.display_name,bio:person.bio,interests:Array.isArray(interests)?interests:[],website:person.website},worlds,posts,followers,scope:'public-profile',production:false});return;
+    const followers=db.prepare("SELECT count(*) AS n FROM user_follows WHERE followed_id=? AND status='active'").get(person.id).n;
+    const relationship=viewer?userFollowState(viewer,person.id):null;
+    send(res,200,{person:{username:person.username,displayName:person.display_name,bio:person.bio,interests:Array.isArray(interests)?interests:[],website:person.website,visibility:person.visibility},relationship:{state:relationship?.status||(viewer===person.id?'owned':'none'),following:relationship?.status==='active'},worlds,posts,followers,scope:'public-profile',production:false});return;
    }
    if(method==='GET'&&route==='/api/people'){
     const raw=str(query.get('q')).normalize('NFC').trim();
@@ -480,13 +497,23 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const people=db.prepare("SELECT u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE COALESCE(p.visibility,'public')='public' AND (?='' OR instr(lower(u.username),lower(?))>0 OR instr(lower(COALESCE(p.display_name,'')),lower(?))>0) AND "+visibleOwner('u.id')+" ORDER BY u.created_at DESC,u.username LIMIT 12").all(raw,raw,raw,viewer,viewer);
     send(res,200,{items:people.map(person=>({username:person.username,displayName:person.display_name,bio:person.bio,url:'/u/'+person.username})),query:raw,scope:'public-people',production:false});return;
    }
+   if(method==='GET'&&route==='/api/me/following'){
+    const owner=requireUser(req);
+    const items=db.prepare("SELECT u.username,COALESCE(p.display_name,'') AS displayName,COALESCE(p.bio,'') AS bio,uf.status,uf.created_at AS createdAt FROM user_follows uf JOIN users u ON u.id=uf.followed_id LEFT JOIN profile_cards p ON p.user_id=u.id WHERE uf.follower_id=? AND uf.status IN ('active','pending') ORDER BY uf.updated_at DESC,u.username LIMIT 100").all(owner.id);
+    send(res,200,{items:items.map(item=>({...item,url:'/u/'+item.username})),scope:'self',production:false});return;
+   }
+   if(method==='GET'&&route==='/api/me/follow-requests'){
+    const owner=requireUser(req);
+    const items=db.prepare("SELECT u.username,uf.created_at AS createdAt FROM user_follows uf JOIN users u ON u.id=uf.follower_id WHERE uf.followed_id=? AND uf.status='pending' AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=uf.follower_id) OR (b.blocker_id=uf.follower_id AND b.blocked_id=?)) ORDER BY uf.created_at ASC LIMIT 100").all(owner.id,owner.id,owner.id);
+    send(res,200,{items,scope:'self',production:false});return;
+   }
    if(method==='GET'&&route==='/api/feed/following'){
     const user=requireUser(req);
     const limit=Number(query.get('limit')||12);
     check(Number.isInteger(limit)&&limit>=1&&limit<=30,400,'Неверный размер страницы');
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
-    send(res,200,{...page(stmt.following.all(user.id,user.id,user.id,cursor,limit+1),limit),scope:'following'});return;
+    send(res,200,{...page(stmt.following.all(user.id,user.id,user.id,user.id,cursor,limit+1),limit),scope:'following'});return;
    }
    if(method==='GET'&&route==='/api/posts'){
     const limit=Number(query.get('limit')||12);
@@ -836,6 +863,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     // All rows are owner-bound; never include password hashes or session tokens.
     const worlds=stmt.myWorlds.all(user.id);
     const profile=readProfile(user.id);
+    const userFollows=db.prepare("SELECT source.username AS username,CASE WHEN uf.follower_id=? THEN 'following' ELSE 'follower' END AS direction,uf.status,uf.created_at AS createdAt FROM user_follows uf JOIN users source ON source.id=CASE WHEN uf.follower_id=? THEN uf.followed_id ELSE uf.follower_id END WHERE uf.follower_id=? OR uf.followed_id=? ORDER BY uf.created_at ASC").all(user.id,user.id,user.id,user.id);
     const posts=db.prepare('SELECT id,world_id,body,status,created_at,updated_at FROM posts WHERE author_id=? ORDER BY id ASC').all(user.id);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
@@ -856,7 +884,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     const privateMessages=db.prepare("SELECT m.conversation_id AS conversationId,m.sender_id AS senderId,u.username AS sender,m.body,m.status,m.created_at AS createdAt FROM messages m JOIN users u ON u.id=m.sender_id JOIN conversation_members mine ON mine.conversation_id=m.conversation_id WHERE mine.user_id=? ORDER BY m.id").all(user.id);
     const messageReports=db.prepare("SELECT r.message_id AS messageId,r.reason,r.detail,r.status,r.created_at AS createdAt FROM message_reports r WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},profile,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
+      user:{id:user.id,username:user.username,email:user.email},profile,userFollows,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -1426,6 +1454,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
      // block action to the blocked user or forging new notifications.
      db.prepare("DELETE FROM world_follows WHERE (user_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)) OR (user_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?))")
       .run(user.id,target.id,target.id,user.id);
+     db.prepare('DELETE FROM user_follows WHERE (follower_id=? AND followed_id=?) OR (follower_id=? AND followed_id=?)')
+      .run(user.id,target.id,target.id,user.id);
      db.prepare("DELETE FROM activity_events WHERE (recipient_id=? AND actor_id=?) OR (recipient_id=? AND actor_id=?)")
       .run(user.id,target.id,target.id,user.id);
      db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE status IN ('pending_creator','pending_review','approved') AND ((owner_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)) OR (owner_id=? AND world_id IN (SELECT id FROM worlds WHERE owner_id=?)))")
@@ -1433,6 +1463,39 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
      return inserted;
     });
     send(res,result.changes?201:200,{username:target.username,blocked:true,changed:Boolean(result.changes)});return;
+   }
+   const personFollow=route.match(/^\/api\/users\/([a-z][a-z0-9_]{2,23})\/follow$/);
+   if(personFollow&&(method==='POST'||method==='DELETE')){
+    throttle('user-follow:'+user.id,80,3600000);
+    const target=db.prepare("SELECT u.id,u.username,COALESCE(p.visibility,'public') AS visibility FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE u.username=?").get(personFollow[1]);
+    check(target,404,'Участник не найден');
+    check(target.id!==user.id,400,'Нельзя подписаться на себя');
+    ensureNoBlock(user.id,target.id);
+    if(method==='DELETE'){
+     const removed=db.prepare('DELETE FROM user_follows WHERE follower_id=? AND followed_id=?').run(user.id,target.id);
+     send(res,200,{username:target.username,state:'none',changed:Boolean(removed.changes)});return;
+    }
+    const existing=userFollowState(user.id,target.id);
+    if(existing?.status==='active'){send(res,200,{username:target.username,state:'active',following:true,changed:false});return;}
+    if(existing?.status==='pending'){send(res,200,{username:target.username,state:'pending',following:false,changed:false});return;}
+    const status=target.visibility==='private'?'pending':'active';
+    const result=db.prepare("INSERT INTO user_follows(follower_id,followed_id,status,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(follower_id,followed_id) DO UPDATE SET status=excluded.status,updated_at=excluded.updated_at")
+     .run(user.id,target.id,status,now(),now());
+    send(res,status==='active'?201:202,{username:target.username,state:status,following:status==='active',changed:Boolean(result.changes)});return;
+   }
+   const followRequestDecision=route.match(/^\/api\/users\/([a-z][a-z0-9_]{2,23})\/follow-request$/);
+   if(method==='POST'&&followRequestDecision){
+    throttle('follow-request-review:'+user.id,120,3600000);
+    check(body.decision==='accept'||body.decision==='decline',400,'Выбери accept или decline');
+    const applicant=db.prepare('SELECT id,username FROM users WHERE username=?').get(followRequestDecision[1]);
+    check(applicant&&applicant.id!==user.id,404,'Запрос не найден');
+    ensureNoBlock(user.id,applicant.id);
+    const request=db.prepare("SELECT status FROM user_follows WHERE follower_id=? AND followed_id=?").get(applicant.id,user.id);
+    check(request?.status==='pending',404,'Запрос на подписку не найден');
+    const status=body.decision==='accept'?'active':'declined';
+    db.prepare('UPDATE user_follows SET status=?,updated_at=? WHERE follower_id=? AND followed_id=? AND status=\'pending\'')
+     .run(status,now(),applicant.id,user.id);
+    send(res,200,{username:applicant.username,state:status,accepted:status==='active'});return;
    }
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/follow$/);

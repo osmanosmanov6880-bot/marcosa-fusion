@@ -32,11 +32,14 @@
  <div class="profile-orbit" aria-hidden="true">M</div>
  <p id="public-profile-handle" class="eyebrow"></p>
  <h1 id="public-profile-title"></h1>
+ <p id="public-profile-private-note" class="muted" hidden>Этот профиль доступен только подписчикам. Отправь запрос, чтобы его владелец мог решить.</p>
  <p id="public-profile-bio" class="profile-bio"></p>
  <div id="public-profile-interests" class="profile-interests"></div>
+ <p id="public-profile-stats" class="muted"></p>
+ <button id="public-profile-follow" class="gold small" type="button" hidden></button>
  <a id="public-profile-website" class="profile-website" hidden target="_blank" rel="noopener noreferrer">Сайт автора ↗</a>
- <h2>Публичные миры</h2><div id="public-profile-worlds" class="compact-list"></div>
- <h2>Публикации</h2><div id="public-profile-posts" class="post-list"></div>
+ <h2 id="public-profile-worlds-heading">Публичные миры</h2><div id="public-profile-worlds" class="compact-list"></div>
+ <h2 id="public-profile-posts-heading">Публикации</h2><div id="public-profile-posts" class="post-list"></div>
  <p id="public-profile-empty" class="muted" hidden>Пока нет общедоступных материалов.</p>
 </section>
 <section class="hero">
@@ -90,6 +93,18 @@
     <button class="gold" type="submit">Сохранить профиль</button>
    </form>
    <p id="profile-public-link" class="muted" aria-live="polite"></p>
+  </details>
+  <details id="user-following-panel" class="invite-panel user-following-panel">
+   <summary>Люди, на которых я подписан</summary>
+   <p class="muted">Подписки на людей формируют ленту «Мои подписки». Для закрытых профилей сначала нужно одобрение владельца.</p>
+   <button id="user-following-refresh" class="ghost small" type="button">Обновить список</button>
+   <div id="user-following-list" class="compact-list" aria-live="polite"></div>
+  </details>
+  <details id="user-follow-requests-panel" class="invite-panel user-follow-requests-panel">
+   <summary>Запросы на подписку</summary>
+   <p class="muted">Закрытый профиль остаётся закрытым, пока ты не одобришь запрос.</p>
+   <button id="user-follow-requests-refresh" class="ghost small" type="button">Проверить запросы</button>
+   <div id="user-follow-requests-list" class="compact-list" aria-live="polite"></div>
   </details>
    <h3>Мои миры</h3>
    <div id="my-worlds" class="compact-list"></div>
