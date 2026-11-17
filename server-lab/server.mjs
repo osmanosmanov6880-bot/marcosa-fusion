@@ -394,7 +394,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    const query=incoming.searchParams;
    // Freeze content before ANY mutation branch, including raw PNG uploads.
    // Keep same-origin policy even when rejecting unsafe changes.
-   if(contentWritesDisabled&&['POST','PATCH','DELETE'].includes(method)&&
+   if(contentWritesDisabled&&['POST','PATCH','PUT','DELETE'].includes(method)&&
       !safeWhileFrozen(method,route)){
     originGuard(req,verifiedHost);
     send(res,503,{error:'Публикация и изменение контента временно приостановлены',
