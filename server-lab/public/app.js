@@ -350,6 +350,62 @@ async function loadInsights(){
   wrap.append(div);
  }
 }
+async function loadOwnProfile(){
+ if(!state.me)return;
+ const result=await api('/me/profile'),profile=result.profile,form=$('profile-edit-form');
+ form.elements.displayName.value=profile.displayName;
+ form.elements.bio.value=profile.bio;
+ form.elements.interests.value=profile.interests.join(', ');
+ form.elements.website.value=profile.website;
+ form.elements.visibility.value=profile.visibility;
+ const line=$('profile-public-link');
+ line.replaceChildren();
+ line.append(node('span',localText(profile.visibility==='public'?'profile.publicLink':'profile.privateLink',profile.visibility==='public'?'Публичная ссылка:':'Профиль скрыт от посетителей · ссылка доступна владельцу:')));
+ const link=node('a',location.origin+result.url);link.href=result.url;line.append(link);
+}
+async function loadPublicProfile(){
+ const match=location.pathname.match(/^\/u\/([a-z][a-z0-9_]{2,23})$/);
+ if(!match)return;
+ document.body.dataset.profilePage='true';
+ const result=await api('/people/'+encodeURIComponent(match[1])),person=result.person,panel=$('public-profile');
+ panel.hidden=false;
+ $('public-profile-handle').textContent='MARCOSA / @'+person.username;
+ $('public-profile-title').textContent=person.displayName||'@'+person.username;
+ $('public-profile-bio').textContent=person.bio;
+ const interests=$('public-profile-interests');clear(interests);
+ for(const value of person.interests)interests.append(node('span',value,'profile-interest'));
+ const website=$('public-profile-website');
+ website.hidden=!person.website;
+ if(person.website){website.href=person.website;website.rel='noopener noreferrer';}
+ const worlds=$('public-profile-worlds');clear(worlds);
+ for(const world of result.worlds){
+  const item=node('article','','profile-world');
+  const link=node('a',world.title);link.href='/w/'+encodeURIComponent(world.slug);
+  item.append(link,node('p',world.description||''),node('small',world.followers+' подписчиков'));
+  worlds.append(item);
+ }
+ const posts=$('public-profile-posts');clear(posts);
+ for(const post of result.posts){
+  const card=node('article','','post profile-post');
+  const context=node('a','Мир '+post.world,'eyebrow');context.href='/w/'+encodeURIComponent(post.world);
+  card.append(context,node('p',post.body,'post-body'));
+  posts.append(card);
+ }
+ $('public-profile-empty').hidden=Boolean(result.worlds.length||result.posts.length);
+ document.title=(person.displayName||'@'+person.username)+' · MARCOSA';
+}
+async function searchPeople(value){
+ const query=value.trim(),results=$('people-search-results');
+ if(query.length<2)throw Error('Введи не менее двух символов');
+ const result=await api('/people?q='+encodeURIComponent(query));clear(results);
+ for(const person of result.items){
+  const card=node('article','','people-result'),link=node('a',person.displayName||'@'+person.username);
+  link.href=person.url;card.append(link,node('p','@'+person.username));
+  if(person.bio)card.append(node('p',person.bio));
+  results.append(card);
+ }
+ if(!result.items.length)results.append(systemNode('p','dynamic.people.empty','Публичных профилей не найдено.','muted'));
+}
 
 function syncCoverSettings(){
  const select=$('world-cover-select'),world=state.worlds.find(w=>w.slug===select.value);
@@ -528,7 +584,7 @@ async function session(){
   if(state.worlds.length)syncWorldSettings();
   syncCoverSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports(),loadConversations()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports(),loadConversations(),loadOwnProfile()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),moderatorQueueHealth(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports(),messageReports()]);
   else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-queue-health-data'));clear($('message-report-list'));}
  }
@@ -658,7 +714,8 @@ async function discussion(postId,region){
  clear(region);
  for(const item of list.items){
   const row=node('div','','comment-item');
-  row.append(node('strong','@'+item.username),node('p',item.body,'comment-copy'));
+  const author=node('a','@'+item.username);author.href='/u/'+encodeURIComponent(item.username);
+  row.append(author,node('p',item.body,'comment-copy'));
   if(state.me&&item.username!==state.me.username){
    const report=systemNode('button','dynamic.report.button','Пожаловаться','ghost small');report.type='button';
    report.addEventListener('click',()=>{
@@ -697,7 +754,13 @@ async function discussion(postId,region){
 }
 function postCard(post,own=false){
  const card=node('article','','post');
- card.append(node('span',own?'МОЯ ЗАПИСЬ / '+post.status:'@'+post.username+' / '+post.world,'eyebrow'));
+ const byline=node('span','','eyebrow');
+ if(own)byline.textContent='МОЯ ЗАПИСЬ / '+post.status;
+ else{
+  const author=node('a','@'+post.username);author.href='/u/'+encodeURIComponent(post.username);
+  byline.append(author,document.createTextNode(' / '+post.world));
+ }
+ card.append(byline);
  card.append(node('p',post.body,'post-body'));
  const actions=node('div','','post-actions');
  if(own){
@@ -980,6 +1043,9 @@ $('discover-form').addEventListener('submit',event=>{
 $('discover-clear').addEventListener('click',()=>{
  $('discover-form').reset();clear($('discover-results'));$('discover-results').hidden=true;
 });
+$('people-search-form').addEventListener('submit',event=>{
+ event.preventDefault();run(()=>searchPeople(event.currentTarget.elements.q.value),'Поиск авторов завершён');
+});
 $('login-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   const data=values(form);
@@ -1042,6 +1108,14 @@ $('world-settings-form').addEventListener('submit',event=>{
   await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,category,visibility});
   await session();await worlds();
  },'Оформление мира сохранено — данные видны посетителям.');
+});
+$('profile-edit-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  const data=values(form);data.interests=data.interests.split(',').map(value=>value.trim()).filter(Boolean);
+  await api('/me/profile','PATCH',data);
+  await loadOwnProfile();
+ },localText('profile.saveDone','Профиль сохранён.'));
 });
 $('world-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
@@ -1268,7 +1342,9 @@ window.addEventListener('marcosa:locale-change',()=>{
  if(state.me?.role==='moderator')pilotMetrics().catch(()=>{});
 });
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
-Promise.all([loadTopics(),refreshIncidentBanner()]).then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
+if(document.body.dataset.profilePage==='true'){
+ loadPublicProfile().catch(e=>notice(e.message));
+}else Promise.all([loadTopics(),refreshIncidentBanner()]).then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
   const route=location.pathname.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
