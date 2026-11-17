@@ -1,5 +1,4 @@
-import {spawn} from 'node:child_process';
-import {mkdtemp,mkdir,readFile,stat} from 'node:fs/promises';
+import {mkdtemp,mkdir,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createApp} from '../../server-lab/server.mjs';
@@ -22,7 +21,7 @@ try{
   const context=await browser.newContext({viewport:{width:f.width,height:f.height},isMobile:f.isMobile,deviceScaleFactor:1});
   const page=await context.newPage(),errors=[];
   page.on('pageerror',error=>errors.push(String(error)));
-  const response=await page.goto(base+'/series',{waitUntil:'networkidle'});
+  const response=await page.goto(base+'/series',{waitUntil:'domcontentloaded',timeout:15000});
   if(response.status()!==200)throw Error('Season catalog returned '+response.status());
   await page.getByRole('heading',{name:'Авторские сезоны'}).waitFor();
   const pageWidth=await page.evaluate(()=>document.documentElement.scrollWidth-document.documentElement.clientWidth);
