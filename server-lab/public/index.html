@@ -70,12 +70,13 @@
    <div id="my-worlds" class="compact-list"></div>
    <details id="world-settings-panel" class="invite-panel world-settings">
     <summary>Редактировать оформление моего мира</summary>
-    <p class="muted">Публичный адрес и владелец сохраняются. Название и описание обновляются на сервере и сразу видны посетителям.</p>
+    <p class="muted">Публичный адрес и владелец сохраняются. Приватный мир виден только владельцу; переход в приватный режим удалит подписки и отзовёт активные рекламные заявки.</p>
     <form id="world-settings-form" class="form-block">
      <label>Выбери мир<select id="world-settings-select" name="slug" required></select></label>
      <label>Название мира<input name="title" maxlength="70" minlength="3" required></label>
      <label>Описание<textarea name="description" maxlength="400" rows="4"></textarea></label>
      <label>Тематика мира<select id="world-edit-category" name="category" required></select></label>
+     <label>Видимость мира<select name="visibility" required><option value="public">Публичный — доступен всем</option><option value="private">Приватный — только владельцу</option></select></label>
      <button class="gold" type="submit">Сохранить изменения</button>
     </form>
    </details>
@@ -244,6 +245,46 @@
    </form>
    <h3>Мои публикации и черновики</h3><div id="my-posts" class="compact-list"></div>
   </section>
+  <section id="messages-panel" class="panel messages-panel" hidden aria-labelledby="messages-heading">
+   <span class="eyebrow">PRIVATE / PARTICIPANTS ONLY</span>
+   <h2 id="messages-heading">Личные <em>сообщения.</em></h2>
+   <p class="muted">Переписка доступна только участникам. Новый личный контакт начинается с одного запроса; после принятия можно продолжить диалог. Это локальная лаборатория, без push-уведомлений и production-хранилища.</p>
+   <div class="message-create-grid">
+    <form id="direct-message-form" class="form-block message-create-form">
+     <h3>Новый личный запрос</h3>
+     <label>Имя участника<input name="username" minlength="3" maxlength="24" pattern="[a-zA-Z][a-zA-Z0-9_]{2,23}" required></label>
+     <button class="gold" type="submit">Начать переписку</button>
+    </form>
+    <form id="group-message-form" class="form-block message-create-form">
+     <h3>Новая групповая беседа</h3>
+     <label>Название группы<input name="title" minlength="3" maxlength="60" required></label>
+     <label>Имена участников через запятую<input name="participants" maxlength="263" placeholder="amira, zara" required></label>
+     <button class="ghost" type="submit">Создать группу</button>
+    </form>
+   </div>
+   <div class="message-workspace">
+    <section class="message-inbox" aria-labelledby="message-inbox-heading">
+     <div class="message-section-title"><h3 id="message-inbox-heading">Беседы</h3><button id="messages-refresh" class="ghost small" type="button">Обновить список бесед</button></div>
+     <div id="messages-list" class="message-conversation-list" aria-live="polite"></div>
+    </section>
+    <section id="message-thread" class="message-thread" aria-labelledby="message-thread-title" hidden>
+     <h3 id="message-thread-title" tabindex="-1">Выбери беседу</h3>
+     <p id="message-thread-state" class="message-thread-state" role="status" aria-live="polite"></p>
+     <div id="message-items" class="message-items" aria-live="polite"></div>
+     <button id="message-more" class="ghost small" type="button" hidden>Старые сообщения</button>
+     <div id="message-request-actions" class="message-request-actions" hidden>
+      <button id="message-accept" class="gold" type="button">Принять запрос</button>
+      <button id="message-decline" class="danger" type="button">Отклонить запрос</button>
+     </div>
+     <form id="message-send-form" class="message-send-form" hidden>
+      <label class="visually-hidden" for="message-send-body">Текст сообщения</label>
+      <textarea id="message-send-body" name="body" rows="3" maxlength="2000" placeholder="Напиши сообщение участникам беседы" required></textarea>
+      <button class="gold" type="submit">Отправить</button>
+     </form>
+    </section>
+   </div>
+   <p class="message-safety-note">Нет вложений, удалённой доставки или гарантированного шифрования. Не отправляй сюда секретные данные.</p>
+  </section>
   <div class="section-heading feed-heading" id="feed"><div><span class="eyebrow">CONVERSATION / VERIFIED SERVER DATA</span><h2>Лента <em>людей.</em></h2></div><button type="button" id="refresh" class="ghost">Обновить</button></div>
   <div class="feed-tabs" role="group" aria-label="Показать публикации"><button id="feed-all" type="button" class="ghost" aria-pressed="true">Все публикации</button><button id="feed-following" type="button" class="ghost" aria-pressed="false" disabled>Мои подписки</button></div>
   <div id="feed-list" class="feed-list" aria-live="polite"></div>
@@ -258,6 +299,7 @@
   <div id="moderator" class="mod-panel" hidden>
    <h3>Жалобы на публикации</h3><div id="report-list"></div>
    <h3>Жалобы на комментарии</h3><div id="comment-report-list"></div>
+   <h3>Жалобы на личные сообщения</h3><div id="message-report-list" class="compact-list"></div>
    <h3>Независимые апелляции</h3><div id="appeal-review-list" class="compact-list"></div>
    <details class="audit-details"><summary>Журнал решений модераторов</summary><div id="moderation-audit" class="compact-list"></div></details>
    <details id="mod-invites-panel" class="invite-panel pilot-invites">
@@ -351,6 +393,6 @@
 </main>
 <footer>© MARCOSA / LOCAL ENGINEERING EDITION. Публичный сайт и этот исследовательский сервер — разные среды.</footer>
 </div>
-<dialog id="report-dialog" aria-labelledby="report-title"><form id="report-form"><h2 id="report-title">Сообщить о проблеме</h2><p>Жалобу увидит только модератор этого сервера.</p><label>Причина<select name="reason"><option value="spam">Спам</option><option value="abuse">Оскорбления</option><option value="privacy">Нарушение приватности</option><option value="other">Другое</option></select></label><label>Комментарий<textarea name="detail" rows="3" maxlength="500"></textarea></label><div class="compose-actions"><button type="button" id="report-cancel" class="ghost">Отмена</button><button type="submit" class="gold">Отправить жалобу</button></div></form></dialog>
+<dialog id="report-dialog" aria-labelledby="report-title"><form id="report-form"><h2 id="report-title">Сообщить о проблеме</h2><p>Жалобу увидит только модератор этого сервера.</p><label>Причина<select name="reason"><option value="spam">Спам</option><option value="abuse">Оскорбления</option><option value="privacy">Нарушение приватности</option><option value="other">Другое</option></select></label><label>Комментарий<textarea id="report-detail" name="detail" rows="3" minlength="12" maxlength="500"></textarea></label><div class="compose-actions"><button type="button" id="report-cancel" class="ghost">Отмена</button><button type="submit" class="gold">Отправить жалобу</button></div></form></dialog>
 </body>
 </html>
