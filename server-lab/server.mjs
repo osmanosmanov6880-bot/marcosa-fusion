@@ -70,6 +70,8 @@ async function readJSON(req){
 const SCHEMA=[
  'PRAGMA foreign_keys=ON',
  'CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT \'member\' CHECK(role IN (\'member\',\'moderator\')), created_at INTEGER NOT NULL)',
+ "CREATE TABLE IF NOT EXISTS profile_cards (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,display_name TEXT NOT NULL DEFAULT '' CHECK(length(display_name)<=50),bio TEXT NOT NULL DEFAULT '' CHECK(length(bio)<=400),interests_json TEXT NOT NULL DEFAULT '[]',website TEXT NOT NULL DEFAULT '' CHECK(length(website)<=200),visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private')),updated_at INTEGER NOT NULL)",
+ 'CREATE INDEX IF NOT EXISTS idx_profile_visibility ON profile_cards(visibility,user_id)',
  'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', visibility TEXT NOT NULL DEFAULT \'public\' CHECK(visibility IN (\'public\',\'private\')), created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
@@ -223,6 +225,11 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND (w.visibility='public' OR w.owner_id=?) AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
   following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
+ const readProfile=(userId)=>{
+  const row=db.prepare('SELECT display_name AS displayName,bio,interests_json,website,visibility,updated_at AS updatedAt FROM profile_cards WHERE user_id=?').get(userId);
+  let interests=[];try{interests=JSON.parse(row?.interests_json||'[]');}catch{}
+  return {displayName:row?.displayName||'',bio:row?.bio||'',interests:Array.isArray(interests)?interests:[],website:row?.website||'',visibility:row?.visibility||'public',updatedAt:row?.updatedAt||null};
+ };
  function throttle(key,max,duration){
   const current=now(),a=rateMap.get(key);
   const next=!a||current>a.until?{count:1,until:current+duration}:{count:a.count+1,until:a.until};
@@ -334,6 +341,19 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      {'Retry-After':'60','Cache-Control':'no-store','X-Marcosa-Content-Freeze':'active'});
     return;
    }
+   const profilePage=route.match(/^\/u\/([a-z][a-z0-9_]{2,23})$/);
+   if(method==='GET'&&profilePage){
+    const viewer=who(req)?.id||'';
+    const person=db.prepare("SELECT u.id,u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio,COALESCE(p.interests_json,'[]') AS interests_json,COALESCE(p.website,'') AS website,COALESCE(p.visibility,'public') AS visibility FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE u.username=?").get(profilePage[1]);
+    check(person&&(person.visibility==='public'||viewer===person.id)&&(!viewer||!isBlocked(viewer,person.id)),404,'Профиль не найден');
+    const title=htmlAttr(person.display_name||'@'+person.username)+' · MARCOSA';
+    const description=htmlAttr(person.bio||'Профиль участника MARCOSA');
+    const canonical=htmlAttr('http://'+verifiedHost+'/u/'+person.username);
+    const meta=['<meta name="description" content="'+description+'">','<meta name="robots" content="noindex,nofollow">','<meta property="og:type" content="profile">','<meta property="og:site_name" content="MARCOSA">','<meta property="og:title" content="'+title+'">','<meta property="og:description" content="'+description+'">','<meta property="og:url" content="'+canonical+'">'];
+    const template=await readFile(new URL('./public/index.html',import.meta.url),'utf8');
+    const html=template.replace(/<title>[^<]*<\/title>/,'<title>'+title+'</title>').replace('<body>','<body data-profile-page="true" data-profile-user="'+htmlAttr(person.username)+'">').replace('</head>',meta.join('\n')+'\n</head>');
+    res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','X-Robots-Tag':'noindex, nofollow','Cache-Control':'private, no-store'});res.end(html);return;
+   }
    // R68: real World metadata HTML for shares. Always noindex in this lab.
    // Read routes accept historical default slugs with underscores; new Worlds use canonical hyphens.
  const worldPage=route.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
@@ -389,8 +409,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      quickCheck=db.prepare('PRAGMA quick_check(1)').get()?.quick_check==='ok';
      foreignKeys=db.prepare('PRAGMA foreign_key_check').all().length===0;
      const names=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name));
-     requiredTables=['users','worlds','posts','world_follows','world_covers',
-      'world_cover_rights','reports','pilot_invites','beta_retention_consents',
+     requiredTables=['users','profile_cards','worlds','posts','world_follows','world_covers',
+      'world_cover_rights','reports','profile_cards','pilot_invites','beta_retention_consents',
       'conversations','conversation_members','messages','message_reports']
       .every(name=>names.has(name));
     }catch{
@@ -411,6 +431,54 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
    }
    if(method==='GET'&&route==='/api/auth/me'){
     const user=requireUser(req);send(res,200,{user,worlds:stmt.myWorlds.all(user.id)});return;
+   }
+   if(method==='GET'&&route==='/api/me/profile'){
+    const owner=requireUser(req);
+    send(res,200,{username:owner.username,profile:readProfile(owner.id),url:'/u/'+owner.username,scope:'self'});return;
+   }
+   if(method==='PATCH'&&route==='/api/me/profile'){
+    originGuard(req,verifiedHost);
+    throttle('mut:'+clientIp(req),180,60000);
+    const owner=requireUser(req),body=await readJSON(req);
+    check(Object.keys(body).length>0&&Object.keys(body).every(key=>['displayName','bio','interests','website','visibility'].includes(key)),400,'В профиле есть неизвестные поля');
+    const current=readProfile(owner.id);
+    const displayName=body.displayName===undefined?current.displayName:str(body.displayName).normalize('NFC').trim();
+    const bio=body.bio===undefined?current.bio:str(body.bio).normalize('NFC').trim();
+    const website=body.website===undefined?current.website:str(body.website).trim();
+    const visibility=body.visibility===undefined?current.visibility:body.visibility;
+    let interests=current.interests;
+    if(body.interests!==undefined){
+     check(Array.isArray(body.interests)&&body.interests.length<=8&&body.interests.every(value=>typeof value==='string'),400,'Укажи не более восьми интересов');
+     interests=[...new Set(body.interests.map(value=>value.normalize('NFC').trim()).filter(Boolean))];
+     check(interests.every(value=>value.length>=2&&value.length<=32),400,'Каждый интерес должен содержать от 2 до 32 символов');
+    }
+    check(displayName.length<=50&&bio.length<=400,400,'Имя или описание слишком длинное');
+    check(visibility==='public'||visibility==='private',400,'Видимость должна быть public или private');
+    if(website){
+     let parsed;try{parsed=new URL(website);}catch{}
+     check(website.length<=200&&parsed?.protocol==='https:'&&parsed.hostname&&!parsed.username&&!parsed.password,400,'Сайт должен быть безопасной HTTPS-ссылкой');
+    }
+    db.prepare("INSERT INTO profile_cards(user_id,display_name,bio,interests_json,website,visibility,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET display_name=excluded.display_name,bio=excluded.bio,interests_json=excluded.interests_json,website=excluded.website,visibility=excluded.visibility,updated_at=excluded.updated_at")
+     .run(owner.id,displayName,bio,JSON.stringify(interests),website,visibility,now());
+    send(res,200,{username:owner.username,profile:readProfile(owner.id),url:'/u/'+owner.username,scope:'self'});return;
+   }
+   const personRoute=route.match(/^\/api\/people\/([a-z][a-z0-9_]{2,23})$/);
+   if(method==='GET'&&personRoute){
+    const viewer=who(req)?.id||'';
+    const person=db.prepare("SELECT u.id,u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio,COALESCE(p.interests_json,'[]') AS interests_json,COALESCE(p.website,'') AS website,COALESCE(p.visibility,'public') AS visibility FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE u.username=?").get(personRoute[1]);
+    check(person&&(person.visibility==='public'||viewer===person.id)&&(!viewer||!isBlocked(viewer,person.id)),404,'Профиль не найден');
+    let interests=[];try{interests=JSON.parse(person.interests_json);}catch{}
+    const worlds=db.prepare("SELECT slug,title,description,category,(SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers FROM worlds w WHERE w.owner_id=? AND w.visibility='public' ORDER BY w.created_at DESC LIMIT 12").all(person.id);
+    const posts=db.prepare("SELECT p.id,p.body,p.created_at,w.slug AS world FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.author_id=? AND p.status='published' AND w.visibility='public' ORDER BY p.id DESC LIMIT 12").all(person.id);
+    const followers=db.prepare("SELECT count(*) AS n FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE w.owner_id=? AND w.visibility='public'").get(person.id).n;
+    send(res,200,{person:{username:person.username,displayName:person.display_name,bio:person.bio,interests:Array.isArray(interests)?interests:[],website:person.website},worlds,posts,followers,scope:'public-profile',production:false});return;
+   }
+   if(method==='GET'&&route==='/api/people'){
+    const raw=str(query.get('q')).normalize('NFC').trim();
+    check(raw.length<=40,400,'Поисковый запрос должен быть до 40 символов');
+    const viewer=who(req)?.id||'';
+    const people=db.prepare("SELECT u.username,COALESCE(p.display_name,'') AS display_name,COALESCE(p.bio,'') AS bio FROM users u LEFT JOIN profile_cards p ON p.user_id=u.id WHERE COALESCE(p.visibility,'public')='public' AND (?='' OR instr(lower(u.username),lower(?))>0 OR instr(lower(COALESCE(p.display_name,'')),lower(?))>0) AND "+visibleOwner('u.id')+" ORDER BY u.created_at DESC,u.username LIMIT 12").all(raw,raw,raw,viewer,viewer);
+    send(res,200,{items:people.map(person=>({username:person.username,displayName:person.display_name,bio:person.bio,url:'/u/'+person.username})),query:raw,scope:'public-people',production:false});return;
    }
    if(method==='GET'&&route==='/api/feed/following'){
     const user=requireUser(req);
@@ -767,6 +835,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     const user=requireUser(req);
     // All rows are owner-bound; never include password hashes or session tokens.
     const worlds=stmt.myWorlds.all(user.id);
+    const profile=readProfile(user.id);
     const posts=db.prepare('SELECT id,world_id,body,status,created_at,updated_at FROM posts WHERE author_id=? ORDER BY id ASC').all(user.id);
     const reports=db.prepare('SELECT post_id,reason,detail,status,created_at FROM reports WHERE reporter_id=? ORDER BY id ASC').all(user.id);
     const follows=db.prepare("SELECT w.slug FROM world_follows f JOIN worlds w ON w.id=f.world_id WHERE f.user_id=? ORDER BY f.created_at DESC").all(user.id);
@@ -787,7 +856,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     const privateMessages=db.prepare("SELECT m.conversation_id AS conversationId,m.sender_id AS senderId,u.username AS sender,m.body,m.status,m.created_at AS createdAt FROM messages m JOIN users u ON u.id=m.sender_id JOIN conversation_members mine ON mine.conversation_id=m.conversation_id WHERE mine.user_id=? ORDER BY m.id").all(user.id);
     const messageReports=db.prepare("SELECT r.message_id AS messageId,r.reason,r.detail,r.status,r.created_at AS createdAt FROM message_reports r WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
+      user:{id:user.id,username:user.username,email:user.email},profile,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -909,6 +978,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     try{
      atomic(()=>{
       db.prepare('INSERT INTO users(id,email,username,salt,password_hash,created_at) VALUES(?,?,?,?,?,?)').run(id,email,username,salt,secret,now());
+      db.prepare('INSERT INTO profile_cards(user_id,updated_at) VALUES(?,?)').run(id,now());
       db.prepare('INSERT INTO worlds(id,owner_id,slug,title,created_at) VALUES(?,?,?,?,?)').run(worldId,id,newWorldSlug,'Мир '+username,now());
       if(ticket){
        const claimed=db.prepare('UPDATE pilot_invites SET used_by=?,used_at=? WHERE id=? AND used_at IS NULL AND revoked_at IS NULL AND expires_at>?')
