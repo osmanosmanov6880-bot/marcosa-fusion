@@ -71,7 +71,7 @@ const SCHEMA=[
  'PRAGMA foreign_keys=ON',
  'CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, username TEXT NOT NULL UNIQUE, salt TEXT NOT NULL, password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT \'member\' CHECK(role IN (\'member\',\'moderator\')), created_at INTEGER NOT NULL)',
  'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL)',
- 'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', created_at INTEGER NOT NULL)',
+ 'CREATE TABLE IF NOT EXISTS worlds (id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, slug TEXT NOT NULL UNIQUE, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT \'\', visibility TEXT NOT NULL DEFAULT \'public\' CHECK(visibility IN (\'public\',\'private\')), created_at INTEGER NOT NULL)',
  'CREATE INDEX IF NOT EXISTS idx_worlds_owner ON worlds(owner_id)',
  "CREATE TABLE IF NOT EXISTS world_covers (world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE, png BLOB NOT NULL, width INTEGER NOT NULL CHECK(width BETWEEN 1 AND 1600), height INTEGER NOT NULL CHECK(height BETWEEN 1 AND 1600), byte_size INTEGER NOT NULL CHECK(byte_size BETWEEN 57 AND 786432), updated_at INTEGER NOT NULL, review_status TEXT NOT NULL DEFAULT 'pending' CHECK(review_status IN ('pending','approved','rejected')), reviewed_by TEXT REFERENCES users(id) ON DELETE SET NULL, reviewed_at INTEGER)",
  "CREATE TABLE IF NOT EXISTS world_cover_rights (world_id TEXT PRIMARY KEY REFERENCES world_covers(world_id) ON DELETE CASCADE, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, asset_sha256 TEXT NOT NULL CHECK(length(asset_sha256)=64), statement_version TEXT NOT NULL CHECK(statement_version='rights-v1'), asserted_at INTEGER NOT NULL)",
@@ -102,6 +102,14 @@ const SCHEMA=[
  "CREATE INDEX IF NOT EXISTS idx_activity_owner ON activity_events(recipient_id,id DESC)",
  "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL",
  "CREATE TABLE IF NOT EXISTS notification_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, follows_enabled INTEGER NOT NULL DEFAULT 1 CHECK(follows_enabled IN (0,1)), comments_enabled INTEGER NOT NULL DEFAULT 1 CHECK(comments_enabled IN (0,1)), sponsors_enabled INTEGER NOT NULL DEFAULT 1 CHECK(sponsors_enabled IN (0,1)), updated_at INTEGER NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('direct','group')),direct_key TEXT UNIQUE,title TEXT,created_by TEXT REFERENCES users(id) ON DELETE SET NULL,direct_state TEXT NOT NULL DEFAULT 'active' CHECK(direct_state IN ('active','pending','declined')),requested_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,CHECK((kind='direct' AND direct_key IS NOT NULL AND title IS NULL) OR (kind='group' AND direct_key IS NULL AND length(title) BETWEEN 3 AND 60)))",
+ "CREATE TABLE IF NOT EXISTS conversation_members (conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner','member')),joined_at INTEGER NOT NULL,accepted_at INTEGER,last_read_message_id INTEGER NOT NULL DEFAULT 0 CHECK(last_read_message_id>=0),PRIMARY KEY(conversation_id,user_id))",
+ "CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON conversation_members(user_id,joined_at DESC,conversation_id)",
+ "CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT,conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,sender_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 2000),status TEXT NOT NULL DEFAULT 'published' CHECK(status IN ('published','hidden')),created_at INTEGER NOT NULL)",
+ "CREATE INDEX IF NOT EXISTS idx_messages_thread ON messages(conversation_id,id DESC)",
+ "CREATE TABLE IF NOT EXISTS message_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')),detail TEXT NOT NULL CHECK(length(detail) BETWEEN 12 AND 500),status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')),created_at INTEGER NOT NULL,UNIQUE(message_id,reporter_id))",
+ "CREATE INDEX IF NOT EXISTS idx_message_reports_queue ON message_reports(status,id DESC)",
+ "CREATE TABLE IF NOT EXISTS message_moderation_audit (id INTEGER PRIMARY KEY AUTOINCREMENT,actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,message_id INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,action TEXT NOT NULL CHECK(action IN ('hide')),created_at INTEGER NOT NULL)",
  "CREATE TABLE IF NOT EXISTS moderation_appeals (id INTEGER PRIMARY KEY AUTOINCREMENT, appellant_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, comment_id INTEGER REFERENCES comments(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(length(reason) BETWEEN 12 AND 1000), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','upheld','restored')), decided_by TEXT REFERENCES users(id) ON DELETE SET NULL, created_at INTEGER NOT NULL, decided_at INTEGER, CHECK((post_id IS NOT NULL AND comment_id IS NULL) OR (post_id IS NULL AND comment_id IS NOT NULL)))",
  "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_post ON moderation_appeals(post_id) WHERE post_id IS NOT NULL AND status='open'",
  "CREATE UNIQUE INDEX IF NOT EXISTS idx_appeal_open_comment ON moderation_appeals(comment_id) WHERE comment_id IS NOT NULL AND status='open'",
@@ -172,6 +180,11 @@ function upgradeWorldTopics(db){
  }
  db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_category ON worlds(category,created_at DESC)');
 }
+function upgradeWorldVisibility(db){
+ const columns=new Set(db.prepare('PRAGMA table_info(worlds)').all().map(row=>row.name));
+ if(!columns.has('visibility'))db.exec("ALTER TABLE worlds ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private'))");
+ db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_visibility ON worlds(visibility,created_at DESC)');
+}
 function upgradeWorldCoverReview(db){
  const cols=new Set(db.prepare('PRAGMA table_info(world_covers)').all().map(x=>x.name));
  if(!cols.has('review_status'))
@@ -194,6 +207,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   !publicMediaDisabled&&blob instanceof Uint8Array?hash(Buffer.from(blob)):null);
  upgradeWorldCoverReview(db);
  upgradeWorldTopics(db);
+ upgradeWorldVisibility(db);
  upgradeLegacySponsorStatuses(db);
  const rateMap=new Map();
  // Parameters in this expression are always bound to a trusted current
@@ -204,10 +218,10 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   email:db.prepare('SELECT * FROM users WHERE email=?'),
   blocking:db.prepare("SELECT 1 FROM user_blocks WHERE (blocker_id=? AND blocked_id=?) OR (blocker_id=? AND blocked_id=?) LIMIT 1"),
   session:db.prepare('SELECT u.id,u.email,u.username,u.role FROM sessions s JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?'),
-  myWorlds:db.prepare('SELECT id,slug,title,description,category,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover,(SELECT review_status FROM world_covers c WHERE c.world_id=worlds.id) AS coverStatus FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
-  feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
-  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
+  myWorlds:db.prepare('SELECT id,slug,title,description,category,visibility,EXISTS(SELECT 1 FROM world_covers c WHERE c.world_id=worlds.id) AS hasCover,(SELECT review_status FROM world_covers c WHERE c.world_id=worlds.id) AS coverStatus FROM worlds WHERE owner_id=? ORDER BY created_at DESC'),
+  feed:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  byWorld:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.slug=? AND (w.visibility='public' OR w.owner_id=?) AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?"),
+  following:db.prepare("SELECT p.id,p.body,p.created_at,(SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count,w.slug AS world,u.username FROM posts p JOIN world_follows f ON f.world_id=p.world_id AND f.user_id=? JOIN worlds w ON w.id=p.world_id JOIN users u ON u.id=p.author_id WHERE p.status='published' AND w.visibility='public' AND "+visibleOwner('u.id')+" AND p.id<? ORDER BY p.id DESC LIMIT ?")
  };
  function throttle(key,max,duration){
   const current=now(),a=rateMap.get(key);
@@ -253,6 +267,18 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  function ensureNoBlock(a,b){
   check(!isBlocked(a,b),403,'Взаимодействие между аккаунтами ограничено');
  }
+ function conversationMembers(id){
+  return db.prepare('SELECT u.id,u.username,m.role FROM conversation_members m JOIN users u ON u.id=m.user_id WHERE m.conversation_id=? ORDER BY m.joined_at,u.username').all(id);
+ }
+ function requireConversationAccess(id,userId){
+  const conversation=db.prepare('SELECT id,kind,title,direct_state,requested_by FROM conversations WHERE id=?').get(id);
+  check(conversation&&conversation.direct_state!=='declined',404,'Беседа не найдена');
+  const membership=db.prepare('SELECT last_read_message_id FROM conversation_members WHERE conversation_id=? AND user_id=?').get(id,userId);
+  check(membership,404,'Беседа не найдена');
+  const members=conversationMembers(id);
+  check(members.length>=2&&!members.some(person=>person.id!==userId&&isBlocked(userId,person.id)),404,'Беседа не найдена');
+  return{conversation,membership,members};
+ }
  // R81: an incident freeze must still permit genuine user safety actions.
  function safeWhileFrozen(method,route){
   if(method==='DELETE'&&['/api/account','/api/me/retention-consent'].includes(route))return true;
@@ -260,6 +286,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   if(['/api/auth/login','/api/auth/logout',
     '/api/me/security/revoke-others','/api/me/security/change-password',
     '/api/reports'].includes(route))return true;
+  if(/^\/api\/conversations\/[0-9a-f-]{36}\/read$/.test(route))return true;
+  if(/^\/api\/messages\/[1-9][0-9]{0,14}\/report$/.test(route))return true;
   if(/^\/api\/comments\/[1-9][0-9]{0,14}\/report$/.test(route))return true;
   if(/^\/api\/worlds\/[a-z][a-z0-9_-]{2,39}\/cover\/report$/.test(route))return true;
   if(/^\/api\/mod\/(?:posts|comments)\/[1-9][0-9]{0,14}\/hide$/.test(route))return true;
@@ -311,9 +339,9 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  const worldPage=route.match(/^\/w\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='GET'&&worldPage){
     const viewer=who(req)?.id||'';
-    const world=db.prepare("SELECT w.id,w.slug,w.title,w.description,u.username AS owner,u.id AS ownerId"
+    const world=db.prepare("SELECT w.id,w.slug,w.title,w.description,w.visibility,w.owner_id,u.username AS owner,u.id AS ownerId"
      +" FROM worlds w JOIN users u ON u.id=w.owner_id WHERE w.slug=? LIMIT 1").get(worldPage[1]);
-    check(world&&(!viewer||!isBlocked(viewer,world.ownerId)),404,'Мир не найден');
+    check(world&&(world.visibility==='public'||viewer===world.owner_id)&&(!viewer||!isBlocked(viewer,world.ownerId)),404,'Мир не найден');
     // Legacy approved PNG without a current owner SHA declaration is NOT
     // eligible for preview; the same rule also governs actual byte delivery.
     const preview=db.prepare("SELECT c.png,r.asset_sha256 FROM world_covers c"
@@ -362,7 +390,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      foreignKeys=db.prepare('PRAGMA foreign_key_check').all().length===0;
      const names=new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map(x=>x.name));
      requiredTables=['users','worlds','posts','world_follows','world_covers',
-      'world_cover_rights','reports','pilot_invites','beta_retention_consents']
+      'world_cover_rights','reports','pilot_invites','beta_retention_consents',
+      'conversations','conversation_members','messages','message_reports']
       .every(name=>names.has(name));
     }catch{
      // Do not disclose raw database errors, schema SQL, user data or paths.
@@ -406,17 +435,17 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
+    const worlds=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,w.visibility,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
       (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
       (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
       FROM worlds w JOIN users u ON u.id=w.owner_id
       WHERE (instr(lower(w.title),lower(?))>0 OR instr(lower(w.description),lower(?))>0 OR instr(lower(w.slug),lower(?))>0)
-      AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
-      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer,category,category);
+      AND (w.visibility='public' OR w.owner_id=?) AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+      ORDER BY w.created_at DESC LIMIT 12`).all(raw,raw,raw,viewer,viewer,viewer,category,category);
     const posts=db.prepare(`SELECT p.id,p.body,p.created_at,w.slug AS world,u.username,
       (SELECT count(*) FROM comments c WHERE c.post_id=p.id AND c.status='published') AS comments_count
       FROM posts p JOIN worlds w ON p.world_id=w.id JOIN users u ON u.id=p.author_id
-      WHERE p.status='published' AND instr(lower(p.body),lower(?))>0
+      WHERE p.status='published' AND w.visibility='public' AND instr(lower(p.body),lower(?))>0
       AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
       ORDER BY p.id DESC LIMIT 12`).all(raw,viewer,viewer,category,category);
     send(res,200,{query:raw,category:category||null,worlds,posts,limit:12});return;
@@ -428,11 +457,11 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
     const category=query.has('category')?str(query.get('category')).toLowerCase():'';
     check(!category||validTopic(category),400,'Неизвестная категория');
     const viewer=who(req)?.id||'';
-    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
+    const items=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,w.visibility,EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,u.username AS owner,
 (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
 (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
-FROM worlds w JOIN users u ON u.id=w.owner_id WHERE ${visibleOwner('u.id')} AND (?='' OR w.category=?)
-ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
+FROM worlds w JOIN users u ON u.id=w.owner_id WHERE (w.visibility='public' OR w.owner_id=?) AND ${visibleOwner('u.id')} AND (?='' OR w.category=?)
+ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category);
     send(res,200,{items,category:category||null});return;
    }
    // Direct permanent World lookup, even after catalog pagination excludes it.
@@ -440,14 +469,14 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    const worldDetail=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='GET'&&worldDetail){
     const viewer=who(req)?.id||'';
-    const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,
+    const world=db.prepare(`SELECT w.id,w.slug,w.title,w.description,w.category,w.visibility,
      EXISTS(SELECT 1 FROM world_covers c JOIN world_cover_rights rights ON rights.world_id=c.world_id AND rights.owner_id=w.owner_id AND rights.statement_version='rights-v1' AND rights.asset_sha256=marcosa_sha256(c.png) WHERE c.world_id=w.id AND c.review_status='approved' AND EXISTS(SELECT 1 FROM users reviewer WHERE reviewer.id=c.reviewed_by AND reviewer.role='moderator')) AS hasCover,
      u.username AS owner,
      (SELECT count(*) FROM world_follows f WHERE f.world_id=w.id) AS followers_count,
      (SELECT count(*) FROM posts p WHERE p.world_id=w.id AND p.status='published') AS posts_count
      FROM worlds w JOIN users u ON u.id=w.owner_id
-     WHERE w.slug=? AND ${visibleOwner('u.id')} LIMIT 1`)
-     .get(worldDetail[1],viewer,viewer);
+     WHERE w.slug=? AND (w.visibility='public' OR w.owner_id=?) AND ${visibleOwner('u.id')} LIMIT 1`)
+     .get(worldDetail[1],viewer,viewer,viewer);
     check(world,404,'Мир не найден');
     send(res,200,{world,scope:'public-world',production:false});return;
    }
@@ -570,14 +599,17 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
     check(cursor>0,400,'Неверный указатель страницы');
     const viewer=who(req)?.id||'';
-    send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,cursor,21),20));return;
+    const world=db.prepare('SELECT owner_id,visibility FROM worlds WHERE slug=?').get(worldRoute[1]);
+    check(world&&(world.visibility==='public'||world.owner_id===viewer),404,'Мир не найден');
+    send(res,200,page(stmt.byWorld.all(worldRoute[1],viewer,viewer,viewer,cursor,21),20));return;
    }
    // R30 / open discovery: counts are SELECTs on genuine tables, not marketing metrics.
    const followRead=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/followers$/);
    if(method==='GET'&&followRead){
-    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followRead[1]);
+    const world=db.prepare('SELECT id,owner_id,visibility FROM worlds WHERE slug=?').get(followRead[1]);
     check(world,404,'Мир не найден');
     const visitor=who(req);
+    check(world.visibility==='public'||visitor?.id===world.owner_id,404,'Мир не найден');
     if(visitor&&isBlocked(visitor.id,world.owner_id))throw new HttpError(404,'Мир не найден');
     const count=db.prepare('SELECT count(*) AS n FROM world_follows WHERE world_id=?').get(world.id).n;
     const followed=Boolean(visitor&&db.prepare('SELECT 1 FROM world_follows WHERE world_id=? AND user_id=?').get(world.id,visitor.id));
@@ -586,9 +618,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    const commentRead=route.match(/^\/api\/posts\/([1-9][0-9]{0,14})\/comments$/);
    if(method==='GET'&&commentRead){
     const id=int(commentRead[1]);
-    const source=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(id);
+    const source=db.prepare("SELECT p.author_id,w.owner_id,w.visibility FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published'").get(id);
     check(source,404,'Публикация не найдена');
     const viewer=who(req)?.id||'';
+    check(source.visibility==='public'||source.owner_id===viewer,404,'Публикация не найдена');
     if(viewer&&isBlocked(viewer,source.author_id))throw new HttpError(404,'Публикация не найдена');
     const limit=20;
     const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
@@ -599,7 +632,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    }
    if(method==='GET'&&route==='/api/sponsors/approved'){
     const viewer=who(req)?.id||'';
-    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' AND "+visibleOwner('a.owner_id')+" AND "+visibleOwner('w.owner_id')+" ORDER BY a.id DESC LIMIT 12")
+    const items=db.prepare("SELECT a.id,a.brand_name,a.headline,a.landing_url,w.slug AS world, 'ТЕСТОВОЕ РАЗМЕЩЕНИЕ · НЕ ОПЛАЧЕНО' AS disclosure FROM sponsor_proposals a JOIN worlds w ON w.id=a.world_id WHERE a.status='approved' AND w.visibility='public' AND "+visibleOwner('a.owner_id')+" AND "+visibleOwner('w.owner_id')+" ORDER BY a.id DESC LIMIT 12")
      .all(viewer,viewer,viewer,viewer);
     send(res,200,{items,paid:false,production:false});return;
    }
@@ -676,6 +709,38 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const unreadCount=db.prepare('SELECT count(*) AS n FROM activity_events WHERE recipient_id=? AND read_at IS NULL').get(user.id).n;
     send(res,200,{...page(rows,limit),unreadCount});return;
    }
+   if(method==='GET'&&route==='/api/conversations'){
+    const user=requireUser(req);
+    const rows=db.prepare(`SELECT c.id,c.kind,c.title,c.updated_at,c.direct_state,c.requested_by,cm.accepted_at,
+      (SELECT count(*) FROM conversation_members cm WHERE cm.conversation_id=c.id) AS member_count,
+      (SELECT m.body FROM messages m WHERE m.conversation_id=c.id AND m.status='published' ORDER BY m.id DESC LIMIT 1) AS last_message,
+      (SELECT m.created_at FROM messages m WHERE m.conversation_id=c.id AND m.status='published' ORDER BY m.id DESC LIMIT 1) AS last_message_at,
+      (SELECT count(*) FROM messages m WHERE m.conversation_id=c.id AND m.status='published' AND m.id>cm.last_read_message_id AND m.sender_id<>?) AS unread_count
+      FROM conversation_members cm JOIN conversations c ON c.id=cm.conversation_id
+      WHERE cm.user_id=? AND c.direct_state<>'declined' AND (SELECT count(*) FROM conversation_members cm2 WHERE cm2.conversation_id=c.id)>=2
+       AND NOT EXISTS (SELECT 1 FROM conversation_members peer WHERE peer.conversation_id=c.id AND peer.user_id<>? AND EXISTS (SELECT 1 FROM user_blocks b WHERE (b.blocker_id=? AND b.blocked_id=peer.user_id) OR (b.blocker_id=peer.user_id AND b.blocked_id=?)))
+      ORDER BY c.updated_at DESC,c.id DESC LIMIT 50`).all(user.id,user.id,user.id,user.id,user.id);
+    const items=rows.map(row=>({...row,requestState:row.kind!=='direct'?'active':row.direct_state==='declined'?'declined':row.direct_state==='active'?'active':row.requested_by===user.id?'outgoing_request':'incoming_request',members:conversationMembers(row.id).map(person=>({username:person.username,role:person.role}))}));
+    send(res,200,{items,production:false,delivery:'local-inbox-only'});return;
+   }
+   const threadRead=route.match(/^\/api\/conversations\/([0-9a-f-]{36})\/messages$/);
+   if(method==='GET'&&threadRead){
+    const user=requireUser(req),id=threadRead[1];
+    requireConversationAccess(id,user.id);
+    const limit=Number(query.get('limit')||30);
+    check(Number.isInteger(limit)&&limit>=1&&limit<=50,400,'Неверный размер страницы');
+    const cursor=query.has('cursor')?int(query.get('cursor')):Number.MAX_SAFE_INTEGER;
+    check(cursor>0,400,'Неверный курсор сообщений');
+    const rows=db.prepare("SELECT m.id,m.body,m.created_at,u.username FROM messages m JOIN users u ON u.id=m.sender_id WHERE m.conversation_id=? AND m.status='published' AND m.id<? ORDER BY m.id DESC LIMIT ?")
+     .all(id,cursor,limit+1);
+    send(res,200,{...page(rows,limit),members:conversationMembers(id).map(person=>({username:person.username,role:person.role})),scope:'participants-only',production:false});return;
+   }
+   const messageReports=route==='/api/mod/message-reports';
+   if(method==='GET'&&messageReports){
+    const moderator=requireUser(req);check(moderator.role==='moderator',403,'Доступ запрещён');
+    const items=db.prepare("SELECT r.id,r.message_id,r.reason,r.detail,r.created_at,u.username AS reporter,m.body FROM message_reports r JOIN users u ON u.id=r.reporter_id JOIN messages m ON m.id=r.message_id WHERE r.status='open' AND m.status='published' ORDER BY r.id ASC LIMIT 100").all();
+    send(res,200,{items,scope:'moderator-local-queue',production:false});return;
+   }
    if(method==='GET'&&route==='/api/me/blocks'){
     const user=requireUser(req);
     const items=db.prepare("SELECT u.username,b.created_at FROM user_blocks b JOIN users u ON u.id=b.blocked_id WHERE b.blocker_id=? ORDER BY b.created_at DESC,u.username LIMIT 100")
@@ -718,8 +783,11 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const retentionConsent=db.prepare("SELECT consented_at AS consentedAt,consented_day AS cohortDay FROM beta_retention_consents WHERE user_id=?").get(user.id)||null;
     const retentionDays=db.prepare("SELECT day_utc AS dayUtc,source FROM beta_retention_days WHERE user_id=? ORDER BY day_utc").all(user.id);
     const coverReports=db.prepare("SELECT r.reason,r.detail,r.status,r.created_at AS createdAt,r.decided_at AS decidedAt,w.slug FROM world_cover_reports r JOIN worlds w ON w.id=r.world_id WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
+    const conversations=db.prepare("SELECT c.id,c.kind,c.title,c.direct_state AS requestState,c.created_at AS createdAt,c.updated_at AS updatedAt FROM conversations c JOIN conversation_members mine ON mine.conversation_id=c.id WHERE mine.user_id=? ORDER BY c.created_at").all(user.id);
+    const privateMessages=db.prepare("SELECT m.conversation_id AS conversationId,m.sender_id AS senderId,u.username AS sender,m.body,m.status,m.created_at AS createdAt FROM messages m JOIN users u ON u.id=m.sender_id JOIN conversation_members mine ON mine.conversation_id=m.conversation_id WHERE mine.user_id=? ORDER BY m.id").all(user.id);
+    const messageReports=db.prepare("SELECT r.message_id AS messageId,r.reason,r.detail,r.status,r.created_at AS createdAt FROM message_reports r WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports});
+      user:{id:user.id,username:user.username,email:user.email},worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
@@ -873,6 +941,142 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     send(res,200,{authenticated:false},{'Set-Cookie':cookie('',0)});return;
    }
    const user=requireUser(req);
+   if(method==='POST'&&route==='/api/conversations'){
+    throttle('conversation-create:'+user.id,20,3600000);
+    check(Object.keys(body).length>0&&Object.keys(body).every(key=>['kind','username','title','participants'].includes(key)),400,'Неизвестные поля');
+    const kind=body.kind;
+    if(kind==='direct'){
+     check(typeof body.username==='string'&&body.title===undefined&&body.participants===undefined,400,'Укажи имя собеседника');
+     const target=db.prepare('SELECT id,username FROM users WHERE username=?').get(str(body.username).toLowerCase());
+     check(target&&target.id!==user.id,404,'Участник не найден');
+     ensureNoBlock(user.id,target.id);
+     const directKey=[user.id,target.id].sort().join(':');
+     let conversation=db.prepare('SELECT id FROM conversations WHERE direct_key=?').get(directKey);
+     const created=!conversation;
+     atomic(()=>{
+      if(!conversation){
+       const id=randomUUID();
+       const stamp=now();
+       db.prepare("INSERT INTO conversations(id,kind,direct_key,created_by,direct_state,requested_by,created_at,updated_at) VALUES(?,'direct',?,?,'pending',?,?,?)")
+        .run(id,directKey,user.id,user.id,stamp,stamp);
+       db.prepare("INSERT INTO conversation_members(conversation_id,user_id,role,joined_at,accepted_at) VALUES(?,?,'member',?,?)")
+        .run(id,user.id,stamp,stamp);
+       db.prepare("INSERT INTO conversation_members(conversation_id,user_id,role,joined_at,accepted_at) VALUES(?,?,'member',?,NULL)")
+        .run(id,target.id,stamp);
+       conversation={id,direct_state:'pending',requested_by:user.id};
+      }else{
+       conversation=db.prepare('SELECT id,direct_state,requested_by FROM conversations WHERE direct_key=?').get(directKey);
+       if(conversation.direct_state==='declined'&&conversation.requested_by!==user.id){
+        const stamp=now();
+        db.prepare("UPDATE conversations SET direct_state='pending',requested_by=?,updated_at=? WHERE id=? AND direct_state='declined'")
+         .run(user.id,stamp,conversation.id);
+        db.prepare('UPDATE conversation_members SET accepted_at=CASE WHEN user_id=? THEN ? ELSE NULL END,last_read_message_id=0 WHERE conversation_id=?')
+         .run(user.id,stamp,conversation.id);
+        conversation={...conversation,direct_state:'pending',requested_by:user.id};
+       }
+      }
+     });
+     requireConversationAccess(conversation.id,user.id);
+     const requestState=conversation.direct_state==='active'?'active':conversation.direct_state==='declined'?'declined':conversation.requested_by===user.id?'outgoing_request':'incoming_request';
+     send(res,created?201:200,{id:conversation.id,kind:'direct',created,requestState,members:conversationMembers(conversation.id).map(person=>({username:person.username,role:person.role})),production:false});return;
+    }
+    check(kind==='group'&&typeof body.title==='string'&&Array.isArray(body.participants)&&body.username===undefined,400,'Укажи название и участников групповой беседы');
+    const title=str(body.title),requestedNames=body.participants.map(x=>typeof x==='string'?x.trim().toLowerCase():''),names=[...new Set(requestedNames)];
+    check(title.length>=3&&title.length<=60,400,'Название группы: 3–60 символов');
+    check(names.length===requestedNames.length&&names.length>=2&&names.length<=11&&names.every(name=>/^[a-z][a-z0-9_]{2,23}$/.test(name)),400,'В группе нужно от двух до одиннадцати разных участников');
+    const ids=new Set([user.id]);
+    for(const name of names){
+     const person=db.prepare('SELECT id FROM users WHERE username=?').get(name);
+     check(person&&person.id!==user.id,404,'Один из участников не найден');
+     ensureNoBlock(user.id,person.id);
+     ids.add(person.id);
+    }
+    check(ids.size===names.length+1,400,'Повторяющиеся участники недопустимы');
+    const members=[...ids];
+    for(let a=0;a<members.length;a++)for(let b=a+1;b<members.length;b++)ensureNoBlock(members[a],members[b]);
+    const id=randomUUID(),stamp=now();
+    atomic(()=>{
+     db.prepare("INSERT INTO conversations(id,kind,title,created_by,direct_state,created_at,updated_at) VALUES(?,'group',?,?,'active',?,?)")
+      .run(id,title,user.id,stamp,stamp);
+     for(const memberId of members)db.prepare('INSERT INTO conversation_members(conversation_id,user_id,role,joined_at,accepted_at) VALUES(?,?,?,?,?)')
+      .run(id,memberId,memberId===user.id?'owner':'member',stamp,stamp);
+    });
+    send(res,201,{id,kind:'group',created:true,members:conversationMembers(id).map(person=>({username:person.username,role:person.role})),production:false});return;
+   }
+   const messageSend=route.match(/^\/api\/conversations\/([0-9a-f-]{36})\/messages$/);
+   if(method==='POST'&&messageSend){
+    const id=messageSend[1],{conversation}=requireConversationAccess(id,user.id);
+    throttle('message:'+user.id,60,60000);
+    check(Object.keys(body).length===1&&typeof body.body==='string',400,'Нужен текст сообщения');
+    const text=body.body.trim();check(text.length>=1&&text.length<=2000,400,'Сообщение: 1–2000 символов');
+    if(conversation.kind==='direct'&&conversation.direct_state==='pending'){
+     check(conversation.requested_by===user.id,403,'Сначала прими запрос на переписку');
+     check(db.prepare("SELECT count(*) AS n FROM messages WHERE conversation_id=? AND status='published'").get(id).n===0,409,'До принятия запроса можно отправить только одно сообщение');
+    }
+    const messageId=atomic(()=>{
+     const inserted=db.prepare("INSERT INTO messages(conversation_id,sender_id,body,created_at) VALUES(?,?,?,?)").run(id,user.id,text,now());
+     db.prepare('UPDATE conversations SET updated_at=? WHERE id=?').run(now(),id);
+     db.prepare('UPDATE conversation_members SET last_read_message_id=? WHERE conversation_id=? AND user_id=?').run(Number(inserted.lastInsertRowid),id,user.id);
+     return Number(inserted.lastInsertRowid);
+    });
+    send(res,201,{id:messageId,conversationId:id,kind:conversation.kind,createdAt:now(),production:false});return;
+   }
+   const markThreadRead=route.match(/^\/api\/conversations\/([0-9a-f-]{36})\/read$/);
+   if(method==='POST'&&markThreadRead){
+    const id=markThreadRead[1];requireConversationAccess(id,user.id);
+    check(Object.keys(body).length===0,400,'Неизвестные поля');
+    const latest=db.prepare("SELECT COALESCE(max(id),0) AS id FROM messages WHERE conversation_id=? AND status='published'").get(id).id;
+    const changed=db.prepare('UPDATE conversation_members SET last_read_message_id=? WHERE conversation_id=? AND user_id=? AND last_read_message_id<?')
+     .run(latest,id,user.id,latest);
+    send(res,200,{readThrough:Number(latest),changed:Boolean(changed.changes),scope:'self'});return;
+   }
+   const directDecision=route.match(/^\/api\/conversations\/([0-9a-f-]{36})\/(accept|decline)$/);
+   if(method==='POST'&&directDecision){
+    const id=directDecision[1],action=directDecision[2],{conversation}=requireConversationAccess(id,user.id);
+    check(conversation.kind==='direct'&&conversation.direct_state==='pending',409,'Запрос уже принят или закрыт');
+    check(conversation.requested_by!==user.id,403,'Запрос может принять или отклонить только получатель');
+    check(Object.keys(body).length===0,400,'Неизвестные поля');
+    if(action==='accept'){
+     atomic(()=>{
+      const changed=db.prepare("UPDATE conversations SET direct_state='active',updated_at=? WHERE id=? AND direct_state='pending'").run(now(),id);
+      check(changed.changes===1,409,'Запрос уже обработан');
+      db.prepare('UPDATE conversation_members SET accepted_at=? WHERE conversation_id=? AND accepted_at IS NULL').run(now(),id);
+     });
+     send(res,200,{accepted:true,requestState:'active'});return;
+    }
+    atomic(()=>{
+     const changed=db.prepare("UPDATE conversations SET direct_state='declined',updated_at=? WHERE id=? AND direct_state='pending'").run(now(),id);
+     check(changed.changes===1,409,'Запрос уже обработан');
+     db.prepare('DELETE FROM messages WHERE conversation_id=?').run(id);
+    });
+    send(res,200,{declined:true,requestState:'declined',messageHistoryDeleted:true});return;
+   }
+   const reportMessage=route.match(/^\/api\/messages\/([1-9][0-9]{0,14})\/report$/);
+   if(method==='POST'&&reportMessage){
+    const id=int(reportMessage[1]),reason=body.reason,detail=str(body.detail);
+    check(Object.keys(body).length===2&&['spam','abuse','privacy','other'].includes(reason)&&detail.length>=12&&detail.length<=500,400,'Укажи причину и описание от 12 до 500 символов');
+    const message=db.prepare("SELECT m.sender_id,m.conversation_id FROM messages m WHERE m.id=? AND m.status='published'").get(id);
+    check(message,404,'Сообщение не найдено');
+    const access=requireConversationAccess(message.conversation_id,user.id);
+    check(message.sender_id!==user.id,403,'На своё сообщение пожаловаться нельзя');
+    throttle('message-report:'+user.id,12,86400000);
+    try{db.prepare('INSERT INTO message_reports(message_id,reporter_id,reason,detail,created_at) VALUES(?,?,?,?,?)').run(id,user.id,reason,detail,now());}
+    catch{throw new HttpError(409,'Жалоба на это сообщение уже принята');}
+    send(res,201,{received:true,conversationKind:access.conversation.kind});return;
+   }
+   const hideMessage=route.match(/^\/api\/mod\/messages\/([1-9][0-9]{0,14})\/hide$/);
+   if(method==='POST'&&hideMessage){
+    check(user.role==='moderator',403,'Доступ запрещён');
+    const id=int(hideMessage[1]),message=db.prepare("SELECT sender_id FROM messages WHERE id=? AND status='published'").get(id);
+    check(message,404,'Сообщение не найдено');check(message.sender_id!==user.id,403,'Модератор не скрывает собственное сообщение');
+    atomic(()=>{
+     const changed=db.prepare("UPDATE messages SET status='hidden' WHERE id=? AND status='published'").run(id);
+     check(changed.changes===1,404,'Сообщение не найдено');
+     db.prepare("UPDATE message_reports SET status='reviewed' WHERE message_id=?").run(id);
+     db.prepare("INSERT INTO message_moderation_audit(actor_id,message_id,action,created_at) VALUES(?,?,'hide',?)").run(user.id,id,now());
+    });
+    send(res,200,{hidden:true});return;
+   }
    if((method==='POST'||method==='DELETE')&&route==='/api/me/retention-consent'){
     throttle('beta-retention-consent:'+user.id,12,DAY);
     if(method==='POST'){
@@ -1163,8 +1367,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    // R30 real community: follow relationships are per signed-in user.
    const followWrite=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})\/follow$/);
    if(followWrite&&(method==='POST'||method==='DELETE')){
-    const world=db.prepare('SELECT id,owner_id FROM worlds WHERE slug=?').get(followWrite[1]);
+    const world=db.prepare('SELECT id,owner_id,visibility FROM worlds WHERE slug=?').get(followWrite[1]);
     check(world,404,'Мир не найден');
+    check(world.visibility==='public',404,'Мир не найден');
     check(world.owner_id!==user.id,403,'Подписка на собственный мир недоступна');
     if(method==='POST')ensureNoBlock(user.id,world.owner_id);
     if(method==='POST'){
@@ -1184,8 +1389,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     throttle('comment:'+user.id,25,3600000);
     const postId=int(commentWrite[1]),text=str(body.body);
     check(text.length>=1&&text.length<=800,400,'Комментарий: 1–800 символов');
-    const post=db.prepare("SELECT author_id,world_id FROM posts WHERE id=? AND status='published'").get(postId);
+    const post=db.prepare("SELECT p.author_id,p.world_id,w.owner_id,w.visibility FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published'").get(postId);
     check(post,404,'Публикация недоступна');
+    check(post.visibility==='public'||post.owner_id===user.id,404,'Публикация недоступна');
     ensureNoBlock(user.id,post.author_id);
     const id=atomic(()=>{
      const created=db.prepare("INSERT INTO comments(post_id,author_id,body,status,created_at) VALUES(?,?,?,'published',?)").run(postId,user.id,text,now()).lastInsertRowid;
@@ -1205,8 +1411,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     throttle('comment-report:'+user.id,30,3600000);
     check(REASONS.has(body.reason),400,'Причина жалобы не поддерживается');
     const id=int(reportComment[1]);
-    const comment=db.prepare("SELECT c.author_id FROM comments c JOIN posts p ON p.id=c.post_id WHERE c.id=? AND c.status='published' AND p.status='published'").get(id);
+    const comment=db.prepare("SELECT c.author_id,w.owner_id,w.visibility FROM comments c JOIN posts p ON p.id=c.post_id JOIN worlds w ON w.id=p.world_id WHERE c.id=? AND c.status='published' AND p.status='published'").get(id);
     check(comment,404,'Комментарий не найден');
+    check(comment.visibility==='public'||comment.owner_id===user.id,404,'Комментарий не найден');
     check(comment.author_id!==user.id,403,'Нельзя жаловаться на собственный комментарий');
     try{
      db.prepare('INSERT INTO comment_reports(comment_id,reporter_id,reason,created_at) VALUES(?,?,?,?)').run(id,user.id,body.reason,now());
@@ -1247,8 +1454,8 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    // There is no billing, impressions ledger, view tracking, or automatic delivery.
    if(method==='POST'&&route==='/api/sponsors/proposals'){
     const worldId=str(body.worldId),brandName=str(body.brandName),headline=str(body.headline);
-    const targetWorld=db.prepare("SELECT id,owner_id FROM worlds WHERE id=?").get(worldId);
-    check(targetWorld,404,'Выбранный World не найден');
+    const targetWorld=db.prepare("SELECT id,owner_id,visibility FROM worlds WHERE id=?").get(worldId);
+    check(targetWorld&&targetWorld.visibility==='public',404,'Выбранный World не найден');
     check(targetWorld.owner_id!==user.id,403,'Нельзя предложить рекламу собственному World');
     ensureNoBlock(user.id,targetWorld.owner_id);
     check(brandName.length>=2&&brandName.length<=75,400,'Название бренда: 2–75 символов');
@@ -1313,20 +1520,35 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    const worldSettings=route.match(/^\/api\/worlds\/([a-z][a-z0-9_-]{2,39})$/);
    if(method==='PATCH'&&worldSettings){
     const slug=worldSettings[1];
-    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','category'].includes(k)),
-     400,'Можно изменять только название, описание и категорию');
-    const original=db.prepare('SELECT id,title,description,category FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
+    check(Object.keys(body).length>=1&&Object.keys(body).every(k=>['title','description','category','visibility'].includes(k)),
+     400,'Можно изменять только название, описание, категорию и приватность');
+    const original=db.prepare('SELECT id,title,description,category,visibility FROM worlds WHERE slug=? AND owner_id=?').get(slug,user.id);
     check(original,404,'Мир не найден');
     const title=body.title===undefined?original.title:str(body.title);
     const description=body.description===undefined?original.description:str(body.description);
     const category=body.category===undefined?original.category:body.category;
+    const visibility=body.visibility===undefined?original.visibility:body.visibility;
     check(title.length>=3&&title.length<=70,400,'Название мира: 3–70 символов');
     check(description.length<=400,400,'Описание слишком длинное');
     check(validTopic(category),400,'Неизвестная категория');
-    const result=db.prepare('UPDATE worlds SET title=?,description=?,category=? WHERE id=? AND owner_id=?')
-     .run(title,description,category,original.id,user.id);
-    check(result.changes===1,409,'Обновление мира не удалось');
-    send(res,200,{id:original.id,slug,title,description,category,ownerEditable:true});return;
+    check(visibility==='public'||visibility==='private',400,'Приватность должна быть public или private');
+    const visibilityChanged=visibility!==original.visibility;
+    atomic(()=>{
+     const result=db.prepare('UPDATE worlds SET title=?,description=?,category=?,visibility=? WHERE id=? AND owner_id=?')
+      .run(title,description,category,visibility,original.id,user.id);
+     check(result.changes===1,409,'Обновление мира не удалось');
+     if(visibilityChanged&&visibility==='private'){
+      db.prepare('DELETE FROM world_follows WHERE world_id=?').run(original.id);
+      const owners=db.prepare("SELECT DISTINCT owner_id FROM sponsor_proposals WHERE world_id=? AND owner_id<>? AND status IN ('pending_creator','pending_review','approved')").all(original.id,user.id);
+      const revoked=db.prepare("UPDATE sponsor_proposals SET status='revoked',reviewed_at=? WHERE world_id=? AND status IN ('pending_creator','pending_review','approved')")
+       .run(now(),original.id);
+      db.prepare('DELETE FROM activity_events WHERE world_id=?').run(original.id);
+      if(revoked.changes){
+       for(const sponsor of owners)recordActivity(sponsor.owner_id,user.id,'sponsor_revoked',{worldId:original.id});
+      }
+     }
+    });
+    send(res,200,{id:original.id,slug,title,description,category,visibility,visibilityChanged,ownerEditable:true});return;
    }
    if(method==='POST'&&route==='/api/worlds'){
     const title=str(body.title),slug=str(body.slug).toLowerCase(),description=str(body.description);
@@ -1370,8 +1592,9 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
    if(method==='POST'&&route==='/api/reports'){
     const postId=int(body.postId),reason=body.reason,detail=str(body.detail);
     check(postId>0&&REASONS.has(reason)&&detail.length<=500,400,'Некорректная жалоба');
-    const post=db.prepare("SELECT author_id FROM posts WHERE id=? AND status='published'").get(postId);
+    const post=db.prepare("SELECT p.author_id,w.owner_id,w.visibility FROM posts p JOIN worlds w ON w.id=p.world_id WHERE p.id=? AND p.status='published'").get(postId);
     check(post,404,'Запись не найдена');
+    check(post.visibility==='public'||post.owner_id===user.id,404,'Запись не найдена');
     check(post.author_id!==user.id,403,'На собственную запись пожаловаться нельзя');
     try{db.prepare('INSERT INTO reports(post_id,reporter_id,reason,detail,created_at) VALUES(?,?,?,?,?)').run(postId,user.id,reason,detail,now());}
     catch{throw new HttpError(409,'Жалоба уже принята');}
@@ -1397,6 +1620,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,category,category);
     const stored=stmt.email.get(user.email);
     check(await passwordMatches(typeof body.password==='string'?body.password:'',stored),403,'Неверный пароль');
     db.prepare('DELETE FROM users WHERE id=?').run(user.id);
+    db.prepare("DELETE FROM conversations WHERE (kind='direct' OR kind='group') AND (SELECT count(*) FROM conversation_members cm WHERE cm.conversation_id=conversations.id)<2").run();
     send(res,200,{deleted:true},{'Set-Cookie':cookie('',0)});return;
    }
    throw new HttpError(404,'Маршрут не найден');
