@@ -175,6 +175,7 @@ const CATALOG=Object.freeze({
  "dynamic.posts.unpublish":["Снять с публикации","Unpublish"],
  "dynamic.posts.save":["Сохранить","Save"],
  "dynamic.posts.saved":["Сохранено ✓","Saved ✓"],
+ "dynamic.posts.permalink":["Постоянная ссылка","Permalink"],
  "dynamic.sponsors.empty":["Одобренных пилотных заявок нет. Показы рекламы и оплаты не ведутся.","No approved pilot proposals. No advertising impressions or payments are taking place."],
  "dynamic.sponsors.openBrand":["Открыть сайт бренда ↗","Visit brand website ↗"],
  "dynamic.sponsors.withdrawConsent":["Отозвать согласие","Withdraw consent"],
