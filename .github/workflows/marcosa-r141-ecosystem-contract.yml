@@ -1,0 +1,49 @@
+name: "MARCOSA | R141 ecosystem public-source safety contract (NO PRODUCTION)"
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "site/ecosystem*"
+      - "site/index.html"
+      - "tools/build_webroot.py"
+      - "tests/ecosystem_registry.test.mjs"
+      - ".github/workflows/marcosa-r141-ecosystem-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site/ecosystem*"
+      - "site/index.html"
+      - "tools/build_webroot.py"
+      - "tests/ecosystem_registry.test.mjs"
+      - ".github/workflows/marcosa-r141-ecosystem-contract.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: marcosa-r141-offline-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  public-source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Verify real project manifest and preview-only UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check site/ecosystem.js
+          node --test tests/ecosystem_registry.test.mjs
+          python3 -m py_compile tools/build_webroot.py
+          grep -Fq 'href="./ecosystem.html"' site/index.html
+          if grep -Eiq '(service_role.*eyJ|BEGIN.*PRIVATE KEY)' site/ecosystem*; then
+            echo "::error::Sensitive credential in public catalogue"
+            exit 1
+          fi
+          echo "R141_PUBLIC_SOURCE_CONTRACT=PASS"
+          echo "R141_PRODUCTION_AUTHORIZED=NO"
