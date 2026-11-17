@@ -42,7 +42,7 @@ export function onEpisode(db,seriesId,episodeId){
  (b.blocker_id=sub.user_id AND b.blocked_id=s.owner_id))`).run(seriesId,episodeId);
 }
 
-export function handleSubscriptions({db,res,route,method,viewer,user,send,check,body}){
+export function handleSubscriptions({db,res,route,method,viewer,user,send,check,body,query}){
  if(method==='GET'&&route==='/series-subscriptions.js'){
   res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});
   res.end(script);
@@ -54,21 +54,38 @@ export function handleSubscriptions({db,res,route,method,viewer,user,send,check,
   check(actor,401,'Нужен вход');
   reply(200,{items:nextUnreadEpisodes(db,actor),source:'voluntary-checkins'});return true;
  }
+ if(method==='DELETE'&&route==='/api/me/series-reminders'){
+  check(actor,401,'Нужен вход');
+  check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===0,
+   400,'Удаление не принимает дополнительные поля');
+  const removed=db.prepare('DELETE FROM series_reminders WHERE user_id=?').run(actor).changes;
+  reply(200,{dismissed:true,removed});return true;
+ }
  if(method==='GET'&&route==='/api/me/series-reminders'){
   check(actor,401,'Нужен вход');
-  const items=db.prepare(`SELECT s.slug,s.title AS seriesTitle,e.title AS episodeTitle,
+  const limitRaw=query?.get('limit')||'20';
+  check(/^[1-9][0-9]{0,1}$/.test(limitRaw)&&Number(limitRaw)<=50,
+   400,'Лимит напоминаний от 1 до 50');
+  const limit=Number(limitRaw);
+  const cursorRaw=query?.get('cursor')||'';
+  check(!cursorRaw||(/^[1-9][0-9]{0,14}$/.test(cursorRaw)&&Number.isSafeInteger(Number(cursorRaw))),
+   400,'Неверный курсор напоминаний');
+  const cursor=cursorRaw?Number(cursorRaw):null;
+  const rows=db.prepare(`SELECT s.slug,s.title AS seriesTitle,e.title AS episodeTitle,
    e.id AS episodeId,e.position,e.post_id AS postId,w.slug AS world
    FROM series_reminders r JOIN series s ON s.id=r.series_id
    JOIN series_episodes e ON e.id=r.episode_id AND e.series_id=s.id
    JOIN posts p ON p.id=e.post_id AND p.world_id=s.world_id AND p.author_id=s.owner_id
    JOIN worlds w ON w.id=s.world_id LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id
-   WHERE r.user_id=? AND p.status='published' AND w.visibility='public'
+   WHERE r.user_id=? AND (? IS NULL OR r.episode_id < ?) AND p.status='published' AND w.visibility='public'
    AND (COALESCE(pc.visibility,'public')='public' OR EXISTS(SELECT 1 FROM user_follows f
    WHERE f.follower_id=r.user_id AND f.followed_id=s.owner_id AND f.status='active'))
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=r.user_id AND b.blocked_id=s.owner_id)
    OR (b.blocked_id=r.user_id AND b.blocker_id=s.owner_id))
-   ORDER BY r.episode_id DESC LIMIT 50`).all(actor);
-  reply(200,{items});return true;
+   ORDER BY r.episode_id DESC LIMIT ?`).all(actor,cursor,cursor,limit+1);
+  const items=rows.slice(0,limit);
+  const nextCursor=rows.length>limit?String(items.at(-1).episodeId):null;
+  reply(200,{items,nextCursor});return true;
  }
  const dismiss=route.match(/^\/api\/me\/series-reminders\/([1-9][0-9]{0,14})$/);
  if(dismiss){
