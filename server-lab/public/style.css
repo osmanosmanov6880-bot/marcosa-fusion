@@ -483,3 +483,31 @@ dialog form{display:grid;gap:17px}
  .message-send-form button,.message-request-actions button{width:100%;min-height:46px}
 }
 @media(prefers-reduced-motion:reduce){.message-conversation{scroll-behavior:auto}}
+
+/* R144: author profiles are deliberately lightweight and public-field only. */
+.profile-edit-panel,.public-profile{margin:22px 0;padding:clamp(20px,3vw,34px)}
+.public-profile{max-width:960px;margin:clamp(25px,6vw,64px) auto}
+.public-profile h1{font-size:clamp(42px,8vw,76px);margin:8px 0 14px}
+.public-profile h2{font-size:clamp(26px,4vw,36px);margin:38px 0 14px}
+.profile-orbit{display:grid;place-items:center;width:72px;height:72px;border:1px solid var(--gold);border-radius:50%;color:var(--gold);font:500 34px/1 var(--serif)}
+.profile-bio{max-width:68ch;color:var(--muted);font:400 17px/1.7 var(--sans);white-space:pre-wrap}
+.profile-interests{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0}
+.profile-interest{padding:7px 11px;border:1px solid var(--line);border-radius:999px;color:var(--gold);font-size:12px}
+.profile-website{display:inline-block;margin:8px 0;color:var(--gold)}
+.profile-world{padding:18px 20px;border:1px solid var(--line);border-radius:9px;background:#101a29}
+.profile-world>a{font:600 19px var(--sans);color:var(--ink)}
+.profile-world p{color:var(--muted);white-space:pre-wrap}
+.profile-world small{color:var(--gold)}
+.profile-post{margin:12px 0}
+.profile-post .eyebrow a,.person-link{color:var(--gold);text-decoration-thickness:1px;text-underline-offset:3px}
+.profile-public-link{overflow-wrap:anywhere}
+.people-discovery{margin:28px 0;padding:22px;border-top:1px solid var(--line)}
+.people-discovery .section-heading{margin-bottom:8px}
+.people-search-results{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:14px}
+.people-result{padding:16px;border:1px solid var(--line);border-radius:9px;background:#101a29}
+.people-result a{color:var(--gold);font-weight:650}
+.people-result p{color:var(--muted);margin:8px 0 0;white-space:pre-wrap}
+body[data-profile-page="true"] #main-content> :not(#public-profile){display:none!important}
+body[data-profile-page="true"] .topbar{margin-bottom:0}
+@media(max-width:720px){.public-profile{margin:14px 0;padding:20px 15px}.public-profile h2{margin-top:28px}}
+@media(prefers-reduced-motion:reduce){.profile-world{scroll-behavior:auto}}

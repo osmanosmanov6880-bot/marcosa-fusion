@@ -236,4 +236,8 @@ The existing loopback-only Node/SQLite social API now has working direct-message
 
 The existing lab UI now includes a responsive inbox, direct-request flow, group creation, thread reader and sender. Files and full implementation boundary: [`docs/MARCOSA_R143_LOCAL_PRIVATE_MESSAGING_RU.md`](docs/MARCOSA_R143_LOCAL_PRIVATE_MESSAGING_RU.md), [`server-lab/`](server-lab/), [`server-lab/test/r143.messaging.test.mjs`](server-lab/test/r143.messaging.test.mjs).
 
+## R144 — author profiles in the local social lab
+
+The existing account model now supports editable public/private author profiles, public profile discovery, direct share pages, and profile data export. Profile visibility does not override the independent visibility of each World or post. Implementation boundary and validation: [`docs/MARCOSA_R144_AUTHOR_PROFILES_RU.md`](docs/MARCOSA_R144_AUTHOR_PROFILES_RU.md), [`server-lab/test/r144.profiles.test.mjs`](server-lab/test/r144.profiles.test.mjs).
+
 This is **not production messaging**: no Supabase/PostgreSQL deployment, media attachments, push/email delivery, guaranteed encryption or public API. The server remains loopback-only; static preview and real MARCOSA production remain unchanged.

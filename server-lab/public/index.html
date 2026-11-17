@@ -27,6 +27,18 @@
  </div>
 </header>
 <main id="main-content" tabindex="-1">
+<section id="public-profile" class="public-profile panel" hidden aria-labelledby="public-profile-title">
+ <a class="hero-link" href="/">← На главную MARCOSA</a>
+ <div class="profile-orbit" aria-hidden="true">M</div>
+ <p id="public-profile-handle" class="eyebrow"></p>
+ <h1 id="public-profile-title"></h1>
+ <p id="public-profile-bio" class="profile-bio"></p>
+ <div id="public-profile-interests" class="profile-interests"></div>
+ <a id="public-profile-website" class="profile-website" hidden target="_blank" rel="noopener noreferrer">Сайт автора ↗</a>
+ <h2>Публичные миры</h2><div id="public-profile-worlds" class="compact-list"></div>
+ <h2>Публикации</h2><div id="public-profile-posts" class="post-list"></div>
+ <p id="public-profile-empty" class="muted" hidden>Пока нет общедоступных материалов.</p>
+</section>
 <section class="hero">
  <div class="hero-copy">
   <span class="eyebrow">PRIVATE BETA ENGINE / OWN YOUR WORLD</span>
@@ -66,6 +78,19 @@
   </section>
   <section id="member-access" hidden>
    <p id="profile-line" class="profile-line"></p>
+  <details id="profile-edit-panel" class="invite-panel profile-edit-panel">
+   <summary>Мой профиль автора</summary>
+   <p class="muted">Показывай только то, что хочешь сделать публичным. Почта и данные входа никогда не публикуются.</p>
+   <form id="profile-edit-form" class="form-block">
+    <label>Отображаемое имя<input name="displayName" maxlength="50"></label>
+    <label>О себе<textarea name="bio" maxlength="400" rows="3"></textarea></label>
+    <label>Интересы через запятую<input name="interests" maxlength="280" placeholder="Фото, кино, путешествия"></label>
+    <label>Сайт (только HTTPS)<input name="website" type="url" maxlength="200" placeholder="https://пример.рф"></label>
+    <label>Видимость профиля<select name="visibility"><option value="public">Публичный — можно открыть по ссылке</option><option value="private">Приватный — скрыт от других</option></select></label>
+    <button class="gold" type="submit">Сохранить профиль</button>
+   </form>
+   <p id="profile-public-link" class="muted" aria-live="polite"></p>
+  </details>
    <h3>Мои миры</h3>
    <div id="my-worlds" class="compact-list"></div>
    <details id="world-settings-panel" class="invite-panel world-settings">
@@ -208,6 +233,14 @@
    <button type="submit" class="ghost">Найти</button><button id="discover-clear" type="button" class="ghost">Сбросить</button></div>
   </form>
   <div id="discover-results" class="discover-results" aria-live="polite" hidden></div>
+  <section class="people-discovery" aria-labelledby="people-discovery-heading">
+   <div class="section-heading"><div><span class="eyebrow">PEOPLE / PUBLIC PROFILES</span><h2 id="people-discovery-heading">Найди <em>автора.</em></h2></div></div>
+   <form id="people-search-form" class="discover-form" role="search">
+    <label for="people-search-input">Поиск публичных профилей по имени или интересу</label>
+    <div class="discover-line"><input id="people-search-input" name="q" minlength="2" maxlength="40" placeholder="Имя автора или тема" required><button class="ghost" type="submit">Найти автора</button></div>
+   </form>
+   <div id="people-search-results" class="people-search-results" aria-live="polite"></div>
+  </section>
   <div id="world-list" class="world-grid"></div>
   <section id="world-detail" class="panel world-detail" aria-labelledby="world-detail-title" hidden>
    <button id="world-close" class="ghost small" type="button">← Все миры</button>
