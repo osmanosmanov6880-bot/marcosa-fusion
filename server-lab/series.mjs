@@ -85,7 +85,7 @@ function dateField(value,check) {
  return value;
 }
 export async function handleSeries(ctx) {
- const {db,res,route,method,body,user,viewer,send,check,now,atomic}=ctx;
+ const {db,res,route,method,body,user,viewer,send,check,now,atomic,query}=ctx;
  const viewerId=(typeof viewer==='string'?viewer:viewer?.id)||user?.id||'';
  const respond = (status, data) => send(res,status,data,{'Cache-Control':'private, no-store'});
  if (method==='GET' && route==='/series.js') {
@@ -95,12 +95,29 @@ export async function handleSeries(ctx) {
  const catalog=route==='/series'||route==='/api/series';
  if (!detail && !catalog) return false;
  if (method==='GET' && catalog) {
-  const items=db.prepare(seriesQuery+' ORDER BY s.id DESC LIMIT 100').all({viewer:viewerId});
-  if(route==='/api/series') respond(200,{items:items.map(describe)});
+  const raw=query.get('q')||'';
+  check(raw.length<=72,400,'Поиск ограничен 72 символами');
+  const search=raw.trim().normalize('NFC');
+  const items=db.prepare(seriesQuery+` AND ($search='' OR instr(lower(s.title),lower($search))>0 OR instr(lower(s.description),lower($search))>0 OR instr(lower(u.username),lower($search))>0)
+   ORDER BY s.id DESC LIMIT 100`).all({viewer:viewerId,search});
+  const episodeSummary=new Map();
+  if(items.length){
+   const placeholders=items.map(()=>'?').join(',');
+   const episodes=db.prepare(`SELECT e.id,e.series_id FROM series_episodes e JOIN series s ON s.id=e.series_id
+    JOIN posts p ON p.id=e.post_id AND p.author_id=s.owner_id AND p.world_id=s.world_id
+    WHERE e.series_id IN (${placeholders}) AND p.status='published' ORDER BY e.series_id,e.position`).all(...items.map(item=>item.id));
+   for(const episode of episodes){
+    const summary=episodeSummary.get(episode.series_id)||{episodeCount:0,firstEpisodeId:episode.id};
+    summary.episodeCount++;episodeSummary.set(episode.series_id,summary);
+   }
+  }
+  const results=items.map(item=>({...describe(item),...(episodeSummary.get(item.id)||{episodeCount:0,firstEpisodeId:null})}));
+  if(route==='/api/series') respond(200,{items:results,query:search});
   else {
    const worlds=viewerId?db.prepare('SELECT id,title FROM worlds WHERE owner_id=? ORDER BY created_at DESC').all(viewerId):[];
-   const cards=items.map(s=>`<article class="post"><p class="eyebrow">@${escape(s.author)}</p><h2><a class="post-permalink" href="/series/${escape(s.slug)}">${escape(s.title)}</a></h2><p>${escape(s.description)}</p></article>`).join('');
-   page(res,'Авторские сезоны',`<h1>Авторские сезоны</h1><section id="series-reminders"></section>${cards||'<p>Пока нет доступных сезонов.</p>'}${viewerId?createForm(worlds):'<a href="/">Войти в MARCOSA</a>'}`);
+   const cards=results.map(s=>`<article class="post"><p class="eyebrow">@${escape(s.author)}</p><h2><a class="post-permalink" href="/series/${escape(s.slug)}">${escape(s.title)}</a></h2><p>${escape(s.description)}</p><p>Опубликовано выпусков: ${s.episodeCount}</p>${s.firstEpisodeId?`<a class="post-permalink" href="/series/${escape(s.slug)}#episode-${s.firstEpisodeId}">Начать с первого выпуска</a>`:'<span>Первый выпуск готовится</span>'}</article>`).join('');
+   const empty=search?'По этому запросу доступных сезонов не найдено.':'Пока нет доступных сезонов.';
+   page(res,'Авторские сезоны',`<h1>Авторские сезоны</h1><form method="get" action="/series" role="search"><label>Название, тема или автор <input name="q" maxlength="72" value="${escape(search)}"></label><button type="submit">Найти</button></form><section id="series-reminders"></section>${cards||`<p>${empty}</p>`}${viewerId?createForm(worlds):'<a href="/">Войти в MARCOSA</a>'}`);
   }
   return true;
  }

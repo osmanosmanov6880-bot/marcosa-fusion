@@ -34,6 +34,14 @@ test('season publishing, reader access, retry and moderation use the real social
  assert.equal((await add(draft)).status,404);
  assert.equal((await add(foreign)).status,404);
  assert.equal((await add(id)).status,201);assert.equal((await add(id)).status,200);
+ const discovered=await request('/api/series?q=director149');
+ assert.equal(discovered.json.items.length,1);
+ assert.equal(discovered.json.items[0].episodeCount,1);
+ assert.equal(discovered.json.items[0].firstEpisodeId,(await request(detail)).json.episodes[0].id);
+ assert.equal((await request('/api/series?q=absent')).json.items.length,0);
+ assert.equal((await request('/api/series?q='+encodeURIComponent('x'.repeat(73)))).status,400);
+ assert.match((await request('/series?q=director149')).content,/Начать с первого выпуска/);
+ assert.doesNotMatch((await request('/series?q='+encodeURIComponent('<script>'))).content,/<script>/);
  assert.equal((await request(detail)).json.episodes.length,1);
  const page=await request('/series/the-evening');
  assert.match(page.content,/Вечер &lt;script&gt;test&lt;\/script&gt;/);
@@ -49,5 +57,6 @@ test('season publishing, reader access, retry and moderation use the real social
  assert.equal((await request(detail,fan.cookie)).status,404);
  app.db.prepare("UPDATE posts SET status='hidden' WHERE id=?").run(id);
  assert.deepEqual((await request(detail,author.cookie)).json.episodes,[]);
+ assert.equal((await request('/api/series?q=director149',author.cookie)).json.items[0].episodeCount,0);
  assert.deepEqual(app.db.prepare('PRAGMA foreign_key_check').all(),[]);
 });

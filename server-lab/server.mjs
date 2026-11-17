@@ -20,6 +20,7 @@ import {initVotes,handleVotes,exportUserVotes} from './votes.mjs';
 import {initSubscriptions,handleSubscriptions,onEpisode} from './series-subscriptions.mjs';
 import {initMetrics,handleMetrics,exportAttendance} from './series-metrics.mjs';
 import {initSponsor,handleSponsor} from './series-sponsor.mjs';
+import {exportSeasonData} from './series-export.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -341,6 +342,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  // R81: an incident freeze must still permit genuine user safety actions.
  function safeWhileFrozen(method,route){
   if(method==='DELETE'&&['/api/account','/api/me/retention-consent'].includes(route))return true;
+  // Members retain control over subscriptions and their own viewing marks during an incident.
+  if(method==='DELETE'&&/^\/api\/series\/[a-z0-9-]+\/(?:subscription|metrics\/attendance)$/.test(route))return true;
   if(method!=='POST')return false;
   if(['/api/auth/login','/api/auth/logout',
     '/api/me/security/revoke-others','/api/me/security/change-password',
@@ -977,7 +980,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     const privateMessages=db.prepare("SELECT m.conversation_id AS conversationId,m.sender_id AS senderId,u.username AS sender,m.body,m.status,m.created_at AS createdAt FROM messages m JOIN users u ON u.id=m.sender_id JOIN conversation_members mine ON mine.conversation_id=m.conversation_id WHERE mine.user_id=? ORDER BY m.id").all(user.id);
     const messageReports=db.prepare("SELECT r.message_id AS messageId,r.reason,r.detail,r.status,r.created_at AS createdAt FROM message_reports r WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},profile,seasonVotes:exportUserVotes(db,user.id),seasonAttendance:exportAttendance(db,user.id),seasonSubscriptions:db.prepare("SELECT series_id FROM series_subscriptions WHERE user_id=?").all(user.id),userFollows,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reactions,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
+      user:{id:user.id,username:user.username,email:user.email},profile,seasonData:exportSeasonData(db,user.id),seasonVotes:exportUserVotes(db,user.id),seasonAttendance:exportAttendance(db,user.id),seasonSubscriptions:db.prepare("SELECT series_id FROM series_subscriptions WHERE user_id=?").all(user.id),userFollows,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reactions,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){
