@@ -108,6 +108,8 @@ jobs:
           node --check site/film-network.js
           node --check site/film-continuity.js
           node --check site/source-hub.js
+          node --check site/ecosystem.js
+          node --test tests/ecosystem_registry.test.mjs
           node --check site/cinema-pilot.js
           node --check site/marcosa-brand.js
           node --check site/social-core.js
@@ -158,6 +160,10 @@ jobs:
           test -s dist/source-hub.html
           test -s dist/source-hub.css
           test -s dist/source-hub.js
+          test -s dist/ecosystem.html
+          test -s dist/ecosystem.css
+          test -s dist/ecosystem.js
+          test -s dist/ecosystem-manifest.json
           test -s dist/cinema-pilot.html
           test -s dist/cinema-pilot.css
           test -s dist/cinema-pilot.js
