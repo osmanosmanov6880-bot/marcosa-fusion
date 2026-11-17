@@ -40,7 +40,11 @@ jobs:
           node --check site/ecosystem.js
           node --test tests/ecosystem_registry.test.mjs
           python3 -m py_compile tools/build_webroot.py
-          grep -Fq 'href="./ecosystem.html"' site/index.html
+          if grep -Fq 'href="./ecosystem.html"' site/index.html; then
+            echo "::error::Mixed R141 source catalogue is still linked from the primary MARCOSA home"
+            exit 1
+          fi
+          echo "R142_MIXED_CATALOGUE_REMOVED_FROM_HOME=PASS"
           if grep -Eiq '(service_role.*eyJ|BEGIN.*PRIVATE KEY)' site/ecosystem*; then
             echo "::error::Sensitive credential in public catalogue"
             exit 1
