@@ -107,6 +107,7 @@ try{
   const revoke=readerPage.getByRole('button',{name:/Снять отметку с выпуска/});
   await revoke.waitFor({timeout:12000});
   await revoke.click();
+  await readerPage.locator('#series-tools').getByRole('button',{name:/я посмотрел выпуск/}).first().waitFor({timeout:12000});
   ensure(!(await api(route+'/metrics/attendance',{cookie:reader.cookie})).json.episodes[0].marked,
    'Reader failed to remove voluntary attendance mark');
   for(let i=0;i<23;i++)await publish('R153 new subscriber chapter '+i+' '+size);
