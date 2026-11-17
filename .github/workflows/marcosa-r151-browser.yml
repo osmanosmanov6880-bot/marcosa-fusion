@@ -37,7 +37,9 @@ jobs:
       - name: Execute responsive real-browser acceptance
         env:
           MARCOSA_BROWSER_SCREENSHOTS: ${{ runner.temp }}/marcosa-r151-browser
-        run: node tools/browser/smoke.mjs
+        run: |
+          node tools/browser/smoke.mjs
+          node tools/browser/author-journey-r152.mjs
       - name: Preserve browser evidence
         if: always()
         uses: actions/upload-artifact@v4
