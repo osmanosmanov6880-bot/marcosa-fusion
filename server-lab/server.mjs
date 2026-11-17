@@ -105,10 +105,10 @@ const SCHEMA=[
  "CREATE TABLE IF NOT EXISTS comment_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, comment_id INTEGER NOT NULL REFERENCES comments(id) ON DELETE CASCADE, reporter_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, reason TEXT NOT NULL CHECK(reason IN ('spam','abuse','privacy','other')), status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','reviewed')), created_at INTEGER NOT NULL, UNIQUE(comment_id,reporter_id))",
  "CREATE TABLE IF NOT EXISTS sponsor_proposals (id INTEGER PRIMARY KEY AUTOINCREMENT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE, brand_name TEXT NOT NULL CHECK(length(brand_name) BETWEEN 2 AND 75), headline TEXT NOT NULL CHECK(length(headline) BETWEEN 5 AND 130), landing_url TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending_creator' CHECK(status IN ('pending_creator','pending_review','approved','rejected','revoked')), created_at INTEGER NOT NULL, reviewed_at INTEGER, reviewer_id TEXT REFERENCES users(id) ON DELETE SET NULL)",
  "CREATE INDEX IF NOT EXISTS idx_sponsor_status ON sponsor_proposals(status,id DESC)",
- "CREATE TABLE IF NOT EXISTS activity_events (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')), world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, read_at INTEGER, CHECK(recipient_id<>actor_id))",
+ "CREATE TABLE IF NOT EXISTS activity_events (id INTEGER PRIMARY KEY AUTOINCREMENT, recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','post_reaction','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')), world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE, post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE, sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE, created_at INTEGER NOT NULL, read_at INTEGER, CHECK(recipient_id<>actor_id))",
  "CREATE INDEX IF NOT EXISTS idx_activity_owner ON activity_events(recipient_id,id DESC)",
  "CREATE INDEX IF NOT EXISTS idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL",
- "CREATE TABLE IF NOT EXISTS notification_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, follows_enabled INTEGER NOT NULL DEFAULT 1 CHECK(follows_enabled IN (0,1)), comments_enabled INTEGER NOT NULL DEFAULT 1 CHECK(comments_enabled IN (0,1)), sponsors_enabled INTEGER NOT NULL DEFAULT 1 CHECK(sponsors_enabled IN (0,1)), updated_at INTEGER NOT NULL)",
+ "CREATE TABLE IF NOT EXISTS notification_preferences (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, follows_enabled INTEGER NOT NULL DEFAULT 1 CHECK(follows_enabled IN (0,1)), comments_enabled INTEGER NOT NULL DEFAULT 1 CHECK(comments_enabled IN (0,1)), reactions_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reactions_enabled IN (0,1)), sponsors_enabled INTEGER NOT NULL DEFAULT 1 CHECK(sponsors_enabled IN (0,1)), updated_at INTEGER NOT NULL)",
  "CREATE TABLE IF NOT EXISTS conversations (id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('direct','group')),direct_key TEXT UNIQUE,title TEXT,created_by TEXT REFERENCES users(id) ON DELETE SET NULL,direct_state TEXT NOT NULL DEFAULT 'active' CHECK(direct_state IN ('active','pending','declined')),requested_by TEXT REFERENCES users(id) ON DELETE SET NULL,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,CHECK((kind='direct' AND direct_key IS NOT NULL AND title IS NULL) OR (kind='group' AND direct_key IS NULL AND length(title) BETWEEN 3 AND 60)))",
  "CREATE TABLE IF NOT EXISTS conversation_members (conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner','member')),joined_at INTEGER NOT NULL,accepted_at INTEGER,last_read_message_id INTEGER NOT NULL DEFAULT 0 CHECK(last_read_message_id>=0),PRIMARY KEY(conversation_id,user_id))",
  "CREATE INDEX IF NOT EXISTS idx_conversation_members_user ON conversation_members(user_id,joined_at DESC,conversation_id)",
@@ -192,6 +192,36 @@ function upgradeWorldVisibility(db){
  if(!columns.has('visibility'))db.exec("ALTER TABLE worlds ADD COLUMN visibility TEXT NOT NULL DEFAULT 'public' CHECK(visibility IN ('public','private'))");
  db.exec('CREATE INDEX IF NOT EXISTS idx_worlds_visibility ON worlds(visibility,created_at DESC)');
 }
+function upgradeActivityEvents(db){
+ const definition=db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='activity_events'").get()?.sql||'';
+ if(!definition||definition.includes("'post_reaction'"))return false;
+ const previous=db.prepare('SELECT count(*) AS n FROM activity_events').get().n;
+ db.exec('BEGIN IMMEDIATE');
+ try{
+  db.exec(`CREATE TABLE activity_events_upgrade (
+   id INTEGER PRIMARY KEY AUTOINCREMENT,
+   recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   actor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   kind TEXT NOT NULL CHECK(kind IN ('new_follow','post_comment','post_reaction','sponsor_proposal','sponsor_accepted','sponsor_rejected','sponsor_approved','sponsor_revoked')),
+   world_id TEXT REFERENCES worlds(id) ON DELETE CASCADE,
+   post_id INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+   sponsor_id INTEGER REFERENCES sponsor_proposals(id) ON DELETE CASCADE,
+   created_at INTEGER NOT NULL,read_at INTEGER,CHECK(recipient_id<>actor_id));
+   INSERT INTO activity_events_upgrade(id,recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at,read_at)
+    SELECT id,recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at,read_at FROM activity_events;
+   DROP TABLE activity_events;
+   ALTER TABLE activity_events_upgrade RENAME TO activity_events;
+   CREATE INDEX idx_activity_owner ON activity_events(recipient_id,id DESC);
+   CREATE INDEX idx_activity_unread ON activity_events(recipient_id,id DESC) WHERE read_at IS NULL;`);
+  if(db.prepare('SELECT count(*) AS n FROM activity_events').get().n!==previous)throw Error('Activity migration row count mismatch');
+  if(db.prepare('PRAGMA foreign_key_check').all().length)throw Error('Activity migration has invalid foreign keys');
+  db.exec('COMMIT');return true;
+ }catch(error){db.exec('ROLLBACK');throw error;}
+}
+function upgradeNotificationPreferences(db){
+ const columns=new Set(db.prepare('PRAGMA table_info(notification_preferences)').all().map(row=>row.name));
+ if(!columns.has('reactions_enabled'))db.exec('ALTER TABLE notification_preferences ADD COLUMN reactions_enabled INTEGER NOT NULL DEFAULT 1 CHECK(reactions_enabled IN (0,1))');
+}
 function upgradeWorldCoverReview(db){
  const cols=new Set(db.prepare('PRAGMA table_info(world_covers)').all().map(x=>x.name));
  if(!cols.has('review_status'))
@@ -208,6 +238,8 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  check(typeof contentWritesDisabled==='boolean',400,'Content freeze must be a boolean');
  const db=new DatabaseSync(databasePath);
  db.exec(SCHEMA);
+ upgradeActivityEvents(db);
+ upgradeNotificationPreferences(db);
  // R78: SQLite has no builtin SHA256. Keep catalog flags consistent with the
  // exact normalized PNG bytes actually authorized by the delivery endpoint.
  db.function('marcosa_sha256',{deterministic:true},blob=>
@@ -314,16 +346,18 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   return false;
  }
  function readNotificationSettings(id){
-  const record=db.prepare('SELECT follows_enabled,comments_enabled,sponsors_enabled,updated_at FROM notification_preferences WHERE user_id=?').get(id);
+  const record=db.prepare('SELECT follows_enabled,comments_enabled,reactions_enabled,sponsors_enabled,updated_at FROM notification_preferences WHERE user_id=?').get(id);
   return {follows:record?Boolean(record.follows_enabled):true,
    comments:record?Boolean(record.comments_enabled):true,
+   reactions:record?Boolean(record.reactions_enabled):true,
    sponsorships:record?Boolean(record.sponsors_enabled):true,
    updatedAt:record?.updated_at??null};
  }
  function recordActivity(recipientId,actorId,kind,{worldId=null,postId=null,sponsorId=null}={}){
   if(recipientId===actorId||isBlocked(recipientId,actorId))return;
-  const key=kind==='new_follow'?'follows':kind==='post_comment'?'comments':'sponsorships';
+  const key=kind==='new_follow'?'follows':kind==='post_comment'?'comments':kind==='post_reaction'?'reactions':'sponsorships';
   if(readNotificationSettings(recipientId)[key]===false)return;
+  if(kind==='post_reaction'&&db.prepare("SELECT 1 FROM activity_events WHERE recipient_id=? AND actor_id=? AND kind='post_reaction' AND post_id=? AND created_at>? LIMIT 1").get(recipientId,actorId,postId,now()-86400000))return;
   db.prepare("INSERT INTO activity_events(recipient_id,actor_id,kind,world_id,post_id,sponsor_id,created_at) VALUES(?,?,?,?,?,?,?)")
    .run(recipientId,actorId,kind,worldId,postId,sponsorId,now());
   // Local lab retention: bounded private inbox. No third-party analytics or tracking.
@@ -1238,15 +1272,15 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
    }
    if(method==='PATCH'&&route==='/api/me/notification-settings'){
     throttle('notification-settings:'+user.id,30,3600000);
-    const allowed=['follows','comments','sponsorships'];
+    const allowed=['follows','comments','reactions','sponsorships'];
     check(Object.keys(body).length>0&&Object.keys(body).every(k=>allowed.includes(k)),
      400,'Разрешены только три настройки уведомлений');
     check(Object.values(body).every(v=>typeof v==='boolean'),
      400,'Значения должны быть true или false');
     const before=readNotificationSettings(user.id);
     const next={...before,...body};
-    db.prepare("INSERT INTO notification_preferences(user_id,follows_enabled,comments_enabled,sponsors_enabled,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET follows_enabled=excluded.follows_enabled,comments_enabled=excluded.comments_enabled,sponsors_enabled=excluded.sponsors_enabled,updated_at=excluded.updated_at")
-     .run(user.id,Number(next.follows),Number(next.comments),Number(next.sponsorships),now());
+    db.prepare("INSERT INTO notification_preferences(user_id,follows_enabled,comments_enabled,reactions_enabled,sponsors_enabled,updated_at) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET follows_enabled=excluded.follows_enabled,comments_enabled=excluded.comments_enabled,reactions_enabled=excluded.reactions_enabled,sponsors_enabled=excluded.sponsors_enabled,updated_at=excluded.updated_at")
+     .run(user.id,Number(next.follows),Number(next.comments),Number(next.reactions),Number(next.sponsorships),now());
     send(res,200,{settings:readNotificationSettings(user.id),scope:'self',futureEventsOnly:true,
      delivery:'local-inbox-only'});return;
    }
@@ -1723,7 +1757,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
    if(reactionRoute&&(method==='POST'||method==='DELETE')){
     throttle('reaction:'+user.id,120,60000);
     const id=int(reactionRoute[1]);
-    const post=db.prepare("SELECT p.author_id,p.status,w.owner_id,w.visibility,COALESCE(profile.visibility,'public') AS profile_visibility FROM posts p JOIN worlds w ON w.id=p.world_id LEFT JOIN profile_cards profile ON profile.user_id=p.author_id WHERE p.id=?").get(id);
+    const post=db.prepare("SELECT p.author_id,p.world_id,p.status,w.owner_id,w.visibility,COALESCE(profile.visibility,'public') AS profile_visibility FROM posts p JOIN worlds w ON w.id=p.world_id LEFT JOIN profile_cards profile ON profile.user_id=p.author_id WHERE p.id=?").get(id);
     check(post&&post.status==='published'&&(post.visibility==='public'||post.owner_id===user.id),404,'Публикация не найдена');
     check(post.author_id!==user.id,403,'Нельзя ставить реакцию на собственную публикацию');
     ensureNoBlock(user.id,post.author_id);
@@ -1735,7 +1769,10 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     }
     check(Object.keys(body).length===1&&['like','insightful','support','celebrate'].includes(body.reaction),400,'Выбери один из доступных типов реакции');
     const before=db.prepare('SELECT reaction FROM post_reactions WHERE post_id=? AND user_id=?').get(id,user.id)?.reaction||null;
-    db.prepare('INSERT INTO post_reactions(post_id,user_id,reaction,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(post_id,user_id) DO UPDATE SET reaction=excluded.reaction,updated_at=excluded.updated_at').run(id,user.id,body.reaction,now(),now());
+    atomic(()=>{
+     db.prepare('INSERT INTO post_reactions(post_id,user_id,reaction,created_at,updated_at) VALUES(?,?,?,?,?) ON CONFLICT(post_id,user_id) DO UPDATE SET reaction=excluded.reaction,updated_at=excluded.updated_at').run(id,user.id,body.reaction,now(),now());
+     if(!before)recordActivity(post.author_id,user.id,'post_reaction',{worldId:post.world_id,postId:id});
+    });
     send(res,before?200:201,{postId:id,reaction:body.reaction,changed:before!==body.reaction});return;
    }
    if(method==='POST'&&route==='/api/posts'){
