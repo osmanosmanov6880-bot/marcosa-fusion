@@ -859,7 +859,7 @@ function postCard(post,own=false){
  card.append(byline);
  card.append(node('p',post.body,'post-body'));
  if(post.status==='published'||!own){
-  const reactions=node('div','','post-reactions');reactions.dataset.postId=String(post.id);reactions.setAttribute('role','group');reactions.setAttribute('aria-label','Реакции на публикацию');
+  const reactions=node('div','','post-reactions');reactions.dataset.postId=String(post.id);reactions.dataset.i18nAriaLabel='reaction.group';reactions.setAttribute('role','group');reactions.setAttribute('aria-label',localText('reaction.group','Реакции на публикацию'));
   for(const [kind,[key,label]] of Object.entries(reactionCatalog)){
    const button=systemNode('button',key,label,'reaction-button');button.type='button';button.dataset.reaction=kind;
    if(!state.me||post.username===state.me.username)button.disabled=true;
@@ -1449,6 +1449,9 @@ window.addEventListener('marcosa:locale-change',()=>{
  }
  for(const el of document.querySelectorAll('[data-i18n-placeholder]')){
   el.placeholder=localText(el.dataset.i18nPlaceholder,el.placeholder);
+ }
+ for(const el of document.querySelectorAll('[data-i18n-aria-label]')){
+  el.setAttribute('aria-label',localText(el.dataset.i18nAriaLabel,el.getAttribute('aria-label')||''));
  }
  for(const el of document.querySelectorAll('option[data-locale-topic]')){
   el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
