@@ -120,10 +120,5 @@ a:focus-visible,button:focus-visible,input:focus-visible,textarea:focus-visible{
 @media(max-width:600px){.so-head{min-height:76px;gap:10px}.so-brand img{width:37px;height:37px}.so-brand span{font-size:12px}.so-brand small{font-size:7px}.so-main-nav{display:none}.so-hero{min-height:560px}.so-hero-copy{padding:56px 0 62px}.so-hero h1{font-size:56px}.so-hero-copy>p:not(.so-overline):not(.so-honesty){font-size:14px}.so-art{width:115%;right:-65%;opacity:.37}.so-art-sun{width:570px;right:-40%}.so-art-ring{width:120%}.so-breadcrumb{font-size:8px}.so-breadcrumb span:last-child{display:none}.so-layout{padding-top:23px;gap:17px}.so-stream-head{align-items:start}.so-stream-head h2{font-size:29px}.so-stream-count{font-size:9px}.so-cover{height:170px}.so-cover>strong{font-size:34px}.so-card-content{padding:18px 17px 22px}.so-card-eyebrow{display:block}.so-card-eyebrow span{display:block;margin-top:5px}.so-footer{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 
-/* R142 social-first navigation and preview treatments */
-.so-main-nav a{letter-spacing:.12em}
-.so-live{max-width:230px;text-align:right;font-size:.62rem;line-height:1.45}
-.so-hero-copy h1{max-width:none}
-.so-side a[href^="#"]{scroll-margin-top:2rem}
-.so-side-note{border-top:1px solid rgba(201,177,126,.22);padding-top:1rem;color:#c8c5c0;line-height:1.8}
+/* R142: compact responsive social navigation */
 @media(max-width:720px){.so-live{display:none}.so-main-nav{gap:.8rem}.so-main-nav a{font-size:.58rem}}
