@@ -370,14 +370,19 @@ async function loadPublicProfile(){
  const result=await api('/people/'+encodeURIComponent(match[1])),person=result.person,panel=$('public-profile');
  panel.hidden=false;
  $('public-profile-handle').textContent='MARCOSA / @'+person.username;
- $('public-profile-title').textContent=person.displayName||'@'+person.username;
- $('public-profile-bio').textContent=person.bio;
+ const isPrivate=person.visibility==='private'&&!person.displayName;
+ $('public-profile-title').textContent=isPrivate?'Закрытый профиль':person.displayName||'@'+person.username;
+ $('public-profile-private-note').hidden=!isPrivate;
+ $('public-profile-bio').hidden=isPrivate;
+ $('public-profile-bio').textContent=isPrivate?'':person.bio;
  const interests=$('public-profile-interests');clear(interests);
- for(const value of person.interests)interests.append(node('span',value,'profile-interest'));
+ interests.hidden=isPrivate;
+ for(const value of person.interests||[])interests.append(node('span',value,'profile-interest'));
  const website=$('public-profile-website');
- website.hidden=!person.website;
- if(person.website){website.href=person.website;website.rel='noopener noreferrer';}
+ website.hidden=isPrivate||!person.website;
+ if(person.website&&!isPrivate){website.href=person.website;website.rel='noopener noreferrer';}
  const worlds=$('public-profile-worlds');clear(worlds);
+ $('public-profile-worlds-heading').hidden=isPrivate;worlds.hidden=isPrivate;
  for(const world of result.worlds){
   const item=node('article','','profile-world');
   const link=node('a',world.title);link.href='/w/'+encodeURIComponent(world.slug);
@@ -385,14 +390,79 @@ async function loadPublicProfile(){
   worlds.append(item);
  }
  const posts=$('public-profile-posts');clear(posts);
+ $('public-profile-posts-heading').hidden=isPrivate;posts.hidden=isPrivate;
  for(const post of result.posts){
   const card=node('article','','post profile-post');
   const context=node('a','Мир '+post.world,'eyebrow');context.href='/w/'+encodeURIComponent(post.world);
   card.append(context,node('p',post.body,'post-body'));
   posts.append(card);
  }
- $('public-profile-empty').hidden=Boolean(result.worlds.length||result.posts.length);
- document.title=(person.displayName||'@'+person.username)+' · MARCOSA';
+ $('public-profile-empty').hidden=isPrivate||Boolean(result.worlds.length||result.posts.length);
+ $('public-profile-stats').hidden=isPrivate;
+ $('public-profile-stats').dataset.i18nDynamicPrefix='profile.follow.stats';
+ $('public-profile-stats').dataset.i18nSuffix=' '+(result.followers||0);
+ $('public-profile-stats').textContent=localText('profile.follow.stats','Подписчики:')+' '+(result.followers||0);
+ const follow=$('public-profile-follow'),relationship=result.relationship||{state:'none'};
+ follow.classList.add('profile-follow-action');
+ follow.hidden=!state.me||state.me.username===person.username;
+ follow.dataset.state=relationship.state;
+ follow.dataset.i18nDynamic=relationship.state==='active'?'profile.follow.active':relationship.state==='pending'?'profile.follow.pending':'profile.follow.action';
+ follow.textContent=localText(follow.dataset.i18nDynamic,relationship.state==='active'?'Отписаться от автора':relationship.state==='pending'?'Запрос отправлен':'Отправить запрос на подписку');
+ document.title=(isPrivate?'Закрытый профиль':person.displayName||'@'+person.username)+' · MARCOSA';
+}
+async function loadUserFollowing(){
+ if(!state.me)return;
+ const result=await api('/me/following'),list=$('user-following-list');clear(list);
+ for(const item of result.items){
+  const row=node('div','','follow-row'),link=node('a',item.displayName||'@'+item.username);link.href=item.url;
+  row.append(link,item.status==='pending'?systemNode('small','profile.follow.outgoing','Запрос ожидает одобрения'):node('small','@'+item.username));
+  if(item.status==='active'){
+   const remove=systemNode('button','profile.follow.active','Отписаться от автора','ghost small');remove.type='button';
+   remove.addEventListener('click',()=>run(async()=>{
+    await api('/users/'+encodeURIComponent(item.username)+'/follow','DELETE',{});
+    await Promise.all([loadUserFollowing(),feed(true)]);
+   },'Подписка отменена'));
+   row.append(remove);
+  }else{
+   const cancel=systemNode('button','profile.follow.cancelRequest','Отменить запрос','ghost small');cancel.type='button';
+   cancel.addEventListener('click',()=>run(async()=>{
+    await api('/users/'+encodeURIComponent(item.username)+'/follow','DELETE',{});
+    await loadUserFollowing();
+   },'Запрос отменён'));
+   row.append(cancel);
+  }
+  list.append(row);
+ }
+ if(!result.items.length)list.append(systemNode('p','profile.follow.noFollowing','Ты пока не подписан на авторов.','muted'));
+}
+async function loadFollowRequests(){
+ if(!state.me)return;
+ const result=await api('/me/follow-requests'),list=$('user-follow-requests-list');clear(list);
+ for(const item of result.items){
+  const row=node('div','','follow-row'),link=node('a','@'+item.username);link.href='/u/'+encodeURIComponent(item.username);
+  row.append(link);
+  const approve=systemNode('button','profile.follow.approve','Одобрить','gold small');approve.type='button';
+  approve.addEventListener('click',()=>run(async()=>{
+   await api('/users/'+encodeURIComponent(item.username)+'/follow-request','POST',{decision:'accept'});
+   await Promise.all([loadFollowRequests(),loadUserFollowing()]);
+  },localText('profile.follow.accepted','Запрос одобрен')));
+  const decline=systemNode('button','profile.follow.decline','Отклонить','ghost small');decline.type='button';
+  decline.addEventListener('click',()=>run(async()=>{
+   await api('/users/'+encodeURIComponent(item.username)+'/follow-request','POST',{decision:'decline'});
+   await loadFollowRequests();
+  },localText('profile.follow.rejected','Запрос отклонён')));
+  row.append(approve,decline);list.append(row);
+ }
+ if(!result.items.length)list.append(systemNode('p','profile.follow.noRequests','Новых запросов нет.','muted'));
+}
+async function updatePublicFollow(){
+ const button=$('public-profile-follow'),username=document.body.dataset.profileUser,stateName=button.dataset.state;
+ if(!username)return;
+ const result=stateName==='active'||stateName==='pending'
+  ?await api('/users/'+encodeURIComponent(username)+'/follow','DELETE',{})
+  :await api('/users/'+encodeURIComponent(username)+'/follow','POST',{});
+ await loadPublicProfile();
+ if(state.me)await Promise.all([loadUserFollowing(),feed(true)]);
 }
 async function searchPeople(value){
  const query=value.trim(),results=$('people-search-results');
@@ -550,6 +620,7 @@ async function session(){
   $('retention-consent-status').textContent='Недоступно без входа';
   $('retention-enable').hidden=false;$('retention-disable').hidden=true;
   clear($('blocked-users-list'));
+  clear($('user-following-list'));clear($('user-follow-requests-list'));
   clear($('saved-list'));$('saved-more').hidden=true;
   state.savedCursor=null;state.savedIds=new Set();
   clear($('creator-insights-list'));
@@ -584,7 +655,7 @@ async function session(){
   if(state.worlds.length)syncWorldSettings();
   syncCoverSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports(),loadConversations(),loadOwnProfile()]);
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports(),loadConversations(),loadOwnProfile(),loadUserFollowing(),loadFollowRequests()]);
   if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),moderatorQueueHealth(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports(),messageReports()]);
   else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-queue-health-data'));clear($('message-report-list'));}
  }
@@ -1061,7 +1132,9 @@ $('register-form').addEventListener('submit',event=>{
  },'Локальный профиль создан. Теперь войдите.');
 });
 $('logout').addEventListener('click',()=>run(async()=>{
- await api('/auth/logout','POST',{});await session();await Promise.all([worlds(),feed(true),sponsors()]);
+ await api('/auth/logout','POST',{});
+ if(document.body.dataset.profilePage==='true'){location.reload();return;}
+ await session();await Promise.all([worlds(),feed(true),sponsors()]);
 },'Вы вышли.'));
 $('world-settings-select').addEventListener('change',syncWorldSettings);
 $('world-cover-select').addEventListener('change',syncCoverSettings);
@@ -1117,6 +1190,9 @@ $('profile-edit-form').addEventListener('submit',event=>{
   await loadOwnProfile();
  },localText('profile.saveDone','Профиль сохранён.'));
 });
+$('public-profile-follow').addEventListener('click',()=>run(updatePublicFollow));
+$('user-following-refresh').addEventListener('click',()=>run(loadUserFollowing));
+$('user-follow-requests-refresh').addEventListener('click',()=>run(loadFollowRequests));
 $('world-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   await api('/worlds','POST',values(form));
@@ -1343,7 +1419,8 @@ window.addEventListener('marcosa:locale-change',()=>{
 });
 document.querySelector('.skip-navigation').addEventListener('click',()=>$('main-content').focus({preventScroll:true}));
 if(document.body.dataset.profilePage==='true'){
- loadPublicProfile().catch(e=>notice(e.message));
+ api('/auth/me').then(result=>{state.me=result.user;$('identity').textContent='@'+state.me.username;$('logout').hidden=false;})
+  .catch(()=>{state.me=null;}).then(()=>loadPublicProfile()).catch(e=>notice(e.message));
 }else Promise.all([loadTopics(),refreshIncidentBanner()]).then(()=>session()).then(()=>Promise.all([worlds(),feed(true),sponsors()]))
  .then(()=>{
   notice(localText('notice.ready','Локальный сервер готов. Данные настоящие, но изолированы от production.'));
