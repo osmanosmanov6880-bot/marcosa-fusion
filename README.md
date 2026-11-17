@@ -228,3 +228,12 @@ See [R15 implementation and source reconciliation](docs/REAL_SOURCE_INTEGRATION_
 The public GitHub Pages source atlas now links to [MARCOSA CINEMA PILOT](site/cinema-pilot.html), where an actual standalone user-owned THE INTERNET v. HUMANITY prologue is runnable. Source HTML is copied **byte-identically** from [upstream commit 4c492d3](https://github.com/osmanosmanov6880-bot/internet-v-humanity/tree/4c492d30656d16a908f0dbd851a703f815b2d34e) and is verified by its Git blob hash. The player is sandboxed without same-origin access, loads on click, supports restart/fullscreen and has no automatic offsite navigation. The existing 2 verdict endings and evidence branch are browser-tested on desktop and mobile. PROTOCOL ZERO and ADVERSE JUDGE remain source links until original cinema assets and real public routes are verified. This is a playable **preview**, not the full commercial movie, and not an authenticated MARCOSA or Contabo deployment.
 
 [R16 source audit and QA](docs/REAL_PLAYABLE_CINEMA_R16_RU.md) · [provenance manifest](inventory/playable_cinema_r16.json) · [Node tests](tests/cinema_pilot.test.cjs) · [real Chrome acceptance](tools/r16_cinema_cdp.cjs).
+
+
+## R143 — private direct and group messaging in the local social lab
+
+The existing loopback-only Node/SQLite social API now has working direct-message requests and group conversations. New direct contacts can send one message request; the recipient can accept or decline it, and blocked pairs cannot access the thread. Group members can read cursor-paginated history and their own unread counts. Users can report messages, moderators can review and hide them, and account exports/deletions include the new data model.
+
+The existing lab UI now includes a responsive inbox, direct-request flow, group creation, thread reader and sender. Files and full implementation boundary: [`docs/MARCOSA_R143_LOCAL_PRIVATE_MESSAGING_RU.md`](docs/MARCOSA_R143_LOCAL_PRIVATE_MESSAGING_RU.md), [`server-lab/`](server-lab/), [`server-lab/test/r143.messaging.test.mjs`](server-lab/test/r143.messaging.test.mjs).
+
+This is **not production messaging**: no Supabase/PostgreSQL deployment, media attachments, push/email delivery, guaranteed encryption or public API. The server remains loopback-only; static preview and real MARCOSA production remain unchanged.

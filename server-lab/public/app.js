@@ -2,7 +2,7 @@
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,worldOpenSerial:0,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null};
+const state={me:null,worlds:[],worldCatalog:[],currentWorldSlug:null,worldOpenSerial:0,topicNames:new Map(),cursor:null,feedScope:'all',activityCursor:null,savedCursor:null,savedIds:new Set(),reportPost:null,reportComment:null,reportMessage:null,conversations:[],currentConversationId:null,messageCursor:null};
 const i18n=()=>window.MARCOSA_LOCALE;
 const localText=(key,fallback)=>i18n()?.t(key)||fallback;
 const notice=message=>{$('notice').textContent=message;};
@@ -369,6 +369,7 @@ function syncWorldSettings(){
  form.elements.title.value=world.title;
  form.elements.description.value=world.description||'';
  form.elements.category.value=world.category||'general';
+ form.elements.visibility.value=world.visibility||'public';
 }
 async function loadBlocks(){
  if(!state.me)return;
@@ -385,6 +386,71 @@ async function loadBlocks(){
   row.append(remove);list.append(row);
  }
  if(!data.items.length)list.append(systemNode('p','dynamic.blocks.empty','Ты пока никого не блокировал.','muted'));
+}
+function conversationTitle(conversation){
+ if(conversation.kind==='group')return conversation.title||localText('messages.group','Групповая беседа');
+ return conversation.members.filter(member=>member.username!==state.me?.username).map(member=>'@'+member.username).join(', ')
+  ||localText('messages.direct','Личная переписка');
+}
+async function loadConversations(){
+ const list=$('messages-list');clear(list);state.conversations=[];
+ if(!state.me){state.currentConversationId=null;state.messageCursor=null;clear($('message-items'));$('message-thread').hidden=true;return;}
+ const result=await api('/conversations');state.conversations=result.items;
+ for(const conversation of result.items){
+  const button=node('button','','message-conversation');button.type='button';
+  button.setAttribute('aria-pressed',String(conversation.id===state.currentConversationId));
+  const label=node('strong',conversationTitle(conversation));
+  const stateText=conversation.requestState==='incoming_request'?localText('messages.incoming','Запрос на переписку'):
+   conversation.requestState==='outgoing_request'?localText('messages.pending','Ожидает принятия'):
+   conversation.kind==='group'?localText('messages.group','Групповая беседа'):localText('messages.direct','Личная переписка');
+  const status=node('span',stateText);
+  const preview=node('small',conversation.last_message||localText('messages.empty','Пока без сообщений'));
+  const meta=node('small',conversation.unread_count?localText('messages.unread','Новых: ')+conversation.unread_count: '');
+  button.append(label,status,preview,meta);
+  button.addEventListener('click',()=>run(()=>openConversation(conversation.id)));
+  list.append(button);
+ }
+ if(!result.items.length)list.append(systemNode('p','messages.noConversations','Создай личный запрос или групповую беседу.','muted'));
+}
+function renderMessage(message,{prepend=false}={}){
+ const card=node('article','','message-item');card.dataset.own=String(message.username===state.me?.username);
+ card.append(node('strong','@'+message.username),node('div',message.body));
+ const time=node('time',new Date(message.created_at).toLocaleString());card.append(time);
+ if(message.username!==state.me?.username){
+  const report=node('button',localText('messages.report','Сообщить о проблеме в сообщении'),'ghost small');report.type='button';
+  report.addEventListener('click',()=>{state.reportMessage=message.id;state.reportComment=null;state.reportPost=null;$('report-detail').required=true;$('report-dialog').showModal();});
+  card.append(report);
+ }
+ if(prepend)$('message-items').prepend(card);else $('message-items').append(card);
+}
+async function openConversation(id,{cursor=null,older=false}={}){
+ const conversation=state.conversations.find(item=>item.id===id);
+ if(!conversation)throw Error('Беседа не найдена. Обнови список.');
+ state.currentConversationId=id;
+ const params=new URLSearchParams();if(cursor)params.set('cursor',cursor);else params.set('limit','30');
+ const result=await api('/conversations/'+encodeURIComponent(id)+'/messages?'+params.toString());
+ if(!older)clear($('message-items'));
+ const items=result.items.slice().reverse();
+ for(const message of items)renderMessage(message,{prepend:older});
+ state.messageCursor=result.nextCursor;
+ $('message-more').hidden=!state.messageCursor;
+ $('message-thread').hidden=false;
+ $('message-thread-title').textContent=conversationTitle(conversation);
+ $('message-thread-state').textContent=conversation.requestState==='incoming_request'?localText('messages.incomingHelp','Это запрос. Просмотри первое сообщение, затем прими или отклони его.'):
+  conversation.requestState==='outgoing_request'?localText('messages.pendingHelp','До принятия можно отправить только одно сообщение.'):
+  localText('messages.privateHelp','Доступ есть только у участников этой беседы.');
+ const incoming=conversation.requestState==='incoming_request';
+ $('message-request-actions').hidden=!incoming;
+ $('message-send-form').hidden=incoming||(conversation.requestState==='outgoing_request'&&result.items.length>0);
+ if(conversation.requestState==='declined')$('message-send-form').hidden=true;
+ if(!older){
+  await api('/conversations/'+encodeURIComponent(id)+'/read','POST',{});
+  await loadConversations();
+ }
+}
+function resetMessageSurface(){
+ state.currentConversationId=null;state.messageCursor=null;clear($('messages-list'));clear($('message-items'));
+ $('message-thread').hidden=true;
 }
 async function loadNotificationSettings(){
  if(!state.me)return;
@@ -435,11 +501,13 @@ async function session(){
   $('feed-all').setAttribute('aria-pressed','true');
   $('feed-following').setAttribute('aria-pressed','false');
   clear($('activity-list'));$('activity-count').textContent='0 новых';
+  resetMessageSurface();
  }
  $('activity-panel').hidden=!state.me;
  $('guest-access').hidden=Boolean(state.me);
  $('member-access').hidden=!state.me;
  $('composer-panel').hidden=!state.me;
+ $('messages-panel').hidden=!state.me;
  $('moderator').hidden=!state.me||state.me.role!=='moderator';
  $('sponsor-owner').hidden=!state.me;
  $('sponsor-moderation').hidden=!state.me||state.me.role!=='moderator';
@@ -460,9 +528,9 @@ async function session(){
   if(state.worlds.length)syncWorldSettings();
   syncCoverSettings();
   await loadSavedIds();
-  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports()]);
-  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),moderatorQueueHealth(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports()]);
-  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-queue-health-data'));}
+  await Promise.all([myPosts(),mySponsors(),receivedSponsors(),activity(true),appeals(),loadInsights(),loadSecurity(),loadNotificationSettings(),loadBlocks(),saved(true),onboarding(),loadCoverAppeals(),loadRetentionConsent(),loadCoverReports(),loadConversations()]);
+  if(state.me.role==='moderator')await Promise.all([reports(),reviewSponsors(),reviewAppeals(),pilotInvites(),pilotMetrics(),moderatorQueueHealth(),reviewCovers(),reviewCoverAppeals(),reviewCoverReports(),messageReports()]);
+  else {clearIssuedInvite();clear($('invite-list'));clear($('pilot-metrics-data'));clear($('mod-cover-list'));clear($('mod-queue-health-data'));clear($('message-report-list'));}
  }
 }
 async function worlds(){
@@ -594,7 +662,7 @@ async function discussion(postId,region){
   if(state.me&&item.username!==state.me.username){
    const report=systemNode('button','dynamic.report.button','Пожаловаться','ghost small');report.type='button';
    report.addEventListener('click',()=>{
-    state.reportComment=item.id;state.reportPost=null;
+    state.reportComment=item.id;state.reportPost=null;state.reportMessage=null;$('report-detail').required=false;
     $('report-dialog').showModal();
    });
    row.append(report);
@@ -648,7 +716,7 @@ function postCard(post,own=false){
   },'Действие обработано'));actions.append(remove);
  }else if(state.me&&post.username!==state.me.username){
   const report=systemNode('button','dynamic.report.button','Пожаловаться','ghost small');report.type='button';
-  report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;$('report-dialog').showModal();});
+  report.addEventListener('click',()=>{state.reportPost=post.id;state.reportComment=null;state.reportMessage=null;$('report-detail').required=false;$('report-dialog').showModal();});
   actions.append(report);
  }
  if(!own&&state.me){
@@ -889,6 +957,22 @@ async function reports(){
  if(!commentData.items.length)commentPanel.append(systemNode('p','dynamic.moderation.comments.empty','Нет новых жалоб на комментарии.','muted'));
 
 }
+async function messageReports(){
+ if(!state.me||state.me.role!=='moderator')return;
+ const result=await api('/mod/message-reports'),panel=$('message-report-list');clear(panel);
+ for(const item of result.items){
+  const card=node('article','','report');
+  card.append(node('strong','Сообщение #'+item.message_id+' · '+item.reason),node('p',item.body),node('small',item.detail));
+  const hide=node('button','Скрыть сообщение','ghost small');hide.type='button';
+  hide.addEventListener('click',()=>run(async()=>{
+   await api('/mod/messages/'+item.message_id+'/hide','POST',{});
+   await messageReports();await loadConversations();
+   if(state.currentConversationId)await openConversation(state.currentConversationId);
+  },'Сообщение скрыто, решение сохранено в журнале'));
+  card.append(hide);panel.append(card);
+ }
+ if(!result.items.length)panel.append(systemNode('p','messages.noReports','Нет новых жалоб на переписку.','muted'));
+}
 $('discover-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
  run(()=>discover(form.elements.q.value.trim()),'Поиск завершён');
@@ -953,9 +1037,9 @@ $('world-cover-delete').addEventListener('click',()=>run(async()=>{
 },'Обложка удалена'));
 $('world-settings-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;
- const {slug,title,description,category}=values(form);
+ const {slug,title,description,category,visibility}=values(form);
  run(async()=>{
-  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,category});
+  await api('/worlds/'+encodeURIComponent(slug),'PATCH',{title,description,category,visibility});
   await session();await worlds();
  },'Оформление мира сохранено — данные видны посетителям.');
 });
@@ -976,15 +1060,17 @@ $('post-form').addEventListener('submit',event=>{
 });
 $('report-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
-  if(state.reportComment){
+  if(state.reportMessage){
+   await api('/messages/'+state.reportMessage+'/report','POST',values(form));
+  }else if(state.reportComment){
    await api('/comments/'+state.reportComment+'/report','POST',{reason:values(form).reason});
   }else{
    await api('/reports','POST',{...values(form),postId:state.reportPost});
   }
-  $('report-dialog').close();form.reset();state.reportPost=null;state.reportComment=null;
+  $('report-dialog').close();form.reset();form.elements.detail.required=false;state.reportPost=null;state.reportComment=null;state.reportMessage=null;
  },'Жалоба отправлена модератору');
 });
-$('report-cancel').addEventListener('click',()=>{state.reportPost=null;state.reportComment=null;$('report-dialog').close();});
+$('report-cancel').addEventListener('click',()=>{state.reportPost=null;state.reportComment=null;state.reportMessage=null;$('report-detail').required=false;$('report-dialog').close();});
 $('delete-form').addEventListener('submit',event=>{
  event.preventDefault();const form=event.currentTarget;run(async()=>{
   await api('/account','DELETE',values(form));
@@ -1088,6 +1174,44 @@ for(const [id,scope] of [['feed-all','all'],['feed-following','following']]){
 $('insights-refresh').addEventListener('click',()=>run(()=>loadInsights(),'Статистика обновлена'));
 $('activity-read').addEventListener('click',()=>run(async()=>{await api('/me/activity/read','POST',{});await activity(true);},'События отмечены прочитанными'));
 $('activity-more').addEventListener('click',()=>run(()=>activity(false)));
+$('messages-refresh').addEventListener('click',()=>run(loadConversations,'Список бесед обновлён'));
+$('direct-message-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  const result=await api('/conversations','POST',{kind:'direct',username:form.elements.username.value.trim()});
+  form.reset();await loadConversations();await openConversation(result.id);
+ },'Запрос на переписку готов');
+});
+$('group-message-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  const participants=form.elements.participants.value.split(',').map(value=>value.trim()).filter(Boolean);
+  const result=await api('/conversations','POST',{kind:'group',title:form.elements.title.value.trim(),participants});
+  form.reset();await loadConversations();await openConversation(result.id);
+ },'Групповая беседа создана');
+});
+$('message-send-form').addEventListener('submit',event=>{
+ event.preventDefault();const form=event.currentTarget;
+ run(async()=>{
+  if(!state.currentConversationId)throw Error('Сначала выбери беседу');
+  await api('/conversations/'+encodeURIComponent(state.currentConversationId)+'/messages','POST',{body:form.elements.body.value});
+  form.reset();await loadConversations();await openConversation(state.currentConversationId);
+ },'Сообщение добавлено');
+});
+$('message-more').addEventListener('click',()=>run(async()=>{
+ if(!state.currentConversationId||!state.messageCursor)return;
+ await openConversation(state.currentConversationId,{cursor:state.messageCursor,older:true});
+}));
+$('message-accept').addEventListener('click',()=>run(async()=>{
+ if(!state.currentConversationId)throw Error('Запрос больше не выбран');
+ await api('/conversations/'+encodeURIComponent(state.currentConversationId)+'/accept','POST',{});
+ await loadConversations();await openConversation(state.currentConversationId);
+},'Запрос принят'));
+$('message-decline').addEventListener('click',()=>run(async()=>{
+ if(!state.currentConversationId)throw Error('Запрос больше не выбран');
+ await api('/conversations/'+encodeURIComponent(state.currentConversationId)+'/decline','POST',{});
+ resetMessageSurface();await loadConversations();
+},'Запрос отклонён, его первое сообщение удалено'));
 $('refresh').addEventListener('click',()=>run(()=>feed(true),'Лента обновлена'));
 $('more').addEventListener('click',()=>run(()=>feed(false)));
 $('issue-invite-form').addEventListener('submit',event=>{
@@ -1135,6 +1259,11 @@ window.addEventListener('marcosa:locale-change',()=>{
  }
  for(const el of document.querySelectorAll('option[data-locale-topic]')){
   el.textContent=localText('topics.'+el.dataset.localeTopic,el.textContent);
+ }
+ if(state.me){
+  $('message-send-body').placeholder=localText('messages.sendPlaceholder','Напиши сообщение участникам беседы');
+  const selected=state.currentConversationId;
+  loadConversations().then(()=>selected?openConversation(selected):undefined).catch(()=>{});
  }
  if(state.me?.role==='moderator')pilotMetrics().catch(()=>{});
 });
