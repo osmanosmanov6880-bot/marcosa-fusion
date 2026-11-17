@@ -88,6 +88,8 @@ jobs:
           node --check site/film-network.js
           node --check site/film-continuity.js
           node --check site/source-hub.js
+          node --check site/ecosystem.js
+          node --test tests/ecosystem_registry.test.mjs
           node --check site/cinema-pilot.js
           node --check site/creator-playtest.js
           node --check site/marcosa-director.js
@@ -100,6 +102,9 @@ jobs:
         run: |
           set -euo pipefail
           python tools/build_webroot.py
+          for file in ecosystem.html ecosystem.css ecosystem.js ecosystem-manifest.json; do
+            test -s "dist/$file" || { echo "::error::Missing R141 ecosystem asset: $file"; exit 1; }
+          done
           test -s dist/marcosa-director.css
           test -s dist/visual-city-director.webp
           test -s dist/index.html
