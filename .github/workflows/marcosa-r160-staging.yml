@@ -1,4 +1,4 @@
-name: "MARCOSA | R160–R162 TLS staging, recovery, evidence and chaos"
+name: "MARCOSA | R160–R163 TLS staging, resilience and release evidence"
 on:
   pull_request:
     paths:
@@ -19,6 +19,10 @@ on:
       - "ops/test/r162.*"
       - "docs/MARCOSA_R162_*"
       - "ops/r159/secure-pool.mjs"
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "docs/MARCOSA_R163_*"
+      - "ops/r162/release-evidence.mjs"
   push:
     branches: ["feature/**","codex/**"]
     paths:
@@ -39,6 +43,10 @@ on:
       - "ops/test/r162.*"
       - "docs/MARCOSA_R162_*"
       - "ops/r159/secure-pool.mjs"
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "docs/MARCOSA_R163_*"
+      - "ops/r162/release-evidence.mjs"
   workflow_dispatch:
 permissions:
   contents: read
@@ -86,7 +94,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
