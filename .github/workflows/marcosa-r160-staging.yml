@@ -182,9 +182,12 @@ jobs:
             "CREATE ROLE marcosa_r161_ci LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'r161-ci-synthetic-inbox-login-only'"
           psql -v ON_ERROR_STOP=1 -c \
             "GRANT marcosa_r161_webhook_receiver TO marcosa_r161_ci WITH INHERIT FALSE"
-          psql -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN
-            has_table_privilege('authenticated','marcosa_private.r161_webhook_inbox','SELECT')
-            THEN 1/0 ELSE 1 END"
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r161_webhook_inbox','SELECT')
+            THEN RAISE EXCEPTION 'R161 browser role can read private webhook inbox';
+            END IF;
+          END \$\$;"
       - name: R161 real HTTPS, signed SQL session fence, HMAC receiver and deduplication
         env:
           R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
