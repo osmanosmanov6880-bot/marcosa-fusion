@@ -60,19 +60,19 @@ DO $$ BEGIN
  IF (SELECT count(*) FROM marcosa_private.r156_outbox WHERE state='leased')<>1
  THEN RAISE EXCEPTION 'R159 expected exactly one eligible leased task'; END IF;
 END $$;
-SELECT CASE WHEN marcosa_private.r157_delivery_fence(:'jobid'::bigint,:'leasetoken'::uuid)
- THEN 1 ELSE 1/0 END AS initial_fence_proof;
+SELECT 1 / CASE WHEN marcosa_private.r157_delivery_fence(:'jobid'::bigint,:'leasetoken'::uuid)
+ THEN 1 ELSE 0 END AS initial_fence_proof;
 RESET ROLE;
 UPDATE public.marcosa_season_subscriptions SET muted=true
  WHERE series_id='15900000-0000-4159-8159-000000000301'
  AND user_id='15900000-0000-4159-8159-000000000002';
 SET ROLE marcosa_r156_dispatcher;
-SELECT CASE WHEN NOT marcosa_private.r157_delivery_fence(:'jobid'::bigint,:'leasetoken'::uuid)
- THEN 1 ELSE 1/0 END AS revoked_fence_proof;
-SELECT CASE WHEN marcosa_private.r157_cancel(:'jobid'::bigint,:'leasetoken'::uuid)
- THEN 1 ELSE 1/0 END AS final_cancellation;
-SELECT CASE WHEN NOT marcosa_private.r156_ack(:'jobid'::bigint,:'leasetoken'::uuid)
- THEN 1 ELSE 1/0 END AS stale_lease_ack_denied;
+SELECT 1 / CASE WHEN NOT marcosa_private.r157_delivery_fence(:'jobid'::bigint,:'leasetoken'::uuid)
+ THEN 1 ELSE 0 END AS revoked_fence_proof;
+SELECT 1 / CASE WHEN marcosa_private.r157_cancel(:'jobid'::bigint,:'leasetoken'::uuid)
+ THEN 1 ELSE 0 END AS final_cancellation;
+SELECT 1 / CASE WHEN NOT marcosa_private.r156_ack(:'jobid'::bigint,:'leasetoken'::uuid)
+ THEN 1 ELSE 0 END AS stale_lease_ack_denied;
 RESET ROLE;
 DO $$ BEGIN
  IF (SELECT count(*) FROM marcosa_private.r156_outbox WHERE state='dead')<>1
