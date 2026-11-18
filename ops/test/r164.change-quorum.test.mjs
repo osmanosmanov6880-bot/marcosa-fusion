@@ -16,7 +16,7 @@ function fixture(){
  const approvals=[approve('operator',operator),approve('independent-reviewer',reviewer)];
  const pins={operator:r164ReviewerFingerprint(approvals[0].publicKeyPem),
   'independent-reviewer':r164ReviewerFingerprint(approvals[1].publicKeyPem)};
- return{packet,approvals,pins,opts:{packet,approvals,
+ return{operator,reviewer,packet,approvals,pins,opts:{packet,approvals,
   pinnedReviewerFingerprints:pins,commit,targetDigest,clock:()=>time}};
 }
 test('R164 dual out-of-band pinned Ed25519 signatures authorize one synthetic DRILL, never deploy',()=>{
@@ -46,8 +46,11 @@ test('R164 reject builder=reviewer, tampered source, stale, role duplicate, bad 
 test('R164 real staging review cannot be consumed as CI-only authorization',()=>{
  const f=fixture();
  const realPacket={...f.packet,synthetic:false};
+ const realApprovals=f.approvals.map(e=>({...e,signature:sign(null,
+  r164CanonicalChallengeBytes(realPacket),
+  (e.role==='operator'?f.operator:f.reviewer).privateKey).toString('base64url')}));
  const reviewed=verifyR164DualReview({...f.opts,packet:realPacket,
-  approvals:f.approvals.map(e=>({...e}))});
+  approvals:realApprovals});
  assert.equal(reviewed.productionAuthorized,false);
  assert.throws(()=>createR164NonceFence({clock:()=>time}).consume(reviewed),/only fresh synthetic/);
  const fence=createR164NonceFence({clock:()=>time,maxUses:1});
