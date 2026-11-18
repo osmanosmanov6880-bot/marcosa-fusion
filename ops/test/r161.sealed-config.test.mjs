@@ -55,7 +55,7 @@ test('R161 production stage, extra properties, traversal, unsafe permissions fai
   await f.put('staging.txt',JSON.stringify({...config(),extra:'prod'}));
   await assert.rejects(readSealedR161Settings({secretsRoot:f.root}),/manifest fields/);
   await f.put('staging.txt',JSON.stringify({...config(),secrets:{...config().secrets,ca:'../other'}}));
-  await assert.rejects(readSealedR161Settings({secretsRoot:f.root}),/secure file/);
+  await assert.rejects(readSealedR161Settings({secretsRoot:f.root}),/safe basename|secure file/);
   await f.put('staging.txt',JSON.stringify(config()));
   await chmod(f.root,0o755);
   await assert.rejects(readSealedR161Settings({secretsRoot:f.root}),/private secret root/);
