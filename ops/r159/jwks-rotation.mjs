@@ -52,6 +52,7 @@ export function createRotatingSupabaseVerifier({
   return cached;
  }
  return Object.freeze({
+  async warmKeys(){await fresh();return true;},
   async verifyBearer(token){
    // Token claims and headers do not alter the JWKS URL or initiate discovery.
    const verifier=await fresh();
