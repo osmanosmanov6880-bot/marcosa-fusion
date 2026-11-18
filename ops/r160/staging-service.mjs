@@ -6,7 +6,8 @@
 import {createR160PgTransport} from './pg-driver.mjs';
 import {createSupabaseSessionChecker} from '../r159/supabase-sessions.mjs';
 import {createRotatingSupabaseVerifier} from '../r159/jwks-rotation.mjs';
-import {createCommandStore,CommandStoreError} from '../r157/pg-command-store.mjs';
+import {CommandStoreError} from '../r157/pg-command-store.mjs';
+import {createR161SessionFencedStore} from '../r161/session-fenced-store.mjs';
 import {createCommandHttpServer,createRateLimiter} from '../r157/http-gateway.mjs';
 
 const fail=m=>{throw Error('R160 staging: '+m);};
@@ -60,7 +61,7 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
   clock,cacheMs:120000,maxLifetimeSeconds:3600
  });
  let readyAt=0,closing=false,stopped=false,pending=null,listening=false;
- const trustedStore=createCommandStore({pool:transport});
+ const trustedStore=createR161SessionFencedStore({pool:transport,clock});
  const gate=Object.freeze({async execute(data){
   if(stopped||closing||!readyAt||clock()-readyAt>=safe.maxPreflightAgeMs)
    throw new CommandStoreError('Staging readiness proof missing or expired',503);
