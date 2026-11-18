@@ -61,9 +61,11 @@ test('R154 migration adds muted flag to old subscription table without losing su
  const dir=mkdtempSync(join(tmpdir(),'marcosa-r154-migration-')),file=join(dir,'db.sqlite');
  let app=createApp({databasePath:file});
  try{
+  await new Promise(ok=>app.server.listen(0,'127.0.0.1',ok));
   app.db.exec('ALTER TABLE series_subscriptions DROP COLUMN muted');
   await app.close();app=null;
   app=createApp({databasePath:file});
+  await new Promise(ok=>app.server.listen(0,'127.0.0.1',ok));
   const columns=app.db.prepare('PRAGMA table_info(series_subscriptions)').all();
   assert.ok(columns.some(x=>x.name==='muted'));
   assert.deepEqual(app.db.prepare('PRAGMA foreign_key_check').all(),[]);
