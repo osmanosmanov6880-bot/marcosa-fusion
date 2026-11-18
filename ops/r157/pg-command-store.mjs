@@ -55,7 +55,7 @@ export function createCommandStore({pool,onAfterQuery,onBeforeQuery,onBeforeComm
   [onAfterQuery,onBeforeQuery,onBeforeCommit].some(x=>x!==undefined&&typeof x!=='function'))
   throw Error('R157 requires a server-owned PostgreSQL pool');
  return Object.freeze({
-  async execute({actorId,name,data,key}={}){
+  async execute({actorId,sessionId,authExpiresAt,name,data,key}={}){
    if(typeof actorId!=='string'||!uuid.test(actorId)||
     typeof key!=='string'||!uuid.test(key)||!Object.hasOwn(queries,name)||
     !data||typeof data!=='object'||Array.isArray(data))
@@ -73,6 +73,7 @@ export function createCommandStore({pool,onAfterQuery,onBeforeQuery,onBeforeComm
     await client.query("SET LOCAL statement_timeout = '4000ms'");
     await client.query("SET LOCAL idle_in_transaction_session_timeout = '6000ms'");
     await client.query('SET LOCAL ROLE marcosa_r156_writer');
+    if(onBeforeQuery)await onBeforeQuery({client,actorId,sessionId,authExpiresAt,name});
     await client.query("SELECT set_config('request.jwt.claim.sub',$1,true)",[actorId]);
     const result=await client.query(op.sql,args);
     if(!result||!Array.isArray(result.rows)||result.rows.length!==1||
@@ -80,6 +81,7 @@ export function createCommandStore({pool,onAfterQuery,onBeforeQuery,onBeforeComm
       result.rows[0].result===null||Array.isArray(result.rows[0].result))
      throw Error('Unexpected PostgreSQL response contract');
     if(onAfterQuery)await onAfterQuery({name,actorId,result:result.rows[0].result});
+    if(onBeforeCommit)await onBeforeCommit({client,actorId,sessionId,authExpiresAt,name});
     await client.query('COMMIT');
     started=false;
     return result.rows[0].result;
