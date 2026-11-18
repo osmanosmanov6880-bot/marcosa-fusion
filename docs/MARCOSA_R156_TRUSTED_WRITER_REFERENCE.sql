@@ -44,7 +44,7 @@ CREATE TABLE marcosa_private.r156_commands(
  actor_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
  request_key uuid NOT NULL,
  operation text NOT NULL CHECK(operation IN(
-  'edit','reorder','publish','archive','mute','subscribe','bookmark','withdraw')),
+  'edit','reorder','publish','archive','mute','subscribe','bookmark','withdraw','attendance')),
  payload jsonb NOT NULL CHECK(jsonb_typeof(payload)='object'),
  response jsonb,
  created_at timestamptz NOT NULL DEFAULT now(),
@@ -65,7 +65,7 @@ DECLARE inserted bigint; existing marcosa_private.r156_commands%ROWTYPE;
 BEGIN
  IF p_actor IS NULL OR p_actor IS DISTINCT FROM auth.uid() OR p_key IS NULL
  THEN RAISE EXCEPTION 'R156 verified actor is required' USING ERRCODE='42501'; END IF;
- IF p_operation NOT IN ('edit','reorder','publish','archive','mute','subscribe','bookmark','withdraw')
+ IF p_operation NOT IN ('edit','reorder','publish','archive','mute','subscribe','bookmark','withdraw','attendance')
   OR p_payload IS NULL OR jsonb_typeof(p_payload)<>'object'
  THEN RAISE EXCEPTION 'R156 invalid command payload'; END IF;
  INSERT INTO marcosa_private.r156_commands(actor_id,request_key,operation,payload)

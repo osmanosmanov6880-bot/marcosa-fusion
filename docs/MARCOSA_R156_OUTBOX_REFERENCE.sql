@@ -3,7 +3,19 @@
 -- Requires R155 reference and R156 trusted writer.
 BEGIN;
 CREATE ROLE marcosa_r156_dispatcher NOLOGIN NOBYPASSRLS;
-GRANT USAGE ON SCHEMA marcosa_private TO marcosa_r156_dispatcher;
+GRANT USAGE ON SCHEMA marcosa_private,public TO marcosa_r156_dispatcher;
+-- Worker can query eligibility through RLS under a dedicated NOLOGIN role.
+GRANT SELECT ON public.marcosa_seasons,public.marcosa_worlds,
+ public.marcosa_season_subscriptions,public.marcosa_user_blocks
+ TO marcosa_r156_dispatcher;
+CREATE POLICY r156_dispatcher_series ON public.marcosa_seasons
+ FOR SELECT TO marcosa_r156_dispatcher USING(true);
+CREATE POLICY r156_dispatcher_worlds ON public.marcosa_worlds
+ FOR SELECT TO marcosa_r156_dispatcher USING(true);
+CREATE POLICY r156_dispatcher_subscriptions ON public.marcosa_season_subscriptions
+ FOR SELECT TO marcosa_r156_dispatcher USING(true);
+CREATE POLICY r156_dispatcher_blocks ON public.marcosa_user_blocks
+ FOR SELECT TO marcosa_r156_dispatcher USING(true);
 GRANT SELECT ON public.marcosa_user_blocks TO marcosa_r156_writer;
 CREATE POLICY r156_writer_block_read ON public.marcosa_user_blocks
  FOR SELECT TO marcosa_r156_writer USING(true);
