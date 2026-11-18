@@ -103,6 +103,9 @@ export async function runR156Concurrency(){
   "SELECT count(*) FROM marcosa_private.r156_claim('worker_duplicate',10,60);");
  if(!none.stdout.endsWith('\n0')&&!none.stdout.endsWith('\r\n0')&&none.stdout!=='0')
   throw Error('R156 concurrent worker saw already-leased job');
+ // Restore the synthetic episode fixture's pre-test archived state before
+ // pg_dump; a transient test-only reopen must never alter recovery assertions.
+ await runSql("UPDATE public.marcosa_seasons SET archived_at=now() WHERE id='"+SERIES+"';");
  return{
   contract:'MARCOSA-R156-PG17-CONCURRENCY-v1',
   concurrentOptimisticEdits:'one committed, one rejected',
