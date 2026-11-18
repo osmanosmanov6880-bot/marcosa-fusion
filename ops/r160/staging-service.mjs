@@ -60,10 +60,10 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
   projectRef:safe.projectRef,isSessionActive:checkSession,fetchImpl:jwksFetch,
   clock,cacheMs:120000,maxLifetimeSeconds:3600
  });
- let readyAt=0,closing=false,stopped=false,pending=null,listening=false;
+ let readyAt=0,epoch=0,closing=false,stopped=false,pending=null,listening=false;
  const trustedStore=createR161SessionFencedStore({pool:transport,clock});
  const gate=Object.freeze({async execute(data){
-  if(stopped||closing||!readyAt||clock()-readyAt>=safe.maxPreflightAgeMs)
+  if(!status().ready)
    throw new CommandStoreError('Staging readiness proof missing or expired',503);
   return trustedStore.execute(data);
  }});
@@ -72,21 +72,25 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
  async function preflight(){
   if(stopped||closing)fail('stopped service cannot be armed');
   if(pending)return pending;
+  const ticket=++epoch;
   pending=(async()=>{
    readyAt=0; // Revokes mutation gate before any dependency probe.
    await transport.preflight();
    await probeSessionReader(transport);
    await verifier.warmKeys();
+   if(ticket!==epoch||closing||stopped)fail('preflight superseded by shutdown or revocation');
    readyAt=clock();
    return status();
   })().catch(()=>{readyAt=0;fail('preflight failed closed');}).finally(()=>{pending=null;});
   return pending;
  }
  function status(){
-  const live=!closing&&!stopped&&readyAt>0&&clock()-readyAt<safe.maxPreflightAgeMs;
+  const jwksFresh=verifier.getPublicStatus().cacheFresh;
+  const live=!closing&&!stopped&&readyAt>0&&
+   clock()-readyAt>=0&&clock()-readyAt<safe.maxPreflightAgeMs&&jwksFresh;
   return Object.freeze({tier:'staging',state:stopped?'stopped':closing?'draining':live?'ready':'locked',
    ready:live,productionReady:false,externalDeliveryEnabled:false,
-   actualPaymentsEnabled:false,jwks:verifier.getPublicStatus().cacheFresh,
+   actualPaymentsEnabled:false,jwks:jwksFresh,
    sessionCheckMandatory:true});
  }
  async function listen({port=0,host='127.0.0.1'}={}){
@@ -101,9 +105,13 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
   listening=true;
   return Object.freeze({host,port:http.address().port,status:status()});
  }
+ function revokeReady(){
+  ++epoch;readyAt=0;
+  return status();
+ }
  async function stop(){
   if(stopped)return;
-  closing=true;readyAt=0;
+  closing=true;revokeReady();
   if(pending)try{await pending;}catch{}
   if(listening){
    await new Promise(resolve=>http.close(()=>resolve()));
@@ -111,7 +119,7 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
   }
   stopped=true;await transport.end();
  }
- return Object.freeze({preflight,listen,stop,status,server:http});
+ return Object.freeze({preflight,listen,stop,revokeReady,status,server:http});
 }
 export function createR160StagingService({settings,pgConfig,clock,jwksFetch,ciLoopback=false}={}){
  const safe=validateStagingSettings(settings);
