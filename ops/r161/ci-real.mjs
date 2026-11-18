@@ -122,14 +122,10 @@ try{
     title:'R161 Revoked Before Commit',description:'Must never commit'}});
  }catch(e){blocked=e.status===401;}
  check(blocked,'session deleted between SQL mutation and COMMIT was not rejected');
- const db=await ownerPool.connect();
- try{
-  const row=await db.query('SELECT title,revision FROM public.marcosa_seasons WHERE id=$1::uuid',[series]);
-  check(row.rows[0]?.revision==='2'||row.rows[0]?.revision===2,
-   'rolled-back transaction changed season revision');
-  check(row.rows[0]?.title==='R161 TLS + Fenced Session',
-   'rolled-back transaction persisted an unauthorized title');
- }finally{db.release();}
+ const state=adminSql("SELECT title||'|'||revision FROM public.marcosa_seasons "+
+  "WHERE id='"+series+"';");
+ check(state==='R161 TLS + Fenced Session|2',
+  'revoked transaction changed title or revision despite rollback');
  receiverPool=createR160PgTransport({config:{...pgConfig,user:'marcosa_r161_ci',
   password:process.env.R161_INBOX_PASSWORD},ciLoopback:true});
  const inbox=createR161WebhookInbox({pool:receiverPool,signatureSecret:webhookSecret});
