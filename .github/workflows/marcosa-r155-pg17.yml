@@ -72,7 +72,72 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
       - name: Real PostgreSQL three-user RLS and ownership attacks
         run: psql -v ON_ERROR_STOP=1 -f tests/postgres/155_creator_seasons_rls.sql
-      - name: Verify offline migration preview + no-deploy gate
+      - name: Verify offline migration preview and default NO_GO
         run: |
+          set -euo pipefail
           node --test ops/test/r155.*.test.mjs
           node ops/r155/cutover-gate.mjs
+      - name: Generate synthetic rehearsal and replay twice, reject mismatched data
+        env:
+          R155_SQL_FILE: ${{ runner.temp }}/r155-synthetic-replay.sql
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          umask 077
+          node ops/r155/disposable-fixture.mjs "$R155_SQL_FILE"
+          test -s "$R155_SQL_FILE"
+          psql -v ON_ERROR_STOP=1 -c "INSERT INTO auth.users(id) VALUES
+            ('15550000-0000-4555-8555-000000000001'),
+            ('15550000-0000-4555-8555-000000000002')
+            ON CONFLICT DO NOTHING;"
+          psql -v ON_ERROR_STOP=1 -f "$R155_SQL_FILE"
+          psql -v ON_ERROR_STOP=1 -f "$R155_SQL_FILE"
+          psql -v ON_ERROR_STOP=1 -c "UPDATE public.marcosa_seasons
+            SET title='R155 tampered external state' WHERE slug='r155-sample-open';"
+          if psql -v ON_ERROR_STOP=1 -f "$R155_SQL_FILE" >/dev/null 2>&1; then
+            echo "::error::Corrupt replay unexpectedly accepted"
+            exit 1
+          fi
+          psql -v ON_ERROR_STOP=1 -c "UPDATE public.marcosa_seasons
+            SET title='Open creator chapter' WHERE slug='r155-sample-open';"
+          psql -v ON_ERROR_STOP=1 -f "$R155_SQL_FILE"
+      - name: Full PG17 dump, new database restore, actual RLS proof and corruption rejection
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r155-disposable-pg17.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          COUNTS="SELECT concat(
+            (SELECT count(*) FROM public.marcosa_seasons),':',
+            (SELECT count(*) FROM public.marcosa_season_episodes),':',
+            (SELECT count(*) FROM public.marcosa_season_subscriptions),':',
+            (SELECT count(*) FROM public.marcosa_season_audit))"
+          BEFORE="$(psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE marcosa_r155_restored TEMPLATE template0;"
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r155_restored < "$DUMP"
+          AFTER="$(PGDATABASE=marcosa_r155_restored psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          test "$BEFORE" = "$AFTER"
+          PGDATABASE=marcosa_r155_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/156_r155_restored_parity.sql
+          printf 'NOT-A-POSTGRES-DUMP' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::Invalid PG17 archive accepted"
+            exit 1
+          fi
+          echo 'R155_PG17_DISPOSABLE_DUMP_RESTORE_RLS=PASS'
+          echo 'R155_REAL_USER_AUTH_AND_PRODUCTION_CUTOVER=NO_GO'
+
