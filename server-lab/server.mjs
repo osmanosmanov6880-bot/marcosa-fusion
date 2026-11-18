@@ -25,6 +25,7 @@ import {exportSeasonData} from './series-export.mjs';
 import {initSeriesBookmarks,handleSeriesBookmarks,exportReaderBookmarks} from './series-bookmarks.mjs';
 import {handleSeriesPublication} from './series-publication.mjs';
 import {initSeriesAudit,handleSeriesAudit,exportSeriesAudit} from './series-audit.mjs';
+import {handleSeasonPortability} from './series-portability.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -419,7 +420,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      body=await readJSON(req);
     }
     const context={db,req,res,route,method,query,viewer,user:viewer,body,send,check,now,atomic,onEpisode};
-    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesPublication,handleSeriesAudit,handleSeriesEditor,handleSeries]){
+    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesPublication,handleSeriesAudit,handleSeasonPortability,handleSeriesEditor,handleSeries]){
      if(await handler(context))return;
     }
     if(route==='/votes.js'&&method==='GET'){
