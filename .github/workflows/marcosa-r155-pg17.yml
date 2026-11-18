@@ -1,0 +1,78 @@
+name: "MARCOSA | R155 disposable creator PostgreSQL 17"
+
+on:
+  pull_request:
+    paths:
+      - "docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql"
+      - "tests/postgres/155_creator_seasons_rls.sql"
+      - "ops/r155/**"
+      - "ops/test/r155.*"
+      - ".github/workflows/marcosa-r155-pg17.yml"
+  push:
+    branches:
+      - "feature/**"
+      - "codex/**"
+    paths:
+      - "docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql"
+      - "tests/postgres/155_creator_seasons_rls.sql"
+      - "ops/r155/**"
+      - "ops/test/r155.*"
+      - ".github/workflows/marcosa-r155-pg17.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: r155-ci-synthetic-only
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r155-ci-synthetic-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Fail closed if CI target is not a disposable local Postgres
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000" | grep -qx t
+      - name: Bootstrap fake auth, worlds and audited block helper
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+      - name: Apply R155 *reference* on disposable service only
+        run: psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+      - name: Real PostgreSQL three-user RLS and ownership attacks
+        run: psql -v ON_ERROR_STOP=1 -f tests/postgres/155_creator_seasons_rls.sql
+      - name: Verify offline migration preview + no-deploy gate
+        run: |
+          node --test ops/test/r155.*.test.mjs
+          node ops/r155/cutover-gate.mjs
