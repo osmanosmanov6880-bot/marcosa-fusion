@@ -33,6 +33,13 @@ test('R160 cannot downgrade TLS, substitute host, or log in as postgres',()=>{
 test('R160 refuses localhost outside isolated CI',()=>{
  assert.throws(()=>createR160PgTransport({config:{...settings(),
   host:'127.0.0.1',expectedHost:'127.0.0.1'}}),/loopback only/);
- assert.throws(()=>createR160PgTransport({config:settings(),ciLoopback:true}),
-  /disposable CI/);
+ const previous=process.env.GITHUB_ACTIONS;
+ try{
+  process.env.GITHUB_ACTIONS='false';
+  assert.throws(()=>createR160PgTransport({config:settings(),ciLoopback:true}),
+   /disposable CI/);
+ }finally{
+  if(previous===undefined)delete process.env.GITHUB_ACTIONS;
+  else process.env.GITHUB_ACTIONS=previous;
+ }
 });
