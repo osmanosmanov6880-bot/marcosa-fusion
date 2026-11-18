@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import {logSeriesAction} from './series-audit.mjs';
 
 const slugPattern = /^[a-z][a-z0-9-]{2,47}$/;
 const seriesQuery = `
@@ -154,8 +155,15 @@ export async function handleSeries(ctx) {
   check(typeof body.slug==='string' && slugPattern.test(body.slug),400,'Адрес должен содержать от 3 до 48 латинских букв, цифр или дефисов и начинаться с буквы');
   const nextAt=dateField(body.nextAt,check);
   check(typeof body.worldId==='string' && db.prepare('SELECT 1 FROM worlds WHERE id=? AND owner_id=?').get(body.worldId,user.id),404,'Мир не найден');
-  const inserted=db.prepare('INSERT INTO series(slug,world_id,owner_id,title,description,next_at,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(slug) DO NOTHING').run(body.slug,body.worldId,user.id,title,description,nextAt,now());
-  check(inserted.changes,409,'Адрес уже занят');respond(201,{id:Number(inserted.lastInsertRowid),slug:body.slug});return true;
+  const created=atomic(()=>{
+   const inserted=db.prepare('INSERT INTO series(slug,world_id,owner_id,title,description,next_at,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(slug) DO NOTHING').run(body.slug,body.worldId,user.id,title,description,nextAt,now());
+   check(inserted.changes,409,'Адрес уже занят');
+   const id=Number(inserted.lastInsertRowid);
+   logSeriesAction(db,{seriesId:id,actorId:user.id,action:'series_created',
+    details:{slug:body.slug,title},now:now()});
+   return{id,slug:body.slug};
+  });
+  respond(201,created);return true;
  }
  if (!detail) return false;
  const [,api,slug,action]=detail;
@@ -178,8 +186,13 @@ export async function handleSeries(ctx) {
   const title=('title' in body)?textField(body.title,100,check):season.title;
   const description=('description' in body)?textField(body.description,600,check,true):season.description;
   const nextAt=('nextAt' in body)?dateField(body.nextAt,check):season.next_at;
-  db.prepare('UPDATE series SET title=?,description=?,next_at=? WHERE id=? AND owner_id=?')
-   .run(title,description,nextAt,season.id,user.id);
+  atomic(()=>{
+   db.prepare('UPDATE series SET title=?,description=?,next_at=? WHERE id=? AND owner_id=?')
+    .run(title,description,nextAt,season.id,user.id);
+   if(title!==season.title||description!==season.description||nextAt!==season.next_at)
+    logSeriesAction(db,{seriesId:season.id,actorId:user.id,action:'series_updated',
+     details:{title,description,nextAt},now:now()});
+  });
   respond(200,{...describe({...season,title,description,next_at:nextAt})});return true;
  }
  if(method==='POST' && action==='episodes') {
@@ -192,7 +205,10 @@ export async function handleSeries(ctx) {
    if(existing) {check(existing.series_id===season.id && existing.title===title,409,'Публикация уже добавлена');return {id:existing.id,position:existing.position,created:false};}
    const {position}=db.prepare('SELECT coalesce(max(position),0)+1 AS position FROM series_episodes WHERE series_id=?').get(season.id);
    const added=db.prepare('INSERT INTO series_episodes(series_id,post_id,position,title,created_at) VALUES(?,?,?,?,?)').run(season.id,body.postId,position,title,now());
-   const id=Number(added.lastInsertRowid);ctx.onEpisode?.(db,season.id,id);return {id,position,created:true};
+   const id=Number(added.lastInsertRowid);ctx.onEpisode?.(db,season.id,id);
+   logSeriesAction(db,{seriesId:season.id,actorId:user.id,action:'episode_attached',
+    details:{episodeId:id,postId:body.postId,position,title},now:now()});
+   return {id,position,created:true};
   });
   respond(episode.created?201:200,episode);return true;
  }

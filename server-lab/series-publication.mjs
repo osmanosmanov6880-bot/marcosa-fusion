@@ -1,4 +1,5 @@
 import {readSeries} from './series.mjs';
+import {logSeriesAction} from './series-audit.mjs';
 /** Owner-controlled season archival. Reader routes fail closed while archived. */
 export function handleSeriesPublication({db,res,route,method,viewer,user,body,check,send,now,atomic}){
  const matched=route.match(/^\/api\/series\/([a-z][a-z0-9-]{2,47})\/publication$/);
@@ -16,9 +17,11 @@ export function handleSeriesPublication({db,res,route,method,viewer,user,body,ch
    const changes=db.prepare('UPDATE series SET archived_at=? WHERE id=? AND archived_at IS NULL').run(now(),season.id).changes;
    // Previously queued notifications must not remain visible after withdrawal.
    const remindersRemoved=db.prepare('DELETE FROM series_reminders WHERE series_id=?').run(season.id).changes;
+   if(changes)logSeriesAction(db,{seriesId:season.id,actorId:actor,action:'series_archived',details:{remindersRemoved},now:now()});
    return{archived:true,changed:changes===1,remindersRemoved};
   }
   const changes=db.prepare('UPDATE series SET archived_at=NULL WHERE id=? AND archived_at IS NOT NULL').run(season.id).changes;
+  if(changes)logSeriesAction(db,{seriesId:season.id,actorId:actor,action:'series_restored',details:{notificationsBackfilled:false},now:now()});
   // Subscribers remain subscribed, but old reminders are NOT backfilled.
   return{archived:false,changed:changes===1,notificationsBackfilled:false};
  });

@@ -94,3 +94,35 @@ if(publication&&slug){
   }catch(error){notice.textContent=error.message;button.disabled=false;}
  });
 }
+
+const history=document.getElementById('series-publication');
+if(history&&slug){
+ const section=document.createElement('section');
+ const heading=document.createElement('h3');heading.textContent='История изменений сезона';
+ section.append(heading);
+ const list=document.createElement('ol');section.append(list);
+ const more=document.createElement('button');more.type='button';more.textContent='Показать ранние изменения';
+ let cursor=null;
+ const labels={
+  series_created:'Сезон создан',series_updated:'Сведения сезона изменены',
+  episode_attached:'Выпуск добавлен',episode_renamed:'Название выпуска изменено',
+  episodes_reordered:'Порядок выпусков обновлён',episode_removed:'Выпуск исключён',
+  series_archived:'Сезон снят с публикации',series_restored:'Сезон возвращён'
+ };
+ async function loadHistory(){
+  const result=await fetch('/api/series/'+encodeURIComponent(slug)+'/audit'+(cursor?'?cursor='+cursor:''));
+  if(!result.ok)throw Error('Не удалось загрузить историю изменений.');
+  const data=await result.json();
+  for(const event of data.items){
+   const li=document.createElement('li');
+   li.textContent=(labels[event.action]||'Изменение')+' · '+
+    new Date(event.createdAt).toLocaleString('ru-RU');
+   list.append(li);
+  }
+  cursor=data.nextCursor;more.hidden=!cursor;
+ }
+ more.onclick=async()=>{more.disabled=true;try{await loadHistory();}catch(e){notice.textContent=e.message;}finally{more.disabled=false;}};
+ section.append(more);
+ history.after(section);
+ void loadHistory().catch(e=>{notice.textContent=e.message;});
+}

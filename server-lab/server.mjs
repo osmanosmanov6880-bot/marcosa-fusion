@@ -24,6 +24,7 @@ import {initSponsor,handleSponsor} from './series-sponsor.mjs';
 import {exportSeasonData} from './series-export.mjs';
 import {initSeriesBookmarks,handleSeriesBookmarks,exportReaderBookmarks} from './series-bookmarks.mjs';
 import {handleSeriesPublication} from './series-publication.mjs';
+import {initSeriesAudit,handleSeriesAudit,exportSeriesAudit} from './series-audit.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -258,7 +259,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
  upgradeWorldTopics(db);
  upgradeWorldVisibility(db);
  upgradeLegacySponsorStatuses(db);
- for(const init of [initSeries,initVotes,initSubscriptions,initMetrics,initSponsor,initSeriesBookmarks])init(db);
+ for(const init of [initSeries,initVotes,initSubscriptions,initMetrics,initSponsor,initSeriesBookmarks,initSeriesAudit])init(db);
  const rateMap=new Map();
  // Parameters in this expression are always bound to a trusted current
  // session identity (or empty string for anonymous guests).
@@ -418,7 +419,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      body=await readJSON(req);
     }
     const context={db,req,res,route,method,query,viewer,user:viewer,body,send,check,now,atomic,onEpisode};
-    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesPublication,handleSeriesEditor,handleSeries]){
+    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesPublication,handleSeriesAudit,handleSeriesEditor,handleSeries]){
      if(await handler(context))return;
     }
     if(route==='/votes.js'&&method==='GET'){
@@ -988,7 +989,7 @@ ORDER BY w.created_at DESC LIMIT 30`).all(viewer,viewer,viewer,category,category
     const privateMessages=db.prepare("SELECT m.conversation_id AS conversationId,m.sender_id AS senderId,u.username AS sender,m.body,m.status,m.created_at AS createdAt FROM messages m JOIN users u ON u.id=m.sender_id JOIN conversation_members mine ON mine.conversation_id=m.conversation_id WHERE mine.user_id=? ORDER BY m.id").all(user.id);
     const messageReports=db.prepare("SELECT r.message_id AS messageId,r.reason,r.detail,r.status,r.created_at AS createdAt FROM message_reports r WHERE r.reporter_id=? ORDER BY r.id").all(user.id);
     send(res,200,{format:'MARCOSA-ACCOUNT-EXPORT-v1',generatedAt:new Date(now()).toISOString(),
-      user:{id:user.id,username:user.username,email:user.email},profile,seasonData:exportSeasonData(db,user.id),seasonVotes:exportUserVotes(db,user.id),seasonAttendance:exportAttendance(db,user.id),seasonSubscriptions:db.prepare("SELECT series_id,muted FROM series_subscriptions WHERE user_id=?").all(user.id),seriesBookmarks:exportReaderBookmarks(db,user.id),userFollows,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reactions,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
+      user:{id:user.id,username:user.username,email:user.email},profile,seasonData:exportSeasonData(db,user.id),seasonVotes:exportUserVotes(db,user.id),seasonAttendance:exportAttendance(db,user.id),seasonSubscriptions:db.prepare("SELECT series_id,muted FROM series_subscriptions WHERE user_id=?").all(user.id),seriesBookmarks:exportReaderBookmarks(db,user.id),seasonEditorialHistory:exportSeriesAudit(db,user.id),userFollows,worlds,worldCoverMetadata,worldCoverRights,worldCoverRightsHistory,coverAppeals,posts,reactions,reports,follows,savedPosts,notificationSettings,comments,sponsorProposals,activity,moderationAppeals,retentionConsent,retentionDays,coverReports,conversations,privateMessages,messageReports});
     return;
    }
    if(method==='GET'&&route==='/api/me/posts'){

@@ -1,4 +1,5 @@
 import {readSeries} from './series.mjs';
+import {logSeriesAction,orderDigest} from './series-audit.mjs';
 
 /** Owner-only release management. Underlying posts are never deleted. */
 export function handleSeriesEditor(ctx){
@@ -29,6 +30,8 @@ export function handleSeriesEditor(ctx){
    db.prepare('UPDATE series_episodes SET position=position+? WHERE series_id=?').run(offset,season.id);
    const update=db.prepare('UPDATE series_episodes SET position=? WHERE id=? AND series_id=?');
    for(const [i,id] of order.entries())check(update.run(i+1,id,season.id).changes===1,409,'Состав выпусков изменился');
+   logSeriesAction(db,{seriesId:season.id,actorId:actor,action:'episodes_reordered',
+    details:{count:order.length,orderDigest:orderDigest(order)},now:ctx.now()});
    return true;
   });
   reply({updated:changed,order});return true;
@@ -43,7 +46,11 @@ export function handleSeriesEditor(ctx){
    typeof body.title==='string',400,'Ожидается название выпуска');
   const title=body.title.trim();
   check(title.length>=1&&title.length<=100,400,'Название от 1 до 100 символов');
-  db.prepare('UPDATE series_episodes SET title=? WHERE id=? AND series_id=?').run(title,episodeId,season.id);
+  atomic(()=>{
+   db.prepare('UPDATE series_episodes SET title=? WHERE id=? AND series_id=?').run(title,episodeId,season.id);
+   if(episode.title!==title)logSeriesAction(db,{seriesId:season.id,actorId:actor,action:'episode_renamed',
+    details:{episodeId,oldTitle:episode.title,newTitle:title},now:ctx.now()});
+  });
   reply({episodeId,title,updated:true});return true;
  }
  check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===1&&
@@ -57,6 +64,8 @@ export function handleSeriesEditor(ctx){
   db.prepare('UPDATE series_episodes SET position=position+? WHERE series_id=?').run(offset,season.id);
   const update=db.prepare('UPDATE series_episodes SET position=? WHERE id=? AND series_id=?');
   for(const [i,row] of others.entries())update.run(i+1,row.id,season.id);
+  logSeriesAction(db,{seriesId:season.id,actorId:actor,action:'episode_removed',
+   details:{episodeId,oldTitle:episode.title},now:ctx.now()});
  });
  reply({removed:true,episodeId,postPreserved:true});return true;
 }
