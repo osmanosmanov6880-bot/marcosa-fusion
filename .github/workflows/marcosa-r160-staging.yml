@@ -1,4 +1,4 @@
-name: "MARCOSA | R160 real pinned pg TLS staging and restored RLS"
+name: "MARCOSA | R160–R161 pinned TLS staging, session fence and webhook"
 on:
   pull_request:
     paths:
@@ -9,6 +9,12 @@ on:
       - "tests/postgres/168_r160_*"
       - ".github/workflows/marcosa-r160-staging.yml"
       - "docs/MARCOSA_R160_*"
+      - "docs/MARCOSA_R161_*"
+      - "ops/r161/**"
+      - "ops/test/r161.*"
+      - "ops/r157/http-gateway.mjs"
+      - "ops/r157/pg-command-store.mjs"
+      - "tests/postgres/170_r161_*"
   push:
     branches: ["feature/**","codex/**"]
     paths:
@@ -19,6 +25,12 @@ on:
       - "tests/postgres/168_r160_*"
       - ".github/workflows/marcosa-r160-staging.yml"
       - "docs/MARCOSA_R160_*"
+      - "docs/MARCOSA_R161_*"
+      - "ops/r161/**"
+      - "ops/test/r161.*"
+      - "ops/r157/http-gateway.mjs"
+      - "ops/r157/pg-command-store.mjs"
+      - "tests/postgres/170_r161_*"
   workflow_dispatch:
 permissions:
   contents: read
@@ -66,7 +78,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
@@ -159,3 +171,57 @@ jobs:
           fi
           echo 'R160_PINNED_PG_TLS_PG17_RESTORE_RLS=PASS'
           echo 'R160_EXTERNAL_SUPABASE_AND_PRODUCTION=NO_GO'
+
+      - name: Create private R161 receipt ledger and restricted signed webhook login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R161_WEBHOOK_INBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            "CREATE ROLE marcosa_r161_ci LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'r161-ci-synthetic-inbox-login-only'"
+          psql -v ON_ERROR_STOP=1 -c \
+            "GRANT marcosa_r161_webhook_receiver TO marcosa_r161_ci WITH INHERIT FALSE"
+          psql -v ON_ERROR_STOP=1 -c "SELECT CASE WHEN
+            has_table_privilege('authenticated','marcosa_private.r161_webhook_inbox','SELECT')
+            THEN 1/0 ELSE 1 END"
+      - name: R161 real HTTPS, signed SQL session fence, HMAC receiver and deduplication
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R161_INBOX_PASSWORD: r161-ci-synthetic-inbox-login-only
+          R161_ADMIN_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          node ops/r161/ci-real.mjs
+      - name: Independently restore R161 revoked session, private inbox and signed creator revision
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r161-disposable-pg17.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.corrupt"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" pg_dump \
+            -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          psql -v ON_ERROR_STOP=1 -c \
+            'CREATE DATABASE marcosa_r161_restored TEMPLATE template0;'
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r161_restored < "$DUMP"
+          PGDATABASE=marcosa_r161_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/170_r161_restored.sql
+          printf 'R161-BROKEN-PG-ARCHIVE' > "$DUMP.corrupt"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.corrupt" >/dev/null 2>&1; then
+            echo "::error::R161 corrupt backup accepted"
+            exit 1
+          fi
+          echo 'R161_REAL_TLS_AUTH_TRANSACTION_WEBHOOK_RESTORE=PASS'
+          echo 'R161_REAL_SUPABASE_PUBLIC_DEPLOYMENT_AND_PAYMENTS=NO_GO'
