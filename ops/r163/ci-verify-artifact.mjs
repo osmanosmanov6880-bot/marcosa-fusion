@@ -13,7 +13,9 @@ assert(process.env.GITHUB_ACTIONS==='true'&&
  process.env.GITHUB_REPOSITORY===repo&&
  /^[a-f0-9]{40}$/.test(process.env.GITHUB_SHA||'')&&
  typeof process.env.R163_ARTIFACT_DIR==='string'&&
- resolve(process.env.R163_ARTIFACT_DIR)===process.env.R163_ARTIFACT_DIR,
+ typeof process.env.RUNNER_TEMP==='string'&&
+ resolve(process.env.R163_ARTIFACT_DIR)===
+  resolve(process.env.RUNNER_TEMP,'r163-downloaded'),
  'trusted runner and explicit downloaded artifact root required');
 const dir=process.env.R163_ARTIFACT_DIR,commit=process.env.GITHUB_SHA;
 const [bytes,reportBytes,manifestBytes]=await Promise.all([
