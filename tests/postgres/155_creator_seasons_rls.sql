@@ -98,10 +98,13 @@ BEGIN
   RAISE EXCEPTION 'R155 browser write unexpectedly allowed';
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
- UPDATE public.marcosa_seasons SET owner_id='15500000-0000-4155-8155-000000000002'
- WHERE id='15500000-0000-4155-8155-000000000301';
- GET DIAGNOSTICS n=ROW_COUNT;
- IF n<>0 THEN RAISE EXCEPTION 'R155 Bob stole Alice season'; END IF;
+ BEGIN
+  UPDATE public.marcosa_seasons SET owner_id='15500000-0000-4155-8155-000000000002'
+  WHERE id='15500000-0000-4155-8155-000000000301';
+  GET DIAGNOSTICS n=ROW_COUNT;
+  IF n<>0 THEN RAISE EXCEPTION 'R155 Bob stole Alice season'; END IF;
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
 END $$;
 RESET ROLE;
 RESET request.jwt.claim.sub;
