@@ -13,18 +13,36 @@
    if(initial.own)return;
    const button=document.createElement('button');
    let subscribed=initial.subscribed;
+   let muted=Boolean(initial.muted);
    function refresh(){
     button.textContent=subscribed?'Отписаться от новых эпизодов':'Подписаться на новые эпизоды';
     button.setAttribute('aria-pressed',String(subscribed));
+    mute.textContent=muted?'Включить уведомления':'Приостановить уведомления';
+    mute.hidden=!subscribed;
+    mute.setAttribute('aria-pressed',String(muted));
    }
+   const mute=document.createElement('button');mute.type='button';
    refresh();
-   button.type='button';panel.append(button,status);
+   button.type='button';panel.append(button,mute,status);
+   mute.addEventListener('click',async()=>{
+    mute.disabled=true;
+    try{
+     const result=await fetch(path.replace(/\/subscription$/,'/notifications'),{
+      method:muted?'POST':'DELETE',headers:{'Content-Type':'application/json'},body:'{}'
+     });
+     if(!result.ok)throw Error('Не удалось изменить уведомления.');
+     const data=await result.json();muted=Boolean(data.muted);refresh();
+     status.textContent=muted?'Уведомления этого сезона приостановлены.':'Уведомления снова включены. Старые выпуски не добавляются.';
+    }catch(error){status.textContent=error.message;}
+    finally{mute.disabled=false;}
+   });
    button.addEventListener('click',async()=>{
     button.disabled=true;
     try{
      const changed=await fetch(path,{method:subscribed?'DELETE':'POST',headers:{'Content-Type':'application/json'},body:'{}'});
      if(!changed.ok)throw Error('Не удалось изменить подписку.');
      subscribed=(await changed.json()).subscribed;
+     if(!subscribed)muted=false;
      refresh(); status.textContent=subscribed?'Новые эпизоды появятся в разделе «Сезоны».':'Подписка отменена.';
     }catch(error){status.textContent=error.message;}
     finally{button.disabled=false;}
