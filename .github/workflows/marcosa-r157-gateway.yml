@@ -6,6 +6,7 @@ on:
       - "ops/test/r157.*"
       - "docs/MARCOSA_R157_*"
       - "tests/postgres/160_r157_*"
+      - "tests/postgres/161_r157_*"
       - ".github/workflows/marcosa-r157-gateway.yml"
   push:
     branches: ["feature/**","codex/**"]
@@ -14,6 +15,7 @@ on:
       - "ops/test/r157.*"
       - "docs/MARCOSA_R157_*"
       - "tests/postgres/160_r157_*"
+      - "tests/postgres/161_r157_*"
       - ".github/workflows/marcosa-r157-gateway.yml"
   workflow_dispatch:
 permissions:
@@ -87,5 +89,6 @@ jobs:
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/160_r157_outbox_lifecycle.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/161_r157_transaction_guc.sql
           echo 'R157_PG17_PRIVACY_AND_DLQ_PASS=1'
           echo 'R157_REAL_USER_DATA_OR_PRODUCTION_MIGRATED=0'
