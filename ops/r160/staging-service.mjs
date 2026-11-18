@@ -124,6 +124,10 @@ export function assembleR160Staging({transport,settings,jwksFetch,clock=()=>Date
 export function createR160StagingService({settings,pgConfig,clock,jwksFetch,ciLoopback=false}={}){
  const safe=validateStagingSettings(settings);
  // This is the only default factory: real pinned pg driver, strict CA and role.
- const transport=createR160PgTransport({config:pgConfig,clock,ciLoopback});
- return assembleR160Staging({transport,settings:safe,jwksFetch,clock});
+ let emergencyRevoke=null;
+ const transport=createR160PgTransport({config:pgConfig,clock,ciLoopback,
+  onPoolError:()=>{if(emergencyRevoke)emergencyRevoke();}});
+ const runtime=assembleR160Staging({transport,settings:safe,jwksFetch,clock});
+ emergencyRevoke=runtime.revokeReady;
+ return runtime;
 }
