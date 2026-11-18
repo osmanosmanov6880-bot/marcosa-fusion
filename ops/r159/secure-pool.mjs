@@ -55,10 +55,14 @@ export function validatePgConfig(config,{clock=()=>Date.now(),allowLoopbackFixtu
  * Construct an actual driver pool only when a server explicitly supplies Pool.
  * pg Pool accepts the returned config shape. No automatic connection is made.
  */
-export function createSecurePgPool({Pool,config,allowLoopbackFixture=false,clock}={}){
+export function createSecurePgPool({Pool,config,allowLoopbackFixture=false,clock,onPoolError}={}){
  invariant(typeof Pool==='function','pinned node-postgres Pool constructor required');
  const options=validatePgConfig(config,{allowLoopbackFixture,clock});
  const pool=new Pool(options);
+ if(typeof pool?.on==='function')pool.on('error',()=>{
+  // Node-postgres emits idle-client errors: never let an unhandled event crash staging.
+  try{if(typeof onPoolError==='function')onPoolError();}catch{}
+ });
  invariant(pool&&typeof pool.connect==='function'&&typeof pool.end==='function',
   'Pool implementation must expose connect/end');
  return Object.freeze({
