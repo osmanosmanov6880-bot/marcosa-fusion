@@ -10,7 +10,7 @@ BEGIN
  IF (SELECT count(*) FROM marcosa_private.r156_outbox WHERE state='dead')<>1
  OR (SELECT count(*) FROM marcosa_private.r156_outbox WHERE state='pending')<>1
  THEN RAISE EXCEPTION 'R159 canceled lease state changed during restore'; END IF;
- IF (SELECT count(*) FROM public.marcosa_season_subscriptions WHERE muted=true)<>1
+ IF (SELECT count(*) FROM public.marcosa_season_subscriptions WHERE muted=true AND user_id='15900000-0000-4159-8159-000000000002')<>1
  THEN RAISE EXCEPTION 'R159 consenting reader mute lost on restore'; END IF;
  IF NOT(SELECT relrowsecurity FROM pg_class WHERE oid='auth.sessions'::regclass)
  THEN RAISE EXCEPTION 'R159 restored Auth RLS missing'; END IF;
