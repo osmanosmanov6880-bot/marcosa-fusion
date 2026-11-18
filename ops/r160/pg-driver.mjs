@@ -15,12 +15,13 @@ function verifyDriver(){
  if(actual!==expected)throw Error('R160 pinned pg version drift');
  if(typeof pg?.Pool!=='function')throw Error('R160 node-postgres driver unavailable');
 }
-export function createR160PgTransport({config,clock,ciLoopback=false}={}){
+export function createR160PgTransport({config,clock,ciLoopback=false,onPoolError}={}){
  verifyDriver();
  if(ciLoopback&&!(process.env.GITHUB_ACTIONS==='true' &&
    process.env.GITHUB_REPOSITORY==='osmanosmanov6880-bot/marcosa-fusion'))
   throw Error('R160 loopback transport allowed only in disposable CI');
- const pool=createSecurePgPool({Pool:pg.Pool,config,clock,allowLoopbackFixture:ciLoopback});
+ const pool=createSecurePgPool({Pool:pg.Pool,config,clock,
+  allowLoopbackFixture:ciLoopback,onPoolError});
  return Object.freeze({
   connect:()=>pool.connect(),
   end:()=>pool.end(),
