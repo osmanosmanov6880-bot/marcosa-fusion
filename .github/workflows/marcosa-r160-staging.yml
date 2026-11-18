@@ -1,4 +1,4 @@
-name: "MARCOSA | R160–R161 pinned TLS staging, session fence and webhook"
+name: "MARCOSA | R160–R162 TLS staging, recovery, evidence and chaos"
 on:
   pull_request:
     paths:
@@ -15,6 +15,10 @@ on:
       - "ops/r157/http-gateway.mjs"
       - "ops/r157/pg-command-store.mjs"
       - "tests/postgres/170_r161_*"
+      - "ops/r162/**"
+      - "ops/test/r162.*"
+      - "docs/MARCOSA_R162_*"
+      - "ops/r159/secure-pool.mjs"
   push:
     branches: ["feature/**","codex/**"]
     paths:
@@ -31,6 +35,10 @@ on:
       - "ops/r157/http-gateway.mjs"
       - "ops/r157/pg-command-store.mjs"
       - "tests/postgres/170_r161_*"
+      - "ops/r162/**"
+      - "ops/test/r162.*"
+      - "docs/MARCOSA_R162_*"
+      - "ops/r159/secure-pool.mjs"
   workflow_dispatch:
 permissions:
   contents: read
@@ -78,7 +86,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
@@ -228,3 +236,25 @@ jobs:
           fi
           echo 'R161_REAL_TLS_AUTH_TRANSACTION_WEBHOOK_RESTORE=PASS'
           echo 'R161_REAL_SUPABASE_PUBLIC_DEPLOYMENT_AND_PAYMENTS=NO_GO'
+
+      - name: R162 real PostgreSQL outage, fail-closed gate, TLS CA refusal and JWKS rotation
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R162_ADMIN_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r162/ci-chaos.mjs
+      - name: R162 exact-file SHA256 source-evidence and local readback
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          node ops/r162/ci-release-evidence.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r162-local-evidence
+          path: ${{ runner.temp }}/marcosa-r162-local-source-evidence.json
+          retention-days: 7
+          if-no-files-found: error
