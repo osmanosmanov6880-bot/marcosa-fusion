@@ -146,6 +146,7 @@ export function createCommandHttpServer({
    const body=await bodyJson(req,limitBytes);
    const data=command.op.build(command.matched,body);
    const response=await store.execute({actorId:identity.actorId,
+    sessionId:identity.sessionId,authExpiresAt:identity.authExpiresAt,
     name:command.op.name,key,data});
    write(res,200,{ok:true,result:response});
   }catch(error){
