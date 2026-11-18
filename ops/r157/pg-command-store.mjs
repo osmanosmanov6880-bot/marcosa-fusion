@@ -50,8 +50,9 @@ function failure(err){
  return new CommandStoreError('Database operation unavailable',503);
 }
 /** Pool is expected to implement async connect() -> {query(sql,values),release()} */
-export function createCommandStore({pool,onAfterQuery}={}){
- if(!pool||typeof pool.connect!=='function'||(onAfterQuery!==undefined&&typeof onAfterQuery!=='function'))
+export function createCommandStore({pool,onAfterQuery,onBeforeQuery,onBeforeCommit}={}){
+ if(!pool||typeof pool.connect!=='function'||
+  [onAfterQuery,onBeforeQuery,onBeforeCommit].some(x=>x!==undefined&&typeof x!=='function'))
   throw Error('R157 requires a server-owned PostgreSQL pool');
  return Object.freeze({
   async execute({actorId,name,data,key}={}){
