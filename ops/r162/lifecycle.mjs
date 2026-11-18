@@ -15,7 +15,7 @@ export function createR162StagingLifecycle({runtime,control,ingressFactory}={}){
  check(control&&typeof control.listen==='function'&&typeof control.close==='function',
   'trusted operator control required');
  check(typeof ingressFactory==='function','operator-provided TLS ingress required');
- let state='cold',ingress=null,stopping=null;
+ let state='cold',ingress=null,stopping=null,startPending=null,epoch=0;
  const counts={starts:0,rollbacks:0,drains:0};
  const publicState=()=>Object.freeze({state,stagingOnly:true,
   productionReady:false,externalDeliveryEnabled:false,paymentsEnabled:false,
@@ -30,8 +30,9 @@ export function createR162StagingLifecycle({runtime,control,ingressFactory}={}){
  async function stop(){
   if(stopping)return stopping;
   if(state==='stopped')return publicState();
-  state='draining';counts.drains++;
+  state='draining';++epoch;counts.drains++;
   stopping=(async()=>{
+   if(startPending)try{await startPending;}catch{}
    const errors=await unwind();
    state='stopped';
    if(errors.length)fail('shutdown incomplete: '+errors.join(','));
@@ -42,9 +43,13 @@ export function createR162StagingLifecycle({runtime,control,ingressFactory}={}){
  return Object.freeze({
   async start(){
    check(state==='cold','service can only start once');
-   state='starting';
+   state='starting';const ticket=++epoch;
+   const stillStarting=()=>check(ticket===epoch&&state==='starting',
+    'start cancelled by concurrent shutdown');
+   startPending=(async()=>{
    try{
     const gateway=await runtime.listen(local);
+    stillStarting();
     check(gateway&&gateway.host==='127.0.0.1'&&
      Number.isInteger(gateway.port)&&gateway.port>0&&gateway.port<=65535,
      'loopback command listener not proven');
@@ -52,12 +57,15 @@ export function createR162StagingLifecycle({runtime,control,ingressFactory}={}){
     check(ready?.ready===true&&ready?.productionReady===false,
      'signed Auth and PostgreSQL readiness not proven');
     const controlAddr=await control.listen(local);
+    stillStarting();
     check(controlAddr?.host==='127.0.0.1'&&Number.isInteger(controlAddr.port)&&
      controlAddr.port>0,'loopback control listener not proven');
     ingress=await ingressFactory({upstreamPort:gateway.port});
+    stillStarting();
     check(ingress&&typeof ingress.listen==='function'&&typeof ingress.close==='function',
      'TLS ingress component contract invalid');
     const publicAddr=await ingress.listen(local);
+    stillStarting();
     check(publicAddr?.host==='127.0.0.1'&&Number.isInteger(publicAddr.port)&&
      publicAddr.port>0,'TLS ingress must remain on loopback');
     check(runtime.status()?.ready===true,'dependencies degraded during boot');
@@ -65,11 +73,14 @@ export function createR162StagingLifecycle({runtime,control,ingressFactory}={}){
     return Object.freeze({state,command:gateway.port,control:controlAddr.port,
      https:publicAddr.port,host:'127.0.0.1',productionReady:false});
    }catch{
-    counts.rollbacks++;state='rolling_back';
+    counts.rollbacks++;
+    if(state!=='draining')state='rolling_back';
     await unwind();
-    state='failed';
+    if(state!=='draining')state='failed';
     fail('staging launch rejected; listener rollback attempted');
    }
+   })();
+   return startPending;
   },
   stop,status:publicState
  });
