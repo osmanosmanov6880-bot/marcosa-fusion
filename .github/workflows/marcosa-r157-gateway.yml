@@ -83,7 +83,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/postgres/157_r156_writer_editor.sql
           psql -v ON_ERROR_STOP=1 -f tests/postgres/158_r156_reader_outbox.sql
           node ops/r156/concurrency.mjs
-      - name: Real PostgreSQL 17: exhausted delivery, consent revocation and fencing
+      - name: "Real PostgreSQL 17: exhausted delivery, consent revocation and fencing"
         run: |
           set -euo pipefail
           psql -v ON_ERROR_STOP=1 -f tests/postgres/160_r157_outbox_lifecycle.sql

@@ -96,7 +96,7 @@ test('R157 parameterized store sets transaction-local role and actor then COMMIT
   bookmark:{episodeId:episode,save:true},
   attendance:{episodeId:episode,present:false}
  };
- assert.deepEqual(R157_OPERATIONS.sort(),Object.keys(examples).sort());
+ assert.deepEqual([...R157_OPERATIONS].sort(),Object.keys(examples).sort());
  for(const [name,data] of Object.entries(examples)){
   const result=await store.execute({actorId:subject,key:idem,name,data});
   assert.equal(result.actorId,subject);
@@ -150,7 +150,7 @@ test('R157 live HTTP: signed JWT, strict Origin, schema, idempotency and no cook
   assert.equal((await request(route+'?x=1')).status,404);
   assert.equal((await request('/v1/series/'+series+'/reorder',{body:{revision:0,order:[episode,episode]}})).status,400);
   assert.equal((await request(route,{method:'GET'})).status,405);
-  assert.deepEqual(R157_ROUTES.sort(),R157_OPERATIONS.sort());
+  assert.deepEqual([...R157_ROUTES].sort(),[...R157_OPERATIONS].sort());
   assert.ok(pool.events.some(x=>x.sql.includes('r156_edit_series')));
  }finally{await new Promise(ok=>server.close(ok));}
 });
