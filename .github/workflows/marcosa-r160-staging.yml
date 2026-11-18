@@ -1,0 +1,161 @@
+name: "MARCOSA | R160 real pinned pg TLS staging and restored RLS"
+on:
+  pull_request:
+    paths:
+      - "ops/r160/**"
+      - "ops/test/r160.*"
+      - "ops/r159/jwks-rotation.mjs"
+      - "ops/r159/outbox-worker.mjs"
+      - "tests/postgres/168_r160_*"
+      - ".github/workflows/marcosa-r160-staging.yml"
+      - "docs/MARCOSA_R160_*"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r160/**"
+      - "ops/test/r160.*"
+      - "ops/r159/jwks-rotation.mjs"
+      - "ops/r159/outbox-worker.mjs"
+      - "tests/postgres/168_r160_*"
+      - ".github/workflows/marcosa-r160-staging.yml"
+      - "docs/MARCOSA_R160_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r160-tls-staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r160-disposable-admin-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r160-disposable-admin-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ops/r160/package-lock.json
+      - name: Refuse nonlocal PostgreSQL and unexpected repository
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000" | grep -qx t
+      - name: Install exact locked pg and run R160 Node contracts
+        run: |
+          set -euo pipefail
+          npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
+          npm ls pg --prefix ops/r160 --depth=0
+          node --test ops/test/r160.*.test.mjs
+      - name: Issue test-only certificate authority and enable real PG17 TLS
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$RUNNER_TEMP/r160-ca.key" -out "$RUNNER_TEMP/r160-ca.pem" \
+            -days 2 -subj '/CN=R160 Disposable Root CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout "$RUNNER_TEMP/r160-server.key" -out "$RUNNER_TEMP/r160-server.csr" \
+            -subj '/CN=127.0.0.1' >/dev/null 2>&1
+          printf 'subjectAltName=IP:127.0.0.1,DNS:localhost\nextendedKeyUsage=serverAuth\n' \
+            > "$RUNNER_TEMP/r160-server-ext.cnf"
+          openssl x509 -req -in "$RUNNER_TEMP/r160-server.csr" \
+            -CA "$RUNNER_TEMP/r160-ca.pem" -CAkey "$RUNNER_TEMP/r160-ca.key" \
+            -CAcreateserial -days 2 -extfile "$RUNNER_TEMP/r160-server-ext.cnf" \
+            -out "$RUNNER_TEMP/r160-server.crt" >/dev/null 2>&1
+          docker cp "$RUNNER_TEMP/r160-server.crt" "$SERVICE_CONTAINER:/var/lib/postgresql/data/r160-server.crt"
+          docker cp "$RUNNER_TEMP/r160-server.key" "$SERVICE_CONTAINER:/var/lib/postgresql/data/r160-server.key"
+          docker exec -u 0 "$SERVICE_CONTAINER" sh -c \
+            'chown postgres:postgres /var/lib/postgresql/data/r160-server.* &&
+            chmod 600 /var/lib/postgresql/data/r160-server.key'
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl = 'on';"
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl_cert_file = 'r160-server.crt';"
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl_key_file = 'r160-server.key';"
+          docker restart "$SERVICE_CONTAINER" >/dev/null
+          for i in $(seq 1 30); do
+            if pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          psql -v ON_ERROR_STOP=1 -Atc 'SHOW ssl' | grep -qx on
+      - name: Apply disposable trusted writer + Supabase-shaped Auth fixture
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_TRUSTED_WRITER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_OUTBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_READER_PRIVACY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R157_OUTBOX_LIFECYCLE_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/165_r159_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R159_AUTH_READER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'CREATE POLICY r160_ci_auth_reader ON auth.sessions FOR SELECT TO marcosa_r159_auth_reader USING(true)'
+          psql -v ON_ERROR_STOP=1 -c \
+            "CREATE ROLE marcosa_r160_ci LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'r160-ssl-verified-ci-app-login'"
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r156_writer,marcosa_r159_auth_reader TO marcosa_r160_ci WITH INHERIT FALSE'
+      - name: Real CA-verified node-postgres, JWT HTTP, idempotency and signout
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R160_ADMIN_PASSWORD: r160-disposable-admin-only
+          R160_FIXTURE_ADMIN_REVOKE: ready-to-revoke
+        run: |
+          set -euo pipefail
+          node ops/r160/ci-real-pg.mjs
+      - name: Independent PG17 custom dump/restore and RLS regression
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r160-disposable-postgres.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" pg_dump \
+            -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE marcosa_r160_restored TEMPLATE template0;'
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r160_restored < "$DUMP"
+          PGDATABASE=marcosa_r160_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/168_r160_restored.sql
+          printf 'BAD-PG-ARCHIVE' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::R160 corrupted archive accepted"
+            exit 1
+          fi
+          echo 'R160_PINNED_PG_TLS_PG17_RESTORE_RLS=PASS'
+          echo 'R160_EXTERNAL_SUPABASE_AND_PRODUCTION=NO_GO'
