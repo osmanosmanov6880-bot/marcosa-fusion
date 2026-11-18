@@ -1,21 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {generateKeyPairSync,X509Certificate} from 'node:crypto';
+import {X509Certificate} from 'node:crypto';
+import {rootCertificates} from 'node:tls';
 import {createSecurePgPool,validatePgConfig,probeWriterPool} from '../r159/secure-pool.mjs';
 
 // Validate against a pinned, real certificate from the fixture, not regex-only.
-const pem=[
-'-----BEGIN CERTIFICATE-----',
-'MIIBfjCCASWgAwIBAgIUZjntxmpizccCSxV1kRctM+ARxbwwCgYIKoZIzj0EAwIw',
-'EDAOBgNVBAMMB1IxNTkgQ0EwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAw',
-'WjAQMQ4wDAYDVQQDDAVUZXN0QTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABJxN',
-'4it9fjtRBL5VBjC7NC3Ywfe5uxbSHdlmgkxdLRLpm0lMOPzOdcljlcVPrx5blEhY',
-'ePDQPC7nspDWqn7vh9mjUzBRMB0GA1UdDgQWBBRw75vMjiXdMdmi5Pjp+7DI2rTS',
-'VTAfBgNVHSMEGDAWgBRw75vMjiXdMdmi5Pjp+7DI2rTSVTAPBgNVHRMBAf8EBTAD',
-'AQH/MAoGCCqGSM49BAMCA0cAMEQCIFGuA8y6/Hbv8pOMRyWVoZxhTf3v4uJfqoNw',
-'qALn9qfLAiAjWCh4BO3EnYBtPR4m2SXc8rVpcyAteJ0i/CgQtQKXBRw==',
-'-----END CERTIFICATE-----'
-].join('\n');
+const pem=rootCertificates.find(value=>{try{const c=new X509Certificate(value);const now=Date.now();return Date.parse(c.validFrom)<=now&&Date.parse(c.validTo)>now;}catch{return false;}});
+assert.ok(pem,'Node.js must ship a valid CA test certificate');
 const base=()=>({host:'db.example.test',expectedHost:'db.example.test',port:5432,database:'marcosa',
  user:'marcosa_gateway',password:'test-only-strong-password-never-committed-real',caPem:pem,maxConnections:3});
 test('R159 deny insecure connection overrides, fallback and privileged roles',()=>{
