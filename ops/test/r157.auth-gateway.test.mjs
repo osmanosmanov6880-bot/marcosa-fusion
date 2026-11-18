@@ -145,7 +145,7 @@ test('R157 live HTTP: signed JWT, strict Origin, schema, idempotency and no cook
   assert.equal((await request(route,{headers:{'X-Idempotency-Key':'bad'}})).status,400);
   assert.equal((await request(route,{body:{title:'No revision',description:''}})).status,400);
   assert.equal((await request(route,{body:{revision:0,title:'valid',description:'',actorId:subject}})).status,400);
-  assert.equal((await request(route,{body:'{"revision":0,"title":'}})).status,400);
+  assert.equal((await request(route,{body:'{"revision":0,"title":'})).status,400);
   assert.equal((await request(route,{body:'{"x":"'+('a'.repeat(14000))+'"}'})).status,413);
   assert.equal((await request(route+'?x=1')).status,404);
   assert.equal((await request('/v1/series/'+series+'/reorder',{body:{revision:0,order:[episode,episode]}})).status,400);
