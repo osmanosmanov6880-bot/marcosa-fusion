@@ -133,7 +133,8 @@ CREATE POLICY marcosa_episodes_user_read ON public.marcosa_season_episodes
 CREATE POLICY marcosa_subscriptions_self ON public.marcosa_season_subscriptions
  FOR SELECT TO authenticated USING(user_id=(SELECT auth.uid()));
 CREATE POLICY marcosa_bookmarks_self ON public.marcosa_season_bookmarks
- FOR SELECT TO authenticated USING(user_id=(SELECT auth.uid()));
+ FOR SELECT TO authenticated USING(user_id=(SELECT auth.uid()) AND EXISTS(
+  SELECT 1 FROM public.marcosa_season_episodes e WHERE e.id=episode_id));
 CREATE POLICY marcosa_attendance_self ON public.marcosa_season_attendance
  FOR SELECT TO authenticated USING(viewer_id=(SELECT auth.uid()));
 CREATE POLICY marcosa_season_audit_owner ON public.marcosa_season_audit
