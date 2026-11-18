@@ -37,7 +37,7 @@ function valid(o,now){
   now<=o.expiresAtMs,'expired, futuristic or unbounded review window');
 }
 export const reviewerKeyFingerprint=publicKey=>{
- const key=createPublicKey(publicKey);
+ const key=publicKey?.type==='public'?publicKey:createPublicKey(publicKey);
  if(key.asymmetricKeyType!=='ed25519')fail('Ed25519 reviewer key required');
  return createHash('sha256').update(key.export({type:'spki',format:'der'}))
   .digest('hex');
@@ -71,7 +71,7 @@ export function verifyR163ReviewAttestation({
  ok(sig.length===64,'signature length invalid');
  let accepted=false;
  try{accepted=verifySig(null,canonical(challenge),
-  createPublicKey(reviewerPublicKey),sig);}
+  reviewerPublicKey?.type==='public'?reviewerPublicKey:createPublicKey(reviewerPublicKey),sig);}
  catch{accepted=false;}
  ok(accepted,'review evidence signature invalid');
  return Object.freeze({
