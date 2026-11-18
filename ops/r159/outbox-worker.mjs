@@ -104,12 +104,17 @@ export function createConsentFencedWorker({
      try{
       const result=await provider.send({
        episodeId,recipientId,idempotencyKey,
-       consentFenceConfirmedAtMs:clock()
+       consentFenceConfirmedAtMs:clock(),
+       deliveryFence:()=>dispatcher.allowed({id,token})
       });
       if(!result||result.accepted!==true)throw Error('Provider did not acknowledge acceptance');
       if(await dispatcher.ack({id,token})){counts.sent++;event('acked');}
       else{counts.uncertain++;event('unconfirmed');}
-     }catch{
+     }catch(error){
+      if(error?.code==='CONSENT_REVOKED'){
+       try{await dispatcher.cancel({id,token});}catch{}
+       counts.revoked++;event('revoked');continue;
+      }
       try{await dispatcher.nack({id,token});}catch{}
       counts.retried++;event('retry');
      }
