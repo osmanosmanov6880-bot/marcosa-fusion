@@ -7,6 +7,7 @@ on:
       - "docs/MARCOSA_R157_*"
       - "tests/postgres/160_r157_*"
       - "tests/postgres/161_r157_*"
+      - "tests/postgres/162_r157_*"
       - ".github/workflows/marcosa-r157-gateway.yml"
   push:
     branches: ["feature/**","codex/**"]
@@ -16,6 +17,7 @@ on:
       - "docs/MARCOSA_R157_*"
       - "tests/postgres/160_r157_*"
       - "tests/postgres/161_r157_*"
+      - "tests/postgres/162_r157_*"
       - ".github/workflows/marcosa-r157-gateway.yml"
   workflow_dispatch:
 permissions:
@@ -92,3 +94,41 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f tests/postgres/161_r157_transaction_guc.sql
           echo 'R157_PG17_PRIVACY_AND_DLQ_PASS=1'
           echo 'R157_REAL_USER_DATA_OR_PRODUCTION_MIGRATED=0'
+
+      - name: "Restore isolated PG17 backup and confirm R157 private controls"
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r157-disposable-postgres.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          COUNTS="SELECT concat(
+            (SELECT count(*) FROM marcosa_private.r156_outbox),':',
+            (SELECT count(*) FROM marcosa_private.r156_commands),':',
+            (SELECT count(*) FROM public.marcosa_season_audit))"
+          BEFORE="$(psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE marcosa_r157_restored TEMPLATE template0;"
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r157_restored < "$DUMP"
+          AFTER="$(PGDATABASE=marcosa_r157_restored psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          test "$BEFORE" = "$AFTER"
+          PGDATABASE=marcosa_r157_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/162_r157_restored.sql
+          printf 'NOT-A-POSTGRES-ARCHIVE' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::Broken archive unexpectedly accepted"
+            exit 1
+          fi
+          echo 'R157_PG17_DISPOSABLE_RESTORE_AND_RLS=PASS'
+
