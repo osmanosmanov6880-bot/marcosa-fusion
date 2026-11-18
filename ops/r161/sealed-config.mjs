@@ -34,10 +34,10 @@ async function readOwnedFile(root,name,limit=16384){
  }catch{throw Error('R161 sealed config: secure file unavailable or unsafe');}
  finally{if(fd)await fd.close();}
 }
-export async function readSealedR161Settings({secretsRoot,manifestName='staging.json'}={}){
+export async function readSealedR161Settings({secretsRoot,manifestName='staging.txt'}={}){
  guard(typeof secretsRoot==='string'&&resolve(secretsRoot)===secretsRoot,
   'absolute secret directory required');
- guard(manifestName==='staging.json','fixed manifest basename required');
+ guard(manifestName==='staging.txt','fixed manifest basename required');
  let root;
  try{
   const original=await stat(secretsRoot);
@@ -50,7 +50,7 @@ export async function readSealedR161Settings({secretsRoot,manifestName='staging.
  }catch{throw Error('R161 sealed config: private secret root required');}
  let config;
  try{
-  const raw=await readOwnedFile(root,manifestName.replace('.json','.txt'),8192);
+  const raw=await readOwnedFile(root,manifestName,8192);
   config=JSON.parse(raw);
  }catch{throw Error('R161 sealed config: manifest must be safe JSON');}
  guard(config&&typeof config==='object'&&!Array.isArray(config)&&
