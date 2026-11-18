@@ -7,6 +7,10 @@ on:
       - "ops/r162/release-evidence.mjs"
       - ".github/workflows/marcosa-r163-release.yml"
       - "docs/MARCOSA_R163_*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "ops/r162/lifecycle.mjs"
   push:
     branches: ["feature/**", "codex/**"]
     paths:
@@ -15,6 +19,10 @@ on:
       - "ops/r162/release-evidence.mjs"
       - ".github/workflows/marcosa-r163-release.yml"
       - "docs/MARCOSA_R163_*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "ops/r162/lifecycle.mjs"
   workflow_dispatch:
 permissions:
   contents: read
