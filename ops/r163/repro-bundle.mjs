@@ -17,7 +17,14 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r163/review-attestation.mjs',
  'ops/r163/staging-readback.mjs',
  'ops/r163/slo-monitor.mjs',
- 'ops/r163/release-gate.mjs'
+ 'ops/r163/release-gate.mjs',
+ 'ops/r164/staging-target.mjs',
+ 'ops/r164/change-quorum.mjs',
+ 'ops/r164/emergency-rollback.mjs',
+ 'ops/r164/restore-witness.mjs',
+ 'ops/r164/operations-audit.mjs',
+ 'ops/r164/ci-restore.mjs',
+ 'ops/r164/ci-ops-gate.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
