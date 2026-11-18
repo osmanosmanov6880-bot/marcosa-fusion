@@ -60,7 +60,7 @@ export function createRotatingSupabaseVerifier({
   },
   getPublicStatus:()=>Object.freeze({
    issuer,keysCached:cached!==null,cacheFresh:cached!==null&&clock()<expiresAt,
-   externalAuthIntegrated:true,sessionRevocationRequired:true
+   jwksEndpointPinned:true,sessionRevocationRequired:true
   })
  });
 }
