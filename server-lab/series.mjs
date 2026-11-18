@@ -8,6 +8,7 @@ const seriesQuery = `
  JOIN worlds w ON w.id = s.world_id AND w.owner_id = s.owner_id
  LEFT JOIN profile_cards profile ON profile.user_id = s.owner_id
  WHERE (w.visibility = 'public' OR s.owner_id = $viewer)
+ AND (s.archived_at IS NULL OR s.owner_id = $viewer)
  AND (coalesce(profile.visibility,'public') = 'public' OR s.owner_id = $viewer OR EXISTS (
   SELECT 1 FROM user_follows f WHERE f.follower_id = $viewer AND f.followed_id = s.owner_id AND f.status = 'active'
  ))
@@ -32,6 +33,8 @@ export function initSeries(db) {
    position INTEGER NOT NULL CHECK(position>0), title TEXT NOT NULL CHECK(length(title) BETWEEN 1 AND 100),
    created_at INTEGER NOT NULL, UNIQUE(series_id,position)
   );`);
+ const columns=db.prepare('PRAGMA table_info(series)').all();
+ if(!columns.some(row=>row.name==='archived_at'))db.exec('ALTER TABLE series ADD COLUMN archived_at INTEGER');
 }
 
 export function readSeries(db, slug, viewerId = '') {
@@ -82,8 +85,13 @@ function episodeForm(db, season) {
  </details>`;
 }
 
+function publicationForm(season){
+ const archived=season.archived_at!==null;
+ return '<form id="series-publication" data-archived="'+String(archived)+'" class="form-block"><button type="submit">'+
+  (archived?'Вернуть сезон в публикацию':'Снять сезон с публикации')+'</button></form>';
+}
 function describe(row) {
- return {id:row.id,slug:row.slug,title:row.title,description:row.description,world:row.world,author:row.author,nextAt:row.next_at};
+ return {id:row.id,slug:row.slug,title:row.title,description:row.description,world:row.world,author:row.author,nextAt:row.next_at,archivedAt:row.archived_at??null};
 }
 function textField(value,max,check,optional=false) {
  if (optional && value === undefined) return '';
@@ -158,7 +166,7 @@ export async function handleSeries(ctx) {
   if(api) respond(200,{series:describe(season),episodes,owner:viewerId===season.owner_id});
   else {
    const cards=episodes.map(e=>`<article class="post" id="episode-${e.id}" data-episode-id="${e.id}"><p class="eyebrow">Эпизод ${e.position}</p><h2>${escape(e.title)}</h2><p class="post-body">${escape(e.body)}</p><a class="post-permalink" href="/w/${escape(season.world)}#post-${e.post_id}">Обсудить выпуск</a><div data-episode-poll data-series="${escape(slug)}" data-episode="${e.id}"></div></article>`).join('');
-   page(res,season.title,`<section id="series-tools" data-slug="${escape(slug)}" data-owner="${viewerId===season.owner_id}" data-member="${Boolean(viewerId)}"><p class="eyebrow"><a href="/u/${escape(season.author)}">@${escape(season.author)}</a></p><h1>${escape(season.title)}</h1><p>${escape(season.description)}</p>${season.next_at?`<p>Следующий выпуск · ${formatDate(season.next_at)}</p>`:''}${cards||'<p>Первый эпизод готовится.</p>'}</section>${viewerId===season.owner_id?episodeForm(db,season):''}`,true);
+   page(res,season.title,`<section id="series-tools" data-slug="${escape(slug)}" data-owner="${viewerId===season.owner_id}" data-member="${Boolean(viewerId)}"><p class="eyebrow"><a href="/u/${escape(season.author)}">@${escape(season.author)}</a></p><h1>${escape(season.title)}</h1><p>${escape(season.description)}</p>${season.next_at?`<p>Следующий выпуск · ${formatDate(season.next_at)}</p>`:''}${cards||'<p>Первый эпизод готовится.</p>'}</section>${viewerId===season.owner_id?episodeForm(db,season)+publicationForm(season):''}`,true);
   }
   return true;
  }

@@ -34,7 +34,7 @@ export function initSubscriptions(db){
 export function onEpisode(db,seriesId,episodeId){
  db.prepare(`INSERT OR IGNORE INTO series_reminders(episode_id,series_id,user_id)
  SELECT e.id,e.series_id,sub.user_id FROM series_episodes e
- JOIN series s ON s.id=e.series_id JOIN worlds w ON w.id=s.world_id
+ JOIN series s ON s.id=e.series_id AND s.archived_at IS NULL JOIN worlds w ON w.id=s.world_id
  JOIN posts p ON p.id=e.post_id AND p.world_id=w.id AND p.author_id=s.owner_id
  JOIN series_subscriptions sub ON sub.series_id=e.series_id AND sub.muted=0
  LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id
@@ -81,7 +81,7 @@ export function handleSubscriptions({db,res,route,method,viewer,user,send,check,
    JOIN series_episodes e ON e.id=r.episode_id AND e.series_id=s.id
    JOIN posts p ON p.id=e.post_id AND p.world_id=s.world_id AND p.author_id=s.owner_id
    JOIN worlds w ON w.id=s.world_id LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id
-   WHERE r.user_id=? AND (? IS NULL OR r.episode_id < ?) AND p.status='published' AND w.visibility='public'
+   WHERE r.user_id=? AND (? IS NULL OR r.episode_id < ?) AND s.archived_at IS NULL AND p.status='published' AND w.visibility='public'
    AND (COALESCE(pc.visibility,'public')='public' OR EXISTS(SELECT 1 FROM user_follows f
    WHERE f.follower_id=r.user_id AND f.followed_id=s.owner_id AND f.status='active'))
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=r.user_id AND b.blocked_id=s.owner_id)

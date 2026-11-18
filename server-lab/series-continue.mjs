@@ -10,7 +10,7 @@ export function nextUnreadEpisodes(db, viewerId, limit=50) {
   "JOIN series_episodes e ON e.series_id=s.id",
   "JOIN posts p ON p.id=e.post_id AND p.author_id=s.owner_id AND p.world_id=s.world_id AND p.status='published'",
   "LEFT JOIN series_attendance a ON a.episode_id=e.id AND a.viewer_id=sub.user_id",
-  "WHERE sub.user_id=? AND w.visibility='public' AND a.episode_id IS NULL",
+  "WHERE sub.user_id=? AND s.archived_at IS NULL AND w.visibility='public' AND a.episode_id IS NULL",
   "AND (COALESCE(pc.visibility,'public')='public' OR EXISTS (",
   " SELECT 1 FROM user_follows f WHERE f.follower_id=sub.user_id AND f.followed_id=s.owner_id AND f.status='active'))",
   "AND NOT EXISTS (SELECT 1 FROM user_blocks b WHERE",

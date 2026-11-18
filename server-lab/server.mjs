@@ -23,6 +23,7 @@ import {initMetrics,handleMetrics,exportAttendance} from './series-metrics.mjs';
 import {initSponsor,handleSponsor} from './series-sponsor.mjs';
 import {exportSeasonData} from './series-export.mjs';
 import {initSeriesBookmarks,handleSeriesBookmarks,exportReaderBookmarks} from './series-bookmarks.mjs';
+import {handleSeriesPublication} from './series-publication.mjs';
 
 const makeKey=promisify(scrypt);
 const file=fileURLToPath(import.meta.url);
@@ -349,6 +350,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
   if(method==='DELETE'&&/^\/api\/series\/[a-z][a-z0-9-]{2,47}\/metrics\/attendance\/[1-9][0-9]{0,14}$/.test(route))return true;
   if(method==='DELETE'&&/^\/api\/me\/series-reminders\/[1-9][0-9]{0,14}$/.test(route))return true;
   if(method==='DELETE'&&route==='/api/me/series-reminders')return true;
+  if(method==='DELETE'&&/^\/api\/series\/[a-z][a-z0-9-]{2,47}\/publication$/.test(route))return true;
   if(method==='DELETE'&&/^\/api\/series\/[a-z][a-z0-9-]{2,47}\/episodes\/[1-9][0-9]{0,14}\/bookmark$/.test(route))return true;
   if(method!=='POST')return false;
   if(['/api/auth/login','/api/auth/logout',
@@ -416,7 +418,7 @@ export function createApp({databasePath=':memory:',inviteCode='',registrationMod
      body=await readJSON(req);
     }
     const context={db,req,res,route,method,query,viewer,user:viewer,body,send,check,now,atomic,onEpisode};
-    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesEditor,handleSeries]){
+    for(const handler of [handleVotes,handleSubscriptions,handleMetrics,handleSponsor,handleSeriesBookmarks,handleSeriesPublication,handleSeriesEditor,handleSeries]){
      if(await handler(context))return;
     }
     if(route==='/votes.js'&&method==='GET'){

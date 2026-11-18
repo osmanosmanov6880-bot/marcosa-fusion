@@ -76,3 +76,21 @@ if(slug) {
  }
 
 }
+
+const publication=document.getElementById('series-publication');
+if(publication&&slug){
+ publication.addEventListener('submit',async event=>{
+  event.preventDefault();
+  const archived=publication.dataset.archived==='true';
+  if(!archived&&!confirm('Скрыть весь сезон от читателей? Напоминания будут удалены.'))return;
+  const button=publication.querySelector('button');button.disabled=true;
+  try{
+   const response=await fetch('/api/series/'+encodeURIComponent(slug)+'/publication',{
+    method:archived?'POST':'DELETE',headers:{'Content-Type':'application/json'},body:'{}'
+   });
+   const result=await response.json();
+   if(!response.ok)throw Error(result.error||'Не удалось изменить публикацию.');
+   location.reload();
+  }catch(error){notice.textContent=error.message;button.disabled=false;}
+ });
+}

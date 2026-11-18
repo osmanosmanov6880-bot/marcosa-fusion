@@ -32,7 +32,7 @@ export async function handleSeriesBookmarks({db,res,route,method,body,viewer,use
    "JOIN posts p ON p.id=e.post_id AND p.author_id=s.owner_id AND p.world_id=s.world_id AND p.status='published'",
    'JOIN worlds w ON w.id=s.world_id AND w.owner_id=s.owner_id',
    'LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id',
-   'WHERE b.user_id=? AND (? IS NULL OR b.episode_id<?)',
+   'WHERE b.user_id=? AND (? IS NULL OR b.episode_id<?) AND (s.archived_at IS NULL OR s.owner_id=?)',
    "AND (w.visibility='public' OR s.owner_id=?)",
    "AND (COALESCE(pc.visibility,'public')='public' OR s.owner_id=? OR EXISTS(",
    " SELECT 1 FROM user_follows f WHERE f.follower_id=b.user_id AND f.followed_id=s.owner_id AND f.status='active'))",
@@ -40,7 +40,7 @@ export async function handleSeriesBookmarks({db,res,route,method,body,viewer,use
    ' (bl.blocker_id=b.user_id AND bl.blocked_id=s.owner_id) OR (bl.blocker_id=s.owner_id AND bl.blocked_id=b.user_id))',
    'ORDER BY b.episode_id DESC LIMIT ?'
   ].join(' ');
-  const rows=db.prepare(sql).all(actor,cursor,cursor,actor,actor,limit+1);
+  const rows=db.prepare(sql).all(actor,cursor,cursor,actor,actor,actor,limit+1);
   const items=rows.slice(0,limit);
   reply(200,{items,nextCursor:rows.length>limit?String(items.at(-1).episodeId):null});return true;
  }

@@ -2,7 +2,7 @@
 // voters, viewers and business partner references belong to other accounts.
 export function exportSeasonData(db, userId) {
  const seasons=db.prepare(`SELECT s.id,s.slug,s.title,s.description,s.next_at AS nextAt,
-  s.created_at AS createdAt,w.slug AS world FROM series s JOIN worlds w ON w.id=s.world_id
+  s.created_at AS createdAt,s.archived_at AS archivedAt,w.slug AS world FROM series s JOIN worlds w ON w.id=s.world_id
   WHERE s.owner_id=? ORDER BY s.id`).all(userId);
  const episodes=db.prepare(`SELECT e.id,e.series_id AS seriesId,e.post_id AS postId,e.position,
   e.title,e.created_at AS createdAt,f.minutes FROM series_episodes e
