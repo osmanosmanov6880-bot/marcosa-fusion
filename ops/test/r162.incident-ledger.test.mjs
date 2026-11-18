@@ -31,8 +31,8 @@ test('R162 chain catches row tamper, dropped tail and external head mismatch',()
 });
 test('R162 bounded retention preserves verifiable hash head and monotonic sequence',()=>{
  let time=100000;const l=createR162IncidentLedger({clock:()=>time,limit:4});
- for(let i=0;i<14;i++){time-=10;l.append({event:'staging_drain',
-  phase:'shutdown',result:'ok'});}
+ for(let i=0;i<14;i++){l.append({event:'staging_drain',
+  phase:'shutdown',result:'ok'});time-=10;}
  const s=l.snapshot();
  assert.equal(s.entries.length,4);
  assert.equal(s.entries.at(-1).seq,14);
