@@ -1,4 +1,4 @@
-name: "MARCOSA | R160–R163 TLS staging, resilience and release evidence"
+name: "MARCOSA | R160–R164 TLS staging, dual-key operator quarantine and real PG17 recovery"
 on:
   pull_request:
     paths:
@@ -23,6 +23,11 @@ on:
       - "ops/test/r163.*"
       - "docs/MARCOSA_R163_*"
       - "ops/r162/release-evidence.mjs"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/lifecycle.mjs"
   push:
     branches: ["feature/**","codex/**"]
     paths:
@@ -47,6 +52,11 @@ on:
       - "ops/test/r163.*"
       - "docs/MARCOSA_R163_*"
       - "ops/r162/release-evidence.mjs"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/lifecycle.mjs"
   workflow_dispatch:
 permissions:
   contents: read
@@ -94,7 +104,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
@@ -264,5 +274,37 @@ jobs:
         with:
           name: marcosa-r162-local-evidence
           path: ${{ runner.temp }}/marcosa-r162-local-source-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R164 rebuild R163 source and run synthetic Ed25519/HTTPS rehearsal
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          node ops/r163/ci-acceptance.mjs
+      - name: R164 independent PG17 archive restore, real RLS/Auth/idempotency regression
+        env:
+          R164_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          R164_DB_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r164/ci-restore.mjs
+      - name: R164 two-key quorum, single-use nonce and emergency real PG17 drain
+        env:
+          R164_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R164_APP_PASSWORD: r160-ssl-verified-ci-app-login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r164/ci-ops-gate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r164-disposable-ops-evidence
+          path: |
+            ${{ runner.temp }}/r164-restored-witness.json
+            ${{ runner.temp }}/r164-operations-report.json
           retention-days: 7
           if-no-files-found: error
