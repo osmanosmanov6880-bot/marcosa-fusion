@@ -1,0 +1,97 @@
+/**
+ * R163 reproducible, read-only source bundle for independent offline inspection.
+ * Not a deployable application container; no network or secrets required.
+ * Comparing two isolated CI checkouts proves matching bytes, not reviewer approval.
+ */
+import {readFile,realpath,lstat,open} from 'node:fs/promises';
+import {dirname,join,resolve} from 'node:path';
+import {O_RDONLY,O_NOFOLLOW} from 'node:constants';
+import {createHash,timingSafeEqual} from 'node:crypto';
+import {buildR162Evidence,R162_REQUIRED_FILES} from '../r162/release-evidence.mjs';
+
+const REPOSITORY='osmanosmanov6880-bot/marcosa-fusion';
+export const R163_REQUIRED_SOURCES=Object.freeze([
+ ...R162_REQUIRED_FILES,
+ 'ops/r162/incident-ledger.mjs',
+ 'ops/r163/repro-bundle.mjs',
+ 'ops/r163/review-attestation.mjs',
+ 'ops/r163/staging-readback.mjs',
+ 'ops/r163/slo-monitor.mjs',
+ 'ops/r163/release-gate.mjs'
+].slice().sort());
+const fail=m=>{throw Error('R163 bundle: '+m);};
+const ok=(v,m)=>{if(!v)fail(m);};
+const hex=/^[a-f0-9]{64}$/;
+const digest=b=>createHash('sha256').update(b).digest('hex');
+async function readSecure(root,path){
+ // Path is drawn from a hard-coded registry; do not accept caller input.
+ ok(R163_REQUIRED_SOURCES.includes(path),'source outside reviewed registry');
+ const file=join(root,path);let dir=dirname(file);
+ while(dir!==root){
+  const st=await lstat(dir);
+  ok(st.isDirectory()&&!st.isSymbolicLink(),'symlinked source directory');
+  dir=dirname(dir);
+ }
+ const info=await lstat(file);
+ ok(info.isFile()&&!info.isSymbolicLink()&&info.nlink===1&&
+  info.size>0&&info.size<=262144,'unsafe source type');
+ const fd=await open(file,O_RDONLY|O_NOFOLLOW);
+ try{
+  const st=await fd.stat();
+  ok(st.isFile()&&st.dev===info.dev&&st.ino===info.ino&&
+   st.size===info.size&&st.nlink===1,'source changed during open');
+  const bytes=await fd.readFile();
+  ok(bytes.length===st.size,'source changed during read');
+  return bytes;
+ }finally{await fd.close();}
+}
+export async function buildR163Bundle({root,commit}={}){
+ ok(typeof root==='string'&&resolve(root)===root,'absolute checkout required');
+ ok((await realpath(root))===root,'canonical checkout required');
+ ok(typeof commit==='string'&&/^[a-f0-9]{40}$/.test(commit),
+  'exact full lowercase source commit required');
+ const evidence=await buildR162Evidence({root,repo:REPOSITORY,commit,
+  files:R163_REQUIRED_SOURCES});
+ const parts=[];
+ for(const entry of evidence.files){
+  const bytes=await readSecure(root,entry.path);
+  ok(bytes.length===entry.size&&digest(bytes)===entry.sha256,
+   'file changed after checked hash');
+  parts.push({path:entry.path,size:entry.size,
+   sha256:entry.sha256,base64:bytes.toString('base64')});
+ }
+ const payload=Object.freeze({
+  schemaVersion:1,repository:REPOSITORY,commit,stage:'isolated-staging',
+  sourceManifestSha256:evidence.manifestSha256,
+  sourceCount:parts.length,sources:parts,productionAuthorized:false
+ });
+ const bytes=Buffer.from(JSON.stringify(payload)+'\n','utf8');
+ ok(bytes.length<1048576,'bounded bundle required');
+ return Object.freeze({bytes,sha256:digest(bytes),sourceCount:parts.length,
+  sourceManifestSha256:evidence.manifestSha256,productionAuthorized:false});
+}
+export async function verifyR163Bundle({root,commit,bytes,expectedSha256}={}){
+ ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<1048576,
+  'bounded bundle buffer required');
+ ok(typeof expectedSha256==='string'&&hex.test(expectedSha256),
+  'full independent expected SHA256 required');
+ const actual=digest(bytes);
+ ok(timingSafeEqual(Buffer.from(actual,'hex'),Buffer.from(expectedSha256,'hex')),
+  'bundle SHA256 mismatch');
+ let payload;
+ try{payload=JSON.parse(bytes.toString('utf8'));}
+ catch{fail('invalid canonical bundle');}
+ ok(payload&&payload.schemaVersion===1&&payload.repository===REPOSITORY&&
+  payload.commit===commit&&payload.stage==='isolated-staging'&&
+  payload.productionAuthorized===false&&
+  payload.sourceCount===R163_REQUIRED_SOURCES.length&&
+  Array.isArray(payload.sources)&&payload.sources.length===payload.sourceCount&&
+  payload.sources.every((x,i)=>x.path===R163_REQUIRED_SOURCES[i]&&
+   Number.isInteger(x.size)&&x.size>0&&x.size<=262144&&hex.test(x.sha256)&&
+   typeof x.base64==='string'),'bundle schema or sources invalid');
+ const regenerated=await buildR163Bundle({root,commit});
+ ok(bytes.equals(regenerated.bytes),'source checkout or canonical bundle differs');
+ return Object.freeze({verifiedAgainstCheckout:true,exactSourceBytes:true,
+  sha256:actual,commit,sourceCount:payload.sourceCount,
+  productionAuthorized:false,reviewerApproved:false});
+}
