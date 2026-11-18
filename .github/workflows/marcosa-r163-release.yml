@@ -1,0 +1,81 @@
+name: "MARCOSA | R163 reproducible staging evidence and independent runner replay"
+on:
+  pull_request:
+    paths:
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r163-release.yml"
+      - "docs/MARCOSA_R163_*"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r163-release.yml"
+      - "docs/MARCOSA_R163_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r163-create-source-proof:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify repository, checkout SHA and isolated CI context
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(printf %s "$GITHUB_SHA" | wc -c)" -eq 40
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "$PGHOST"
+          test -z "$PGPASSWORD"
+        env:
+          PGHOST: ""
+          PGPASSWORD: ""
+      - name: Run all R163 source, Ed25519, TLS-readback, SLO and release-gate contracts
+        run: |
+          set -euo pipefail
+          node --test ops/test/r163.*.test.mjs
+      - name: Reproducible source, real loopback HTTPS and CI-only staging audit
+        run: |
+          set -euo pipefail
+          node ops/r163/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r163-ci-only-source-proof
+          path: ${{ runner.temp }}/r163-artifact/
+          retention-days: 7
+          if-no-files-found: error
+  r163-rebuild-on-independent-runner:
+    needs: r163-create-source-proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r163-ci-only-source-proof
+          path: ${{ runner.temp }}/r163-downloaded/
+      - name: Inspect uploaded evidence and rehash freshly checked-out code
+        env:
+          R163_ARTIFACT_DIR: ${{ runner.temp }}/r163-downloaded/
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node ops/r163/ci-verify-artifact.mjs
+          echo "R163_CROSS_RUNNER_REPRODUCIBLE_SOURCE_ONLY=PASS"
+          echo "R163_REAL_SUPABASE_AND_PRODUCTION=NO_GO"
