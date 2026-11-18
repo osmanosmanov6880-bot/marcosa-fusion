@@ -67,7 +67,7 @@ $body$;
 CREATE FUNCTION marcosa_private.r156_bookmark(
  p_actor uuid,p_episode uuid,p_save boolean,p_key uuid) RETURNS jsonb
  LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $body$
-DECLARE cached jsonb; s public.marcosa_seasons%ROWTYPE;
+DECLARE cached jsonb; season_id uuid; owner_id uuid;
  source_status text; changed bigint; result jsonb;
 BEGIN
  cached:=marcosa_private.r156_begin_command(p_actor,p_key,'bookmark',
@@ -80,13 +80,13 @@ BEGIN
   GET DIAGNOSTICS changed=ROW_COUNT;
   result:=jsonb_build_object('saved',false,'removed',changed=1);
  ELSE
-  SELECT s.*,p.status INTO s,source_status
+  SELECT s.id,s.owner_id,p.status INTO season_id,owner_id,source_status
    FROM public.marcosa_season_episodes e
    JOIN public.marcosa_seasons s ON s.id=e.series_id
    JOIN public.marcosa_posts p ON p.id=e.post_id
    WHERE e.id=p_episode;
   IF NOT FOUND OR source_status<>'published'
-   OR NOT marcosa_private.r156_reader_allowed(p_actor,s.id)
+   OR NOT marcosa_private.r156_reader_allowed(p_actor,season_id)
   THEN RAISE EXCEPTION 'R156 unavailable episode cannot be saved'; END IF;
   INSERT INTO public.marcosa_season_bookmarks(episode_id,user_id) VALUES(p_episode,p_actor)
    ON CONFLICT DO NOTHING;
@@ -103,7 +103,7 @@ $body$;
 CREATE FUNCTION marcosa_private.r156_attendance(
  p_actor uuid,p_episode uuid,p_present boolean,p_key uuid)
  RETURNS jsonb LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $body$
-DECLARE cached jsonb; s public.marcosa_seasons%ROWTYPE;
+DECLARE cached jsonb; season_id uuid; owner_id uuid;
  source_status text; changed bigint; result jsonb;
 BEGIN
  cached:=marcosa_private.r156_begin_command(p_actor,p_key,'attendance',
@@ -112,12 +112,12 @@ BEGIN
  IF p_episode IS NULL OR p_present IS NULL
  THEN RAISE EXCEPTION 'R156 invalid attendance operation'; END IF;
  IF p_present THEN
-  SELECT s.*,p.status INTO s,source_status
+  SELECT s.id,s.owner_id,p.status INTO season_id,owner_id,source_status
    FROM public.marcosa_season_episodes e
    JOIN public.marcosa_seasons s ON s.id=e.series_id
    JOIN public.marcosa_posts p ON p.id=e.post_id WHERE e.id=p_episode;
-  IF NOT FOUND OR source_status<>'published' OR s.owner_id=p_actor
-   OR NOT marcosa_private.r156_reader_allowed(p_actor,s.id)
+  IF NOT FOUND OR source_status<>'published' OR owner_id=p_actor
+   OR NOT marcosa_private.r156_reader_allowed(p_actor,season_id)
   THEN RAISE EXCEPTION 'R156 attendance consent unavailable'; END IF;
   INSERT INTO public.marcosa_season_attendance(episode_id,viewer_id)
     VALUES(p_episode,p_actor) ON CONFLICT DO NOTHING;
