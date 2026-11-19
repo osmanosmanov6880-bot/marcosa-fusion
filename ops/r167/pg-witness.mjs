@@ -30,7 +30,7 @@ export const R167_INVENTORY_SQL=[
  " 'sessions',coalesce((SELECT json_agg(json_build_object('id',id::text,'active',active) ORDER BY id) FROM r167_ci.r167_sessions),'[]'::json),",
  " 'audit',coalesce((SELECT json_agg(json_build_object('seq',seq,'category',category,'hash',event_hash) ORDER BY seq) FROM r167_ci.r167_audit),'[]'::json),",
  " 'quarantine',(SELECT json_build_object('closed',closed,'generation',generation) FROM r167_ci.r167_quarantine WHERE id=1)",
- ")))::text;"
+ "))::text;"
 ].join(' ');
 const keys=['pgVersion','publicRows','privateRows','auditRows','activeSessions',
  'revokedSessions','quarantineClosed','quarantineGeneration','auditHead',
