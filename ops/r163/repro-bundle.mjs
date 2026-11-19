@@ -146,7 +146,15 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r183/pilot-ledger.mjs',
  'ops/r183/manual-preflight.mjs',
  'ops/r183/ci-acceptance.mjs',
- 'tests/postgres/184_r183_independent_pilot_gate.sql'
+ 'tests/postgres/184_r183_independent_pilot_gate.sql',
+ 'ops/r184/review-history.mjs',
+ 'ops/r184/iam-deny-simulation.mjs',
+ 'ops/r184/continuity-window.mjs',
+ 'ops/r184/pilot-readiness.mjs',
+ 'ops/r184/pilot-ledger.mjs',
+ 'ops/r184/manual-preflight.mjs',
+ 'ops/r184/ci-acceptance.mjs',
+ 'tests/postgres/185_r184_pilot_continuity_hold.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
@@ -195,12 +203,12 @@ export async function buildR163Bundle({root,commit}={}){
   sourceCount:parts.length,sources:parts,productionAuthorized:false
  });
  const bytes=Buffer.from(JSON.stringify(payload)+'\n','utf8');
- ok(bytes.length<3145728,'bounded bundle required');
+ ok(bytes.length<3670016,'bounded bundle required');
  return Object.freeze({bytes,sha256:digest(bytes),sourceCount:parts.length,
   sourceManifestSha256:evidence.manifestSha256,productionAuthorized:false});
 }
 export async function verifyR163Bundle({root,commit,bytes,expectedSha256}={}){
- ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<3145728,
+ ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<3670016,
   'bounded bundle buffer required');
  ok(typeof expectedSha256==='string'&&hex.test(expectedSha256),
   'full independent expected SHA256 required');

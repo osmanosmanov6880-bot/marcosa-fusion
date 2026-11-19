@@ -1,0 +1,21 @@
+# MARCOSA R184 — полный журнал PR approvals, безопасные IAM-проверки и тестовая непрерывность PostgreSQL
+
+20 ноября 2026 · [PR #168](https://github.com/osmanosmanov6880-bot/marcosa-fusion/pull/168) · `feature/marcosa-r150-growth-economics`
+
+## Реализовано пять крупных инженерных задач
+
+1. **Устранены блокирующие ошибки R183.** `ops/r183/pilot-gate.mjs` теперь использует RAW SHA-256 для двух маркеров (а не JSON-string hash), добавлена регрессия `ops/test/r183.pilot.test.mjs`. В нативном PostgreSQL `ops/r183/ci-acceptance.mjs` использует атомарный `WITH written AS (INSERT ... RETURNING) SELECT count(*)`, что не путает результат с тегом команды `psql`. Приёмку R183 нельзя считать успешной без полного запуска обоих jobs.
+2. **Настоящая проверка всей истории согласований PR.** `ops/r184/review-history.mjs` безопасно читает страницы `GET /pulls/168/reviews?per_page=100&page=N` (максимум четыре страницы / 400 событий), а также подписанный HEAD-коммит и точный source/base. Требуются минимум два финальных `APPROVED` от разных ожидаемых User IDs на том же HEAD. Даже отказ на последней странице или более позднее `CHANGES_REQUESTED` блокируют результат. При недоступности страницы, неполной выдаче и превышении лимита — NO-GO. CI использует заглушки, не доказательства реальных людей.
+3. **Чтение IAM policy simulation для двадцати опасных операций записи.** `ops/r184/iam-deny-simulation.mjs` и расширенный allowlist `ops/r181/aws-readonly-cli.mjs` разрешают только `iam simulate-principal-policy` (без мутаций) по 10 запрещённым действиям в каждом из двух профилей. Проверяется точная роль/ресурс, `implicitDeny` или `explicitDeny`, отсутствие `MissingContextValues` и пагинации. Если действие разрешено или не хватает контекста — NO-GO. Полномочия IAM, SCP, KMS и resource policies **не считаются независимо доказанными** только по результату симуляции.
+4. **Измеримое окно восстановления PostgreSQL17 на большем наборе данных.** `ops/r184/continuity-window.mjs` и `tests/postgres/185_r184_pilot_continuity_hold.sql`: восемь детерминированных записей перед реальным `pg_dump -Fc`, двадцать четыре записи после, `pg_restore` в отдельную БД, две независимые проверки источника, рост настоящего WAL через `pg_wal_lsn_diff`, проверка R183 NO-GO, RLS и закрытого карантина. В восстановленном снимке должно быть ровно 8 записей, в исходной тестовой базе — ровно 32. Измеряются время восстановления и объём WAL, но **не production RPO/RTO**, и это не потери реальных клиентов.
+5. **Новый R184 пилотный барьер и полный CI.** `ops/r184/pilot-readiness.mjs`, `ops/r184/pilot-ledger.mjs` и native SQL R184 дают одно единственное решение `NO_GO_REAL_STAGING_EVIDENCE_PENDING`. Строго привязаны SHA R183, отчёты GitHub/IAM/continuity, одноразовый SERIALIZABLE journal/audit, NOLOGIN + FORCE RLS, no UPDATE/DELETE и блокировка повторного решения. `ops/test/r184.staging.test.mjs` содержит атакующие кейсы на скрытые отказы, IAM allowed, изменённый источник, WAL=0, подмену GO. `ops/r184/ci-acceptance.mjs` проверяет настоящее disposable PG17 и два восстановления с отдельным runner без внешних учётных данных. `ops/r184/manual-preflight.mjs` — ручной opt-in для реальных read-only IAM/GitHub запросов, без запуска в CI или деплоя.
+
+Контрольный SHA-манифест: **153 файла**. PR остаётся незалитым в `main`. Публичный сайт, реальные AWS, клиентские данные и платежи не изменяются.
+
+## Проверки и границы достоверности
+
+Реальный PostgreSQL17 запускается только во временном CI контейнере. Все ответы внешних GitHub и AWS **в автоматическом CI синтетические**. `realPilotAuthorized=false`; `productionAuthorized=false`. Ручной режим может проводить read-only запросы при наличии двух корректных AWS CLI профилей, доступа к IAM `GetRole/GetPolicy/SimulatePrincipalPolicy` и GitHub PR API токена. Нельзя добавлять токены в коммиты, чаты, workflow, артефакты. Изоляция остаётся закрытой.
+
+Для ручного запуска из reviewed checkout: `R184_ALLOW_READONLY=YES_NO_DEPLOY`, `R184_GH_READ_TOKEN`, `R184_REVIEWER_IDS`, `R181_SOURCE_COMMIT`, `R181_BUNDLE_SHA256` и `R181_SOURCE_*`, `R181_OFFSITE_*`; затем `node ops/r184/manual-preflight.mjs --read-only`. Это **не** даёт права на pilot или production.
+
+**Техническая приёмка R184** — только два SUCCESS job workflow R184 на одном точном commit SHA. Проверка реальной staging готовности остаётся отдельной задачей.
