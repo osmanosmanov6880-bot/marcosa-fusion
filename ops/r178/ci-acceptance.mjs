@@ -7,7 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {createRequire} from 'node:module';
-import {createHash} from 'node:crypto';
+import {createHash,createCipheriv,randomBytes} from 'node:crypto';
 import {buildR163Bundle} from '../r163/repro-bundle.mjs';
 import {createR178DualIdentityAudit} from './identity-audit.mjs';
 import {createR178ReplicaAudit} from './replica-audit.mjs';
@@ -153,7 +153,13 @@ if(env.R178_SECOND_RUNNER==='true'){
   clock,allowExternalCalls:true});
  // This probe is NOT the actual R174 ciphertext. It verifies the S3
  // encryption/retention/readback algorithm with fully synthetic responses.
- const encryptedProbe=Buffer.alloc(1024,0x5a);
+ const aesKey=randomBytes(32),iv=randomBytes(12);
+ const cipher=createCipheriv('aes-256-gcm',aesKey,iv);
+ const encryptedProbe=Buffer.concat([
+  iv,cipher.update(Buffer.alloc(1024,0x5a)),cipher.final(),cipher.getAuthTag()
+ ]);
+ aesKey.fill(0);
+ ok(encryptedProbe.length===1052,'ephemeral AES-256-GCM encrypted probe missing');
  const probeSha256=sha(encryptedProbe),historyRootSha256=pg.historyRootSha256;
  const sourceVersionId='source-r178-'+runId,
   offsiteVersionId='offsite-r178-'+runId;

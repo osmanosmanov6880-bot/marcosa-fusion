@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createHash} from 'node:crypto';
+import {createHash,createCipheriv,randomBytes} from 'node:crypto';
 import {createR178DualIdentityAudit,verifyR178IdentityProof} from '../r178/identity-audit.mjs';
 import {createR178ReplicaAudit} from '../r178/replica-audit.mjs';
 import {buildR178ReadOnlyIamBlueprint,verifyR178ReadOnlyIamBlueprint} from '../r178/iam-plan.mjs';
@@ -18,7 +18,12 @@ const commands=Object.fromEntries([
  'GetCallerIdentity','GetBucketVersioning','GetObjectLockConfiguration',
  'GetPublicAccessBlock','HeadObject','GetObjectRetention','GetObject'
 ].map(type=>[type+'Command',class{constructor(input){this.type=type;this.input=input;}}]));
-const blob=Buffer.alloc(1024,0x5a),probeSha256=hash(blob);
+const rawKey=randomBytes(32),iv=randomBytes(12);
+const enc=createCipheriv('aes-256-gcm',rawKey,iv);
+const blob=Buffer.concat([iv,enc.update(Buffer.alloc(1024,0x5a)),
+ enc.final(),enc.getAuthTag()]);
+rawKey.fill(0);
+const probeSha256=hash(blob);
 const sourceVersionId='source-178-v1',offsiteVersionId='offsite-178-v2';
 const probe={sha256:probeSha256,sourceVersionId,offsiteVersionId,
  commit,bundleSha256,historyRootSha256};
@@ -61,7 +66,7 @@ function replica({badBytes=false,badRetention=false,publicGrant=false,
     Mode:badRetention?'GOVERNANCE':'COMPLIANCE',
     RetainUntilDate:new Date(clock()+8*86400000)}};
    case 'GetObject':return{VersionId:versionId,ContentLength:blob.length,
-    ChecksumSHA256:checksum,Body:badBytes?Buffer.alloc(1024,0x01):
+    ChecksumSHA256:checksum,Body:badBytes?Buffer.alloc(blob.length,0x01):
      shortBody?Buffer.alloc(22,0x5a):Buffer.from(blob)};
    default:throw Error('unexpected command');
   }
@@ -110,7 +115,7 @@ test('R178 IAM blueprint forbids wildcard subject and expanded privileges',()=>{
 test('R178 source/offsite exact immutable ciphertext parity without decryption',async()=>{
  const evidence=await replica().inspect(probe);
  assert.equal(evidence.verified,true);
- assert.equal(evidence.encryptedBytes,1024);
+ assert.equal(evidence.encryptedBytes,blob.length);
  assert.equal(evidence.actualCrossAccountReplicaDeliveryProven,false);
  assert.equal(evidence.productionAuthorized,false);
 });
