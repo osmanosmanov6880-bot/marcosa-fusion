@@ -124,7 +124,14 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r180/hold-ledger.mjs',
  'ops/r180/hold-gate.mjs',
  'ops/r180/ci-acceptance.mjs',
- 'tests/postgres/181_r180_no_go_hold.sql'
+ 'tests/postgres/181_r180_no_go_hold.sql',
+ 'ops/r181/github-policy-inspector.mjs',
+ 'ops/r181/aws-readonly-cli.mjs',
+ 'ops/r181/staging-evaluator.mjs',
+ 'ops/r181/observation-ledger.mjs',
+ 'ops/r181/manual-preflight.mjs',
+ 'ops/r181/ci-acceptance.mjs',
+ 'tests/postgres/182_r181_readonly_observations.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
@@ -173,12 +180,12 @@ export async function buildR163Bundle({root,commit}={}){
   sourceCount:parts.length,sources:parts,productionAuthorized:false
  });
  const bytes=Buffer.from(JSON.stringify(payload)+'\n','utf8');
- ok(bytes.length<2097152,'bounded bundle required');
+ ok(bytes.length<2621440,'bounded bundle required');
  return Object.freeze({bytes,sha256:digest(bytes),sourceCount:parts.length,
   sourceManifestSha256:evidence.manifestSha256,productionAuthorized:false});
 }
 export async function verifyR163Bundle({root,commit,bytes,expectedSha256}={}){
- ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<2097152,
+ ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<2621440,
   'bounded bundle buffer required');
  ok(typeof expectedSha256==='string'&&hex.test(expectedSha256),
   'full independent expected SHA256 required');
