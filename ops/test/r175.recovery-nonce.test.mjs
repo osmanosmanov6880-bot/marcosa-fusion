@@ -4,7 +4,7 @@ import {r175RecoveryNonceSql,createR175RecoveryNonce}
  from '../r175/recovery-nonce.mjs';
 const input={nonce:'a'.repeat(32),sequence:1,anchorSha256:'b'.repeat(64),
  archiveSha256:'c'.repeat(64),commit:'d'.repeat(40)};
-test('R175 SQL requires high-water FOR SHARE and atomic lease/audit CTE',()=>{
+test('R175 SQL uses SERIALIZABLE source snapshot and atomic lease/audit CTE',()=>{
  const s=r175RecoveryNonceSql(input);
  assert.match(s,/FOR SHARE/);
  assert.match(s,/ON CONFLICT DO NOTHING/);
