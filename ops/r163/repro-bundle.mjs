@@ -41,7 +41,8 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r167/transfer-manifest.mjs',
  'ops/r167/pg-witness.mjs',
  'ops/r167/ci-source.mjs',
- 'ops/r167/ci-target.mjs'
+ 'ops/r167/ci-target.mjs',
+ 'ops/r167/ci-remote-https.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
