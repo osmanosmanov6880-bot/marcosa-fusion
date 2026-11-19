@@ -15,10 +15,10 @@ function mock({slow=false,changedRows=false,badAudit=false,
  let tick=0;
  const r=createR172RecoveryBudget({
   getInventory:async({database})=>({
-   ...inventory,...(changedRows&&database==='marcosa_r172_restored'?
+   ...inventory,...(changedRows&&database==='marcosa_r168_restored'?
     {publicRows:4}:{})}),
   readNonceCounts:async({database})=>({
-   runs:1,audit:badAudit&&database==='marcosa_r172_restored'?0:1
+   runs:1,audit:badAudit&&database==='marcosa_r168_restored'?0:1
   }),
   backupAndSeal:async({commit,bundleSha256})=>({
    remoteReceiptVerified:true,
@@ -28,7 +28,7 @@ function mock({slow=false,changedRows=false,badAudit=false,
   }),
   restoreIntoDisposablePg:async()=>{
    if(failedRestore)throw Error('offline');
-   return{verified:true,database:'marcosa_r172_restored',
+   return{verified:true,database:'marcosa_r168_restored',
     productionAuthorized:false};
   },
   verifyReplayDenied:async()=>({
