@@ -290,13 +290,18 @@ if(env.R170_SECOND_PASS==='true'){
    allowExternalCalls:true,clock
   });
   let closed=0;
+  let safeComponent='before-runtime';
   const runtimeFactory=async({credentials})=>{
    ok(credentials.accessKeyId==='ASIA'+'A'.repeat(16),
     'runtime not STS session scoped');
    return{
-    preflight:{inspect:async()=>({
-     ...await backupPreflight.inspect(),identityArn:sessionArn
-    })},posture,iam:simulator,retention:witness,
+    preflight:{inspect:async()=>{
+     safeComponent='preflight';
+     return {...await backupPreflight.inspect(),identityArn:sessionArn};
+    }},
+    posture:{inspect:async()=>{safeComponent='posture';return posture.inspect();}},
+    iam:{inspect:async()=>{safeComponent='iam';return simulator.inspect();}},
+    retention:{inspect:async args=>{safeComponent='retention';return witness.inspect(args);}},
     close:async()=>{closed++;}
    };
   };
@@ -311,6 +316,7 @@ if(env.R170_SECOND_PASS==='true'){
    return{closed:closed==='true',generation:Number(generation)};
   }};
   const durableQuorum={consume:async({packet})=>{
+   safeComponent='postgres-nonce';
    const nonce=packet?.nonce;
    ok(typeof nonce==='string'&&/^[a-f0-9]{32}$/.test(nonce),
     'durable SQL nonce encoding');
@@ -346,7 +352,11 @@ if(env.R170_SECOND_PASS==='true'){
   const args={idToken,commit,bundleSha256:bundle.sha256,
    reference,inventorySha256:saved.reference.inventorySha256,
    packet,approvals,pinnedReviewerFingerprints};
-  const receipt=await stage.verify(args);
+  let receipt;
+  try{receipt=await stage.verify(args);}catch(error){
+   console.log('R170_SYNTHETIC_LAST_SAFE_COMPONENT='+safeComponent);
+   throw error;
+  }
   ok(receipt.verified===true&&receipt.iamCanariesPassed===13&&
    receipt.productionAuthorized===false&&closed===1,
    'full read-only stage verification rejected');
