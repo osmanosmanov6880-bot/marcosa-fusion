@@ -71,7 +71,7 @@ export function r182ReadinessSql({sourceCommit,runId,sequence,nonce,
   '), audit AS (INSERT INTO r182_ci.readiness_audit(id,evidence_sha256,decision)',
   ' SELECT id,'+q(evidenceSha256)+','+q(decision),
   ' FROM inserted RETURNING id)',
-  ") SELECT (SELECT count(*) FROM inserted)::text||'|'||",
+  "SELECT (SELECT count(*) FROM inserted)::text||'|'||",
   '(SELECT count(*) FROM audit)::text;',
   'COMMIT;'
  ].join('\n');
