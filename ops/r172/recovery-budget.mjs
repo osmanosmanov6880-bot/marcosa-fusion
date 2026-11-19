@@ -60,16 +60,16 @@ export function createR172RecoveryBudget({
    restoreResult=await restoreIntoDisposablePg({
     reference:ref,sourceInventory,
     pinnedInventorySha256:ref.inventorySha256,
-    targetDatabase:'marcosa_r172_restored',
+    targetDatabase:'marcosa_r168_restored',
     productionAuthorized:false
    });
   }catch{fail('isolated PostgreSQL restore rejected');}
   ok(restoreResult?.verified===true&&
-   restoreResult.database==='marcosa_r172_restored'&&
+   restoreResult.database==='marcosa_r168_restored'&&
    restoreResult.productionAuthorized===false,
    'recovery result not independently verified');
   const restoredInventory=await getInventory({
-   database:'marcosa_r172_restored'
+   database:'marcosa_r168_restored'
   });
   const parity=verifyR167RestoredInventory({
    source:sourceInventory,restored:restoredInventory
@@ -77,11 +77,11 @@ export function createR172RecoveryBudget({
   ok(parity?.verified===true&&parity.rlsPreserved===true,
    'restored PG17 RLS, sessions or rows differ');
   const nonceCounts=await readNonceCounts({
-   database:'marcosa_r172_restored'
+   database:'marcosa_r168_restored'
   });
   ok(isCounts(nonceCounts),'restored PostgreSQL nonce/audit not identical');
   const replay=await verifyReplayDenied({
-   database:'marcosa_r172_restored',nonce,commit,
+   database:'marcosa_r168_restored',nonce,commit,
    bundleSha256,productionAuthorized:false
   });
   ok(replay?.denied===true&&replay?.rowCount===1&&
@@ -101,7 +101,7 @@ export function createR172RecoveryBudget({
   const manifest={
    schemaVersion:1,commit,bundleSha256,
    archiveSha256:ref.encryptedSha256,sourceInventorySha256:ref.inventorySha256,
-   nonce,restoreDatabase:'marcosa_r172_restored',
+   nonce,restoreDatabase:'marcosa_r168_restored',
    observedSyntheticRtoMs:rtoMs,syntheticRowsLost:0,
    productionAuthorized:false
   };
