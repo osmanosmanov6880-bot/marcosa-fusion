@@ -20,6 +20,8 @@ const fail=m=>{throw Error('R181 AWS read-only: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const STS=['sts','get-caller-identity'];
+const IAM=new Set(['get-role','list-role-policies',
+ 'list-attached-role-policies','get-role-policy']);
 const S3=new Set(['head-object','get-object','get-object-retention',
  'get-bucket-replication','get-bucket-versioning',
  'get-public-access-block','get-object-lock-configuration']);
@@ -29,15 +31,22 @@ export function createR181AwsCliExecutor({command='aws'}={}){
  return async ({profile,region,service,operation,params={}})=>{
   ok(PROFILE.test(profile||'')&&/^[a-z]{2}(?:-[a-z]+)+-\d$/.test(region||'')&&
    ((service==='sts'&&operation==='get-caller-identity')||
-    (service==='s3api'&&S3.has(operation)))&&
+    (service==='s3api'&&S3.has(operation))||
+    (service==='iam'&&IAM.has(operation)))&&
    params&&Object.getPrototypeOf(params)===Object.prototype,
    'untrusted profile, command, region or mutating AWS action');
-  const permitted=service==='sts'?[]:
+  const permitted=service==='sts'?[]:service==='iam'?
+   ['RoleName','PolicyName']:
    ['Bucket','Key','VersionId','ExpectedBucketOwner','ChecksumMode'];
   ok(Object.keys(params).every(k=>permitted.includes(k)&&
    typeof params[k]==='string'&&params[k].length<=1024&&
    !/[\x00-\x1f]/.test(params[k])),
    'unexpected S3 parameter in AWS CLI read-only operation');
+  if(service==='iam')ok(
+   params.RoleName==='marcosa-r178-readonly-auditor'&&
+   (!('PolicyName' in params)||
+    params.PolicyName==='marcosa-r182-staging-readonly'),
+   'IAM role or inline policy is not pre-approved');
   const args=['--profile',profile,'--region',region,
    '--no-cli-pager',service,operation,'--output','json'];
   for(const [k,v] of Object.entries(params))args.push(flag(k),v);
