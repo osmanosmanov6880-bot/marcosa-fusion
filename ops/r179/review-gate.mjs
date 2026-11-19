@@ -50,11 +50,12 @@ function r178Bound(p,w){
   digest(manifest)===p.evidenceSha256;
 }
 export function createR179ReviewGate({readR178Witness,
- githubAudit,replicationAudit,clock=()=>Date.now(),
+ githubAudit,replicationAudit,replicaReadback,clock=()=>Date.now(),
  allowEvaluate=false}={}){
  ok(typeof readR178Witness==='function'&&
   githubAudit&&typeof githubAudit.inspect==='function'&&
   replicationAudit&&typeof replicationAudit.inspect==='function'&&
+  replicaReadback&&typeof replicaReadback.inspect==='function'&&
   typeof clock==='function','two externally backed auditors and real PG17 R178 witness required');
  async function inspect({r178Proof,runId,actorId,
   commit,bundleSha256,historyRootSha256,probeSha256,
@@ -71,11 +72,25 @@ export function createR179ReviewGate({readR178Witness,
    before.probeSha256===probeSha256&&
    r178Proof.bundleSha256===bundleSha256,
    'native PG17 R178 source-bound staging witness missing');
+  // Independently repeat the full exact-version source/offsite S3 GET
+  // before trusting any replication-status bit. Never fabricate verified.
+  const full=await replicaReadback.inspect({sha256:probeSha256,
+   sourceVersionId,offsiteVersionId,
+   commit,bundleSha256,historyRootSha256});
+  ok(full?.verified===true&&full.archiveSha256===probeSha256&&
+   full.commit===commit&&full.bundleSha256===bundleSha256&&
+   full.historyRootSha256===historyRootSha256&&
+   full.sourceAccountId===before.sourceAccountId&&
+   full.offsiteAccountId===before.offsiteAccountId&&
+   full.sourceVersionId===sourceVersionId&&
+   full.offsiteVersionId===offsiteVersionId&&
+   full.bothFullCiphertextSha256Verified===true&&
+   full.productionAuthorized===false,
+   'fresh full source/offsite S3 byte parity proof required');
   const [github,replica]=await Promise.all([
    githubAudit.inspect(),replicationAudit.inspect({
-    r178Proof:{...r178Proof,verified:true,
-     archiveSha256:probeSha256},
-    commit,bundleSha256,historyRootSha256,sha256:probeSha256,
+    r178Proof:full,commit,bundleSha256,
+    historyRootSha256,sha256:probeSha256,
     sourceVersionId,offsiteVersionId
    })
   ]);
