@@ -53,7 +53,8 @@ export function createR166SignedAnchor({commit,bundleSha256,encryptedSha256,
   expiresAtMs:time+600000,scope:'isolated-staging-evidence',productionAuthorized:false};
  checkPacket(packet,time);
  let key;
- try{key=createPrivateKey(privateKey);}catch{error('external private Ed25519 key required');}
+ try{key=privateKey?.type==='private'?privateKey:createPrivateKey(privateKey);}
+ catch{error('external private Ed25519 key required');}
  ok(key.asymmetricKeyType==='ed25519','Ed25519 signing key required');
  const signature=signEd(null,canonical(packet),key).toString('base64url');
  return Object.freeze({packet:Object.freeze(packet),signature,
