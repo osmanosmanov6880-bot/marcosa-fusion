@@ -63,10 +63,11 @@ jobs:
           test "$PGHOST" = "127.0.0.1"
           test "$PGDATABASE" = "postgres"
           psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
-      - name: Resolve pinned AWS SDK v3 dependency lock and install without scripts
+      - name: Verify committed compressed AWS SDK v3 lock and install without scripts
         run: |
           set -euo pipefail
-          npm install --prefix ops/r169 --package-lock-only --ignore-scripts --no-audit --no-fund
+          base64 -d ops/r169/package-lock.json.gz.b64 | gzip -dc > ops/r169/package-lock.json
+          echo '29dc3a1ef4db63f5f5e4bbc885e8f372dc40c0f36915180812df1e10901a5eef  ops/r169/package-lock.json' | sha256sum -c -
           npm ci --prefix ops/r169 --ignore-scripts --no-audit --no-fund
           npm ls --prefix ops/r169 --depth=0
       - name: Verify native official AWS SDK v3 classes without external network
