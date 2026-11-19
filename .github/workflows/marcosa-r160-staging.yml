@@ -1,4 +1,4 @@
-name: "MARCOSA | R160–R164 TLS staging, dual-key operator quarantine and real PG17 recovery"
+name: "MARCOSA | R160–R165 TLS staging, durable quorum and encrypted PG17 restore"
 on:
   pull_request:
     paths:
@@ -26,6 +26,9 @@ on:
       - "ops/r164/**"
       - "ops/test/r164.*"
       - "docs/MARCOSA_R164_*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "docs/MARCOSA_R165_*"
       - "ops/r163/repro-bundle.mjs"
       - "ops/r162/lifecycle.mjs"
   push:
@@ -55,6 +58,9 @@ on:
       - "ops/r164/**"
       - "ops/test/r164.*"
       - "docs/MARCOSA_R164_*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "docs/MARCOSA_R165_*"
       - "ops/r163/repro-bundle.mjs"
       - "ops/r162/lifecycle.mjs"
   workflow_dispatch:
@@ -104,7 +110,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs ops/test/r165.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
@@ -306,5 +312,42 @@ jobs:
           path: |
             ${{ runner.temp }}/r164-restored-witness.json
             ${{ runner.temp }}/r164-operations-report.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R165 install disposable NOLOGIN fence roles and deny browser privilege
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R165_PG17_FENCES_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r165_nonce_writer,marcosa_r165_gate_reader,marcosa_r165_gate_closer TO marcosa_r160_ci WITH INHERIT FALSE'
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r165_quarantine','SELECT')
+              OR has_table_privilege('authenticated',
+              'marcosa_private.r165_drill_nonces','SELECT')
+              OR has_table_privilege('marcosa_r156_writer',
+              'marcosa_private.r165_quarantine','UPDATE')
+            THEN RAISE EXCEPTION 'R165 forbidden database privilege';
+            END IF;
+          END \$\$;"
+      - name: R165 durable concurrent Ed25519 replay fence, quarantine and encrypted PG17 restore
+        env:
+          R165_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          ${{ runner.temp }}/r160-ca.pem_FILE: ${{ runner.temp }}/r160-ca.pem
+          R165_ADMIN_PASSWORD: r160-disposable-admin-only
+          R165_APP_PASSWORD: r160-ssl-verified-ci-app-login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r165/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r165-disposable-security-evidence
+          path: ${{ runner.temp }}/r165-nonsecret-ci-report.json
           retention-days: 7
           if-no-files-found: error
