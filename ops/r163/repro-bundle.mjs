@@ -99,7 +99,13 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r176/recovery-fence.mjs',
  'ops/r176/recovery-guard.mjs',
  'ops/r176/ci-acceptance.mjs',
- 'tests/postgres/177_r176_sequence_guard.sql'
+ 'tests/postgres/177_r176_sequence_guard.sql',
+ 'ops/r177/anchor-witness.mjs',
+ 'ops/r177/offsite-reconcile.mjs',
+ 'ops/r177/restore-outcome.mjs',
+ 'ops/r177/recovery-controller.mjs',
+ 'ops/r177/ci-acceptance.mjs',
+ 'tests/postgres/178_r177_witness_outcomes.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
@@ -148,12 +154,12 @@ export async function buildR163Bundle({root,commit}={}){
   sourceCount:parts.length,sources:parts,productionAuthorized:false
  });
  const bytes=Buffer.from(JSON.stringify(payload)+'\n','utf8');
- ok(bytes.length<1048576,'bounded bundle required');
+ ok(bytes.length<1572864,'bounded bundle required');
  return Object.freeze({bytes,sha256:digest(bytes),sourceCount:parts.length,
   sourceManifestSha256:evidence.manifestSha256,productionAuthorized:false});
 }
 export async function verifyR163Bundle({root,commit,bytes,expectedSha256}={}){
- ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<1048576,
+ ok(Buffer.isBuffer(bytes)&&bytes.length>100&&bytes.length<1572864,
   'bounded bundle buffer required');
  ok(typeof expectedSha256==='string'&&hex.test(expectedSha256),
   'full independent expected SHA256 required');
