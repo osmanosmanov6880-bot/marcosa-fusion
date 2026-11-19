@@ -14,9 +14,10 @@ const SQL='SELECT EXISTS(SELECT 1 FROM auth.sessions WHERE id=$1::uuid AND user_
 export const R161_SESSION_FENCE_SQL=SQL;
 
 function denial(){return new CommandStoreError('Authenticated session no longer active',401);}
-export function createR161SessionFencedStore({pool,clock=()=>Date.now(),onAfterQuery}={}){
+export function createR161SessionFencedStore({pool,clock=()=>Date.now(),onAfterQuery,onFence}={}){
  if(!pool||typeof pool.connect!=='function'||typeof clock!=='function'||
-  (onAfterQuery!==undefined&&typeof onAfterQuery!=='function'))
+  (onAfterQuery!==undefined&&typeof onAfterQuery!=='function')||
+  (onFence!==undefined&&typeof onFence!=='function'))
   throw Error('R161 session fence requires trusted pool and clock');
  async function check({client,actorId,sessionId,authExpiresAt}){
   if(typeof actorId!=='string'||!uuid.test(actorId)||
@@ -28,6 +29,7 @@ export function createR161SessionFencedStore({pool,clock=()=>Date.now(),onAfterQ
    const r=await client.query(SQL,[sessionId,actorId]);
    if(r?.rows?.length!==1||r.rows[0]?.active!==true)throw denial();
    await client.query('SET LOCAL ROLE marcosa_r156_writer');
+   if(onFence)await onFence({client,actorId,sessionId,authExpiresAt});
   }catch(e){
    if(e instanceof CommandStoreError)throw e;
    throw new CommandStoreError('Session validation unavailable',503);
