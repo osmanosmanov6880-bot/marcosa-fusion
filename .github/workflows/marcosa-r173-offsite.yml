@@ -103,7 +103,7 @@ jobs:
     env:
       PGHOST: ""
       PGPASSWORD: ""
-      ${{ runner.temp }}/r173-second/_RUNNER: "true"
+      R173_SECOND_RUNNER: "true"
       AWS_EC2_METADATA_DISABLED: "true"
     steps:
       - uses: actions/checkout@v4
