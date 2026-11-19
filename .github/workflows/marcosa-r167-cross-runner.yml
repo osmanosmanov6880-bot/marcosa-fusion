@@ -68,6 +68,10 @@ jobs:
         run: |
           set -euo pipefail
           node --test ops/test/r167.*.test.mjs
+      - name: Real CA-verified native HTTPS write-once storage contract
+        run: |
+          set -euo pipefail
+          node ops/r167/ci-remote-https.mjs
       - name: Create isolated PostgreSQL RLS/Auth/quarantine/audit fixture
         run: |
           set -euo pipefail
