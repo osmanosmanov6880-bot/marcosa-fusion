@@ -32,7 +32,7 @@ function context({repo,commit,root}){
 }
 async function content(root,path){
  guard(typeof path==='string'&&
-  /^(?:ops\/(?:r16[0-9]|r170|r171|r172|test)\/|tests\/postgres\/)[a-z0-9._/-]+$/.test(path)&&
+  /^(?:ops\/(?:r16[0-9]|r170|r171|r172|r173|test)\/|tests\/postgres\/)[a-z0-9._/-]+$/.test(path)&&
   !path.includes('..')&&!path.includes('//')&&!path.includes('/node_modules/')&&
   !/(?:secret|credential|private|\.pem|\.key|\.env)(?:\.|$)/.test(path),
   'unsafe source evidence path');
