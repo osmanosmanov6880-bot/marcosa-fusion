@@ -57,6 +57,8 @@ export function createR183PilotGate({readR182Witness,
    prior.runId===w.runId&&prior.sequence===w.sequence&&
    prior.nonce===w.nonce&&
    prior.evidenceSha256===w.r182EvidenceSha256&&
+   prior.iamEvidenceSha256===r182Report.iamProof?.evidenceSha256&&
+   prior.recoveryDrillEvidenceSha256===r182Report.drillProof?.evidenceSha256&&
    prior.decision===w.decision&&prior.productionAuthorized===false&&
    digest(prior),
    'R182 source evidence or synthetic provenance was altered');
@@ -67,6 +69,8 @@ export function createR183PilotGate({readR182Witness,
    boundaryProof.iamEvidenceSha256===iam.evidenceSha256&&
    boundaryProof.source?.accountId===prior.sourceAccountId&&
    boundaryProof.offsite?.accountId===prior.offsiteAccountId&&
+   boundaryProof.source?.boundaryDocumentSha256===iam.source?.permissionsSha256&&
+   boundaryProof.offsite?.boundaryDocumentSha256===iam.offsite?.permissionsSha256&&
    boundaryProof.twoDefaultBoundaryPolicyDocumentsMatched===true&&
    boundaryProof.source?.exactDefaultBoundaryPolicyObserved===true&&
    boundaryProof.offsite?.exactDefaultBoundaryPolicyObserved===true&&
