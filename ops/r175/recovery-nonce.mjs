@@ -17,6 +17,7 @@ export function r175RecoveryNonceSql({nonce,sequence,anchorSha256,
   archiveSha256+"'",sha="'"+commit+"'";
  return [
   'BEGIN;',
+  'SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;',
   'SET LOCAL ROLE marcosa_r175_writer;',
   "WITH current_checkpoint AS (",
   " SELECT sequence,archive_sha256,source_commit",
