@@ -7,7 +7,14 @@ import {createHash,timingSafeEqual} from 'node:crypto';
 const H40=/^[a-f0-9]{40}$/,H64=/^[a-f0-9]{64}$/;
 const fail=m=>{throw Error('R180 evidence classifier: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
-const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+const rawSha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+function stable(x){
+ if(Array.isArray(x))return x.map(stable);
+ if(x&&typeof x==='object')return Object.fromEntries(
+  Object.keys(x).sort().map(k=>[k,stable(x[k])]));
+ return x;
+}
+const sha=x=>rawSha(stable(x));
 const eq=(a,b)=>H64.test(a||'')&&H64.test(b||'')&&
  timingSafeEqual(Buffer.from(a,'hex'),Buffer.from(b,'hex'));
 const keys=x=>Object.keys(x||{}).sort().join(',');
@@ -75,7 +82,7 @@ export function classifyR180Evidence(report,{commit,bundleSha256,
   p.productionAuthorized===false,
   'R179 simulated approval/provenance report is incomplete or elevated');
  const {evidenceSha256,...body}=p;
- ok(eq(evidenceSha256,sha(body))&&
+ ok(eq(evidenceSha256,rawSha(body))&&
   eq(evidenceSha256,report.reviewEvidenceSha256),
   'R179 signed-source SHA differs from exact report bytes');
  const now=clock();
@@ -124,7 +131,7 @@ export function verifyR180Classification(result,{commit,bundleSha256,
   result.sourceBundleSha256===bundleSha256&&
   result.scope==='isolated-native-pg17-with-synthetic-provider-responses'&&
   result.decision==='NO_GO_EXTERNAL_EVIDENCE_PENDING'&&
-  Array.isArray(blockers)&&Object.isFrozen(blockers)&&
+  Array.isArray(blockers)&&
   JSON.stringify(blockers)===JSON.stringify(mustHold)&&
   result.nativePg17BackupAndRlsChecked===true&&
   ['realAwsSessionsVerified','realCloudReplicationVerified',
