@@ -22,7 +22,7 @@ const sha=x=>createHash('sha256').update(x).digest('hex');
 const STS=['sts','get-caller-identity'];
 const IAM=new Set(['get-role','list-role-policies',
  'list-attached-role-policies','get-role-policy',
- 'get-policy','get-policy-version']);
+ 'get-policy','get-policy-version','simulate-principal-policy']);
 const S3=new Set(['head-object','get-object','get-object-retention',
  'get-bucket-replication','get-bucket-versioning',
  'get-public-access-block','get-object-lock-configuration']);
@@ -37,14 +37,28 @@ export function createR181AwsCliExecutor({command='aws'}={}){
    params&&Object.getPrototypeOf(params)===Object.prototype,
    'untrusted profile, command, region or mutating AWS action');
   const permitted=service==='sts'?[]:service==='iam'?
-   ['RoleName','PolicyName','PolicyArn','VersionId']:
+   (operation==='simulate-principal-policy'?
+     ['PolicySourceArn','ActionNames','ResourceArns']:
+     ['RoleName','PolicyName','PolicyArn','VersionId']):
    ['Bucket','Key','VersionId','ExpectedBucketOwner','ChecksumMode'];
   ok(Object.keys(params).every(k=>permitted.includes(k)&&
    typeof params[k]==='string'&&params[k].length<=1024&&
    !/[\x00-\x1f]/.test(params[k])),
    'unexpected S3 parameter in AWS CLI read-only operation');
   if(service==='iam'){
-   if(operation==='get-policy'||operation==='get-policy-version'){
+   if(operation==='simulate-principal-policy'){
+    ok(Object.keys(params).length===3&&
+     /^arn:aws:iam::[0-9]{12}:role\/marcosa-r178-readonly-auditor$/.test(
+      params.PolicySourceArn||'')&&
+     /^(?:s3:(?:PutObject|DeleteObject|PutBucketReplication|PutBucketPolicy)|kms:(?:CreateGrant|DisableKey|ScheduleKeyDeletion)|iam:(?:PassRole|PutRolePolicy|UpdateAssumeRolePolicy))$/.test(
+      params.ActionNames||'')&&
+     (/^arn:aws:s3:::[a-z0-9.-]{3,63}(?:\/marcosa\/isolated\/r178\/archive\/r184-probe\.bin)?$/.test(
+       params.ResourceArns||'')||
+      /^arn:aws:kms:[a-z0-9-]+:[0-9]{12}:key\/[a-f0-9-]{36}$/.test(
+       params.ResourceArns||'')||
+      params.ResourceArns===params.PolicySourceArn),
+     'only exact fixed IAM policy-simulation deny probes permitted');
+   }else if(operation==='get-policy'||operation==='get-policy-version'){
     ok(!('RoleName' in params)&&!('PolicyName' in params)&&
      typeof params.PolicyArn==='string'&&
      /^arn:aws:iam::[0-9]{12}:policy\/marcosa-staging-readonly-boundary$/.test(params.PolicyArn)&&
