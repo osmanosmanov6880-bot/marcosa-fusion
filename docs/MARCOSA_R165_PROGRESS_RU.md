@@ -3,7 +3,7 @@
 Репозиторий: https://github.com/osmanosmanov6880-bot/marcosa-fusion
 PR: https://github.com/osmanosmanov6880-bot/marcosa-fusion/pull/168
 Ветка: feature/marcosa-r150-growth-economics
-Статус: реализовано в коде. CI приёмка PostgreSQL 17 выполняется по workflow .github/workflows/marcosa-r160-staging.yml; актуальное заключение проверяется по GitHub Actions head SHA.
+Статус: реализовано и проверено. [GitHub Actions #44484267279](https://github.com/osmanosmanov6880-bot/marcosa-fusion/actions/runs/44484267279) завершился SUCCESS: 78/78 тестов R160–R165, все реальные PostgreSQL 17/TLS/долговечный nonce/карантин/AES-256-GCM/pg_dump/pg_restore проверки успешны. Проверенный коммит реализации: 1faf1d7d18dcb0974ab2adb00f0ca74f21500dfd. Это изолированная GitHub Actions проверка, не внешняя production приёмка.
 
 ## Пять полноценных инженерных блоков
 
