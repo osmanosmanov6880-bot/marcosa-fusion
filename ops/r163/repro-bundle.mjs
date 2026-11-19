@@ -87,7 +87,13 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r174/recovery-admission.mjs',
  'ops/r174/offsite-circuit.mjs',
  'ops/r174/ci-acceptance.mjs',
- 'tests/postgres/175_r174_checkpoint.sql'
+ 'tests/postgres/175_r174_checkpoint.sql',
+ 'ops/r175/dual-anchor.mjs',
+ 'ops/r175/anchor-store.mjs',
+ 'ops/r175/recovery-nonce.mjs',
+ 'ops/r175/recovery-supervisor.mjs',
+ 'ops/r175/ci-acceptance.mjs',
+ 'tests/postgres/176_r175_recovery_nonce.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
