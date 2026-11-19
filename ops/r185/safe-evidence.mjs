@@ -44,7 +44,7 @@ function validate(o,expectedCommit,expectedBundle){
  ok(o&&Object.getPrototypeOf(o)===Object.prototype&&
   topKeys(o)===publicFields.slice().sort().join(',')&&
   o.schemaVersion===1&&
-  o.scope==='nonsecret-ci-synthetic-staging-readiness'&&
+  o.scope==='privacy-safe-ci-synthetic-staging-readiness'&&
   H40.test(o.sourceCommit||'')&&full(o.sourceBundleSha256)&&
   (expectedCommit===undefined||o.sourceCommit===expectedCommit)&&
   (expectedBundle===undefined||o.sourceBundleSha256===expectedBundle)&&
@@ -98,7 +98,7 @@ export function buildR185SafeEvidence({intake,rehearsal}={}){
    rehearsal.decision),
   'intake and synthetic rehearsal cannot be promoted or cross-source mixed');
  const o={
-  schemaVersion:1,scope:'nonsecret-ci-synthetic-staging-readiness',
+  schemaVersion:1,scope:'privacy-safe-ci-synthetic-staging-readiness',
   sourceCommit:intake.sourceCommit,
   sourceBundleSha256:intake.sourceBundleSha256,
   runId:intake.runId,r184EvidenceSha256:intake.r184EvidenceSha256,
