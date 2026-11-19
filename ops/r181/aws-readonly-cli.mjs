@@ -21,7 +21,8 @@ const ok=(v,m)=>{if(!v)fail(m);};
 const sha=x=>createHash('sha256').update(x).digest('hex');
 const STS=['sts','get-caller-identity'];
 const IAM=new Set(['get-role','list-role-policies',
- 'list-attached-role-policies','get-role-policy']);
+ 'list-attached-role-policies','get-role-policy',
+ 'get-policy','get-policy-version']);
 const S3=new Set(['head-object','get-object','get-object-retention',
  'get-bucket-replication','get-bucket-versioning',
  'get-public-access-block','get-object-lock-configuration']);
@@ -36,17 +37,29 @@ export function createR181AwsCliExecutor({command='aws'}={}){
    params&&Object.getPrototypeOf(params)===Object.prototype,
    'untrusted profile, command, region or mutating AWS action');
   const permitted=service==='sts'?[]:service==='iam'?
-   ['RoleName','PolicyName']:
+   ['RoleName','PolicyName','PolicyArn','VersionId']:
    ['Bucket','Key','VersionId','ExpectedBucketOwner','ChecksumMode'];
   ok(Object.keys(params).every(k=>permitted.includes(k)&&
    typeof params[k]==='string'&&params[k].length<=1024&&
    !/[\x00-\x1f]/.test(params[k])),
    'unexpected S3 parameter in AWS CLI read-only operation');
-  if(service==='iam')ok(
-   params.RoleName==='marcosa-r178-readonly-auditor'&&
-   (!('PolicyName' in params)||
-    params.PolicyName==='marcosa-r182-staging-readonly'),
-   'IAM role or inline policy is not pre-approved');
+  if(service==='iam'){
+   if(operation==='get-policy'||operation==='get-policy-version'){
+    ok(!('RoleName' in params)&&!('PolicyName' in params)&&
+     typeof params.PolicyArn==='string'&&
+     /^arn:aws:iam::[0-9]{12}:policy\/marcosa-staging-readonly-boundary$/.test(params.PolicyArn)&&
+     (operation==='get-policy'?
+      !('VersionId' in params):
+      /^v[1-9][0-9]{0,2}$/.test(params.VersionId||'')),
+     'IAM boundary policy ARN and version must be exact');
+   }else{
+    ok(params.RoleName==='marcosa-r178-readonly-auditor'&&
+     !('PolicyArn' in params)&&!('VersionId' in params)&&
+     (!('PolicyName' in params)||
+      params.PolicyName==='marcosa-r182-staging-readonly'),
+     'IAM role or inline policy is not pre-approved');
+   }
+  }
   const args=['--profile',profile,'--region',region,
    '--no-cli-pager',service,operation,'--output','json'];
   for(const [k,v] of Object.entries(params))args.push(flag(k),v);
