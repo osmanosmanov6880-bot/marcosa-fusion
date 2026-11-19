@@ -105,7 +105,14 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r177/restore-outcome.mjs',
  'ops/r177/recovery-controller.mjs',
  'ops/r177/ci-acceptance.mjs',
- 'tests/postgres/178_r177_witness_outcomes.sql'
+ 'tests/postgres/178_r177_witness_outcomes.sql',
+ 'ops/r178/identity-audit.mjs',
+ 'ops/r178/replica-audit.mjs',
+ 'ops/r178/iam-plan.mjs',
+ 'ops/r178/readiness-gate.mjs',
+ 'ops/r178/staging-ledger.mjs',
+ 'ops/r178/ci-acceptance.mjs',
+ 'tests/postgres/179_r178_readonly_gate.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};

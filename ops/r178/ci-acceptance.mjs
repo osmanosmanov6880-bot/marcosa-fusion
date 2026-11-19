@@ -146,7 +146,7 @@ if(env.R178_SECOND_RUNNER==='true'){
     UserId:roleId+':marcosa-r178-'+runId};
   }}
  });
- const clock=()=>Date.now();
+ const fixedNow=Date.now(),clock=()=>fixedNow;
  const identityAudit=createR178DualIdentityAudit({
   source:stm(sourceSpec),offsite:stm(offsiteSpec),commands:STS,
   runId,commit,bundleSha256:bundle.sha256,
