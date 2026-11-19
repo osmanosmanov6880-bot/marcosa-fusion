@@ -46,7 +46,7 @@ function gh({hiddenRejection=false,one=false,paginated=true,
  events.push({id:9901,user:{id:userIds[0],type:'User'},
   state:'APPROVED',commit_id:commit,
   submitted_at:new Date(now-1000).toISOString()});
- events.push({id:9902,user:{id:userIds[1],type:'User'},
+ if(!one)events.push({id:9902,user:{id:userIds[1],type:'User'},
   state:'APPROVED',commit_id:commit,
   submitted_at:new Date(now-900).toISOString()});
  if(!one)for(let i=0;i<20;i++)events.push(event(400+i));
@@ -71,7 +71,7 @@ function gh({hiddenRejection=false,one=false,paginated=true,
    text:async()=> '{"error":"denied"}'};
   const data=m?overLimit?events.slice(0,100):
    paginated?events.slice((Number(m[1])-1)*100,Number(m[1])*100):
-   Number(m[1])===1?events.slice(0,100):[]:
+   Number(m[1])===1?events.slice(0,100):null:
    url.includes('/commits/')?signed:pr;
   return{status:200,headers:{get:()=> 'application/json'},
    text:async()=>JSON.stringify(data)};
@@ -151,9 +151,9 @@ async function packet(){
   productionAuthorized:false
  };
  // Bind the previous observation to the new disposable continuity proof
- continuityProof.r183EvidenceSha256=prior.evidenceSha256;
  const {evidenceSha256:old,...rest}=continuityProof;
- const rebound={...rest,evidenceSha256:sha(rest)};
+ const linked={...rest,r183EvidenceSha256:prior.evidenceSha256};
+ const rebound={...linked,evidenceSha256:sha(linked)};
  return{reviewer,sim,continuityProof:rebound,r183,prior};
 }
 async function gate(options={}){
