@@ -86,8 +86,8 @@ function prAudit({one=false,self=false,wrongSha=false,badSignature=false,
   base:{ref:'feature/series-pilot-r149',repo:base}};
  const commitAt=new Date(now-15000).toISOString();
  const gitCommit={sha:commit,
-  commit:{committer:{date:commitAt}},
-  verification:{verified:!badSignature}};
+  commit:{committer:{date:commitAt},
+   verification:{verified:!badSignature}}};
  const reviews=(one?reviewerIds.slice(0,1):reviewerIds)
   .map((id,i)=>({id:12+i,user:{id:self&&i===0?author:id,type:'User'},
    commit_id:changedSha?'f'.repeat(40):commit,

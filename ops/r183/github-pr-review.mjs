@@ -61,7 +61,7 @@ export function createR183PrReviewAudit({fetcher=globalThis.fetch,
    'PR source, base, state, author separation or immutable SHA changed');
   const now=clock(),commitAt=parseTime(source?.commit?.committer?.date);
   ok(source?.sha===commit&&
-   source.verification?.verified===true&&
+   source.commit?.verification?.verified===true&&
    Number.isSafeInteger(now)&&Number.isSafeInteger(commitAt)&&
    now>=commitAt&&now-commitAt<=14*86400000,
    'exact head commit must have verified GitHub signature and recent timestamp');

@@ -211,8 +211,9 @@ if(env.R183_SECOND_RUNNER==='true'){
     commit_id:commit,state:'APPROVED',
     submitted_at:new Date(now-300).toISOString()})):
    url.includes('/commits/')?{
-    sha:commit,verification:{verified:true},
-    commit:{committer:{date:new Date(now-1000).toISOString()}}}:
+    sha:commit,
+    commit:{committer:{date:new Date(now-1000).toISOString()},
+     verification:{verified:true}}}:
    {number:168,state:'open',draft:false,
     user:{id:1001,type:'User'},
     head:{sha:commit,ref:'feature/marcosa-r150-growth-economics',repo},
