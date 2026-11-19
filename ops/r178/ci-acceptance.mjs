@@ -160,6 +160,10 @@ if(env.R178_SECOND_RUNNER==='true'){
  ]);
  aesKey.fill(0);
  ok(encryptedProbe.length===1052,'ephemeral AES-256-GCM encrypted probe missing');
+ // R179 must re-read THESE exact non-secret synthetic ciphertext bytes;
+ // rerandomizing a lookalike encrypted fixture would not test continuity.
+ await writeFile(join(env.RUNNER_TEMP,'r178-fixture-ciphertext.bin'),
+  encryptedProbe,{flag:'wx',mode:0o600});
  const probeSha256=sha(encryptedProbe),historyRootSha256=pg.historyRootSha256;
  const sourceVersionId='source-r178-'+runId,
   offsiteVersionId='offsite-r178-'+runId;
