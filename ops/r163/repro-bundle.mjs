@@ -57,7 +57,8 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r169/ci-acceptance.mjs',
  'ops/r169/ci-native-sdk.mjs',
  'ops/r169/ci-verify-report.mjs',
- 'ops/r169/package.json'
+ 'ops/r169/package.json',
+ 'ops/r169/package-lock.json.gz.b64'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
