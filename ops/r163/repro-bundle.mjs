@@ -24,7 +24,18 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r164/restore-witness.mjs',
  'ops/r164/operations-audit.mjs',
  'ops/r164/ci-restore.mjs',
- 'ops/r164/ci-ops-gate.mjs'
+ 'ops/r164/ci-ops-gate.mjs',
+ 'ops/r165/durable-quorum.mjs',
+ 'ops/r165/quarantine-gate.mjs',
+ 'ops/r165/encrypted-backup.mjs',
+ 'ops/r165/recovery-verifier.mjs',
+ 'ops/r165/ci-acceptance.mjs',
+ 'ops/r166/audit-chain.mjs',
+ 'ops/r166/signed-anchor.mjs',
+ 'ops/r166/evidence-vault.mjs',
+ 'ops/r166/restart-verifier.mjs',
+ 'ops/r166/ci-stage1.mjs',
+ 'ops/r166/ci-stage2.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
