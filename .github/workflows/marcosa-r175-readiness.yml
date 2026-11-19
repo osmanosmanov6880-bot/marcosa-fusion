@@ -1,0 +1,154 @@
+name: "MARCOSA | R175 dual-anchor offsite recovery and PG17 durable nonce"
+on:
+  pull_request:
+    paths:
+      - "ops/r175/**"
+      - "ops/test/r175.*"
+      - ".github/workflows/marcosa-r175-readiness.yml"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r163/repro-bundle.mjs"
+      - "docs/MARCOSA_R175_*"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r175/**"
+      - "ops/test/r175.*"
+      - ".github/workflows/marcosa-r175-readiness.yml"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r163/repro-bundle.mjs"
+      - "docs/MARCOSA_R175_*"
+  workflow_dispatch:
+# NO id-token:write, real AWS account, customer data or production grants.
+permissions:
+  contents: read
+jobs:
+  r175-isolated-dual-anchor-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r175-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r175-disposable-only
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Ensure no customer PG or AWS/GitHub OIDC keys and exact checkout
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -X -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int BETWEEN 170000 AND 179999" | grep -qx t
+      - name: Restore exactly pinned AWS SDK v3 IAM KMS S3 STS dependency graph
+        run: |
+          set -euo pipefail
+          base64 -d ops/r170/package-lock.json.gz.b64 | gzip -dc > ops/r170/package-lock.json
+          echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
+          npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
+          npm ls --prefix ops/r170 --depth=0
+      - name: R174 offsite KMS key policy, archive CAS, anti-rollback and incident tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r175.*.test.mjs
+      - name: R175 two signed anchors, S3 COMPLIANCE, PG nonce and emergency supervisor tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r175.*.test.mjs
+      - name: Source/offsite SHA256, two CMKs, Ed25519 escrow and key isolation tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r174.*.test.mjs
+      - name: Previously audited PostgreSQL17/source-AWS regression tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r171.*.test.mjs ops/test/r172.*.test.mjs
+      - name: Real disposable PG17 R167 Auth/RLS and R171 strict nonce/audit fixtures
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/174_r171_fence.sql
+      - name: Native PG17 backup, second KMS escrow, disable source AWS, offsite-only restore and nonce replay rejection
+        env:
+          R173_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r173/ci-acceptance.mjs
+      - name: Install R174 synthetic PostgreSQL17 monotonic archive RLS fixture
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/175_r174_checkpoint.sql
+      - name: Real PG17 checkpoint CAS/anti-rollback and independent KMS policy admission
+        env:
+          R174_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r174/ci-acceptance.mjs
+      - name: Install R175 disposable PostgreSQL 17 RLS one-use signed anchor lease
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/176_r175_recovery_nonce.sql
+      - name: Native PG17 signed anchor recovery proof, durable lease and isolated second restore
+        env:
+          R175_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r175/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r175-isolated-dual-anchor-nonsecret-evidence
+          path: ${{ runner.temp }}/r175-isolated-source-anchor-report.json
+          retention-days: 7
+          if-no-files-found: error
+  r175-independent-source-hash-and-recovery-report:
+    needs: r175-isolated-dual-anchor-pg17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+      R175_SECOND_RUNNER: "true"
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r175-isolated-dual-anchor-nonsecret-evidence
+          path: ${{ runner.temp }}/r175-second/
+      - name: Regenerate SHA-256 source attestation, verify no production/offsite claims
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          node ops/r175/ci-acceptance.mjs
