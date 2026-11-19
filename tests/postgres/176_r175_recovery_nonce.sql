@@ -23,7 +23,7 @@ CREATE POLICY r175_checkpoint_observer ON r174_ci.checkpoint
  FOR SELECT TO marcosa_r175_writer USING(production_authorized=false);
 CREATE TABLE r175_ci.recovery_leases(
  nonce char(32) PRIMARY KEY CHECK(nonce ~ '^[a-f0-9]{32}$'),
- sequence bigint NOT NULL CHECK(sequence>0),
+ sequence bigint NOT NULL UNIQUE CHECK(sequence>0),
  anchor_sha256 char(64) NOT NULL CHECK(anchor_sha256 ~ '^[a-f0-9]{64}$'),
  archive_sha256 char(64) NOT NULL CHECK(archive_sha256 ~ '^[a-f0-9]{64}$'),
  commit_sha char(40) NOT NULL CHECK(commit_sha ~ '^[a-f0-9]{40}$'),
