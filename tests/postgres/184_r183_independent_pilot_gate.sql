@@ -36,8 +36,13 @@ CREATE TABLE r183_ci.synthetic_delta_markers(
  CHECK ((ordinal=1 AND kind='BASELINE') OR
         (ordinal=2 AND kind='POST_BACKUP'))
 );
+ALTER TABLE r183_ci.synthetic_delta_markers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE r183_ci.synthetic_delta_markers FORCE ROW LEVEL SECURITY;
+CREATE POLICY r183_markers_read ON r183_ci.synthetic_delta_markers
+ FOR SELECT TO marcosa_r183_writer USING(production_authorized=false);
+GRANT SELECT ON r183_ci.synthetic_delta_markers TO marcosa_r183_writer;
 REVOKE ALL ON r183_ci.synthetic_delta_markers
- FROM PUBLIC,anon,authenticated,marcosa_r167_reader,marcosa_r183_writer;
+ FROM PUBLIC,anon,authenticated,marcosa_r167_reader;
 CREATE TABLE r183_ci.pilot_holds(
  id smallint PRIMARY KEY DEFAULT 1 CHECK(id=1)
   REFERENCES r182_ci.recovery_readiness(id),
