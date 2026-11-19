@@ -79,6 +79,21 @@ if(env.R175_SECOND_RUNNER==='true'){
  const archiveSha256=randomBytes(32).toString('hex');
  const escrowSha256=randomBytes(32).toString('hex');
  const offsiteKmsArn='arn:aws:kms:eu-central-1:444455556666:key/4567abcd-12ab-34cd-56ef-1234567890ab';
+ const oldLine=sql('postgres',
+  "SELECT sequence::text||'|'||source_commit||'|'||archive_sha256||'|'||escrow_sha256||'|'||evidence_sha256 FROM r174_ci.checkpoint WHERE id=1");
+ const [previousSeq,previousCommit,previousArchive,previousEscrow,
+  previousDigest]=oldLine.split('|');
+ ok(Number(previousSeq)===1&&previousCommit===commit&&
+  [previousArchive,previousEscrow,previousDigest].every(x=>H64.test(x)),
+  'R174 genuine sequence-1 baseline required for signed parent');
+ const operatorKey=generateKeyPairSync('ed25519');
+ const reviewerKey=generateKeyPairSync('ed25519');
+ const previousAnchor=issueR175DualAnchor({
+  data:{sequence:1,commit,bundleSha256:bundle.sha256,
+   archiveSha256:previousArchive,escrowSha256:previousEscrow,
+   checkpointSha256:previousDigest,priorAnchorSha256:'0'.repeat(64)},
+  operatorKey:operatorKey.privateKey,reviewerKey:reviewerKey.privateKey,clock
+ });
  const archivedAtMs=now-60000,sequence=2;
  const checkpointSha256=r174RecoveryEvidenceDigest({sequence,commit,
   bundleSha256:bundle.sha256,archiveSha256,escrowSha256,
@@ -98,10 +113,9 @@ if(env.R175_SECOND_RUNNER==='true'){
   return{sequence:Number(seq),source_commit,archive_sha256,escrow_sha256,
    evidence_sha256,production_authorized:production_authorized==='true'};
  };
- const operatorKey=generateKeyPairSync('ed25519');
- const reviewerKey=generateKeyPairSync('ed25519');
  const data={sequence,commit,bundleSha256:bundle.sha256,archiveSha256,
-  escrowSha256,checkpointSha256,priorAnchorSha256:'0'.repeat(64)};
+  escrowSha256,checkpointSha256,
+  priorAnchorSha256:previousAnchor.anchorSha256};
  const receipt=issueR175DualAnchor({
   data,operatorKey:operatorKey.privateKey,
   reviewerKey:reviewerKey.privateKey,clock
