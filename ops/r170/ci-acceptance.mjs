@@ -320,8 +320,9 @@ if(env.R170_SECOND_PASS==='true'){
    const nonce=packet?.nonce;
    ok(typeof nonce==='string'&&/^[a-f0-9]{32}$/.test(nonce),
     'durable SQL nonce encoding');
-   const result=pg('postgres',"INSERT INTO r167_ci.r170_nonce_fence(nonce) VALUES('"+
-    nonce+"') ON CONFLICT DO NOTHING RETURNING nonce;");
+   const result=pg('postgres',"WITH attempt AS (INSERT INTO r167_ci.r170_nonce_fence(nonce) VALUES('"+
+    nonce+"') ON CONFLICT DO NOTHING RETURNING nonce) SELECT coalesce(max(nonce),'') FROM attempt;");
+   console.log('R170_SYNTHETIC_NONCE_SQL_WRITE_STATUS='+(result===nonce?'accepted':'denied'));
    if(result!==nonce)throw Error('signed nonce previously committed');
    return{rehearsalLeaseRecorded:true,durablePostgresFence:true,
     nonce,productionAuthorized:false};
