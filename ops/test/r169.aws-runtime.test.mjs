@@ -14,7 +14,7 @@ const cred=()=>({accessKeyId:'ASIA'+'A'.repeat(16),
  expiration:new Date(now+900000)});
 function fakeModules(){
  const calls=[];
- class Base{constructor(options){this.options=options;calls.push(this);}destroy(){this.destroyed=true;}}
+ class Base{constructor(options){this.options=options;calls.push(this);}async send(){throw Error('No network in isolated R169 unit tests');}destroy(){this.destroyed=true;}}
  const make=names=>Object.fromEntries(names.map(name=>[name,class{constructor(input){this.input=input;}}]));
  const kms={KMSClient:class extends Base{},...make(['GenerateDataKeyCommand','DecryptCommand',
   'DescribeKeyCommand'])};
