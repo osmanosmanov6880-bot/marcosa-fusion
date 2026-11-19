@@ -1,0 +1,122 @@
+name: "MARCOSA | R171 read-only staging IAM role, S3 version and PG17 nonce"
+on:
+  pull_request:
+    paths:
+      - "ops/r171/**"
+      - "ops/test/r171.*"
+      - "tests/postgres/174_r171_fence.sql"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - "docs/MARCOSA_R171_*"
+      - ".github/workflows/marcosa-r171-ci.yml"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r171/**"
+      - "ops/test/r171.*"
+      - "tests/postgres/174_r171_fence.sql"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - "docs/MARCOSA_R171_*"
+      - ".github/workflows/marcosa-r171-ci.yml"
+  workflow_dispatch:
+# In particular, no id-token write, AWS secrets, external storage or production.
+permissions:
+  contents: read
+jobs:
+  r171-isolated-aws-contracts-and-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r171-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r171-disposable-only
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require exact checked-out SHA and no AWS or GitHub OIDC credentials
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -X -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int BETWEEN 170000 AND 179999" | grep -qx t
+      - name: Reconstruct SHA-pinned transitive AWS SDK dependencies from checked-in R170 lockfile
+        run: |
+          set -euo pipefail
+          base64 -d ops/r170/package-lock.json.gz.b64 | gzip -dc > ops/r170/package-lock.json
+          echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
+          npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
+          npm ls --prefix ops/r170 --depth=0
+      - name: New R171 OIDC, IAM, S3 version and durable PostgreSQL fence tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r171.*.test.mjs
+      - name: Install synthetic PG17 sessions, RLS, quarantine and unique audit fence
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/174_r171_fence.sql
+      - name: Real PG17 encrypted dump and isolated restore, role/S3 canaries and cross-process nonce
+        env:
+          R171_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r171/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r171-disposable-nonsecret-evidence
+          path: ${{ runner.temp }}/r171-safe-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+  r171-independent-report-and-source-review:
+    needs: r171-isolated-aws-contracts-and-pg17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+      AWS_EC2_METADATA_DISABLED: "true"
+      R171_SECOND_RUNNER: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r171-disposable-nonsecret-evidence
+          path: ${{ runner.temp }}/r171-report/
+      - name: Independently regenerate R163 source bundle and review exact non-production evidence
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          node ops/r171/ci-acceptance.mjs
