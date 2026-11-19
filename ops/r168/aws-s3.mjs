@@ -82,10 +82,7 @@ export function createR168AwsS3Adapter({client,commands,bucket,region,accountId,
    lengthBound(head.ContentLength)&&
    head.ChecksumSHA256===Buffer.from(sha256,'hex').toString('base64'),
    'S3 version, immutability, SSE-KMS or complete checksum not confirmed');
-  validateMeta(head.Metadata,{
-   sha256,kmsArn:undefined,
-   // S3 uses metadata exact strings; field names below are canonical.
-  });
+  validateMeta(head.Metadata,{sha256,'kms-arn':kmsKeyArn});
   return head;
  }
  async function put({blob,commit,bundleSha256,archiveId,encryptedKey,
