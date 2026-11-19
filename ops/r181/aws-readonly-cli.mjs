@@ -7,7 +7,7 @@
  * CI injects executor; no live AWS call and no provider authenticity claim.
  */
 import {spawnSync} from 'node:child_process';
-import {mkdtemp,readFile,rm} from 'node:fs/promises';
+import {mkdtemp,readFile,rm,stat} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {createHash} from 'node:crypto';
@@ -33,7 +33,7 @@ export function createR181AwsCliExecutor({command='aws'}={}){
    params&&Object.getPrototypeOf(params)===Object.prototype,
    'untrusted profile, command, region or mutating AWS action');
   const permitted=service==='sts'?[]:
-   ['Bucket','Key','VersionId','ExpectedBucketOwner'];
+   ['Bucket','Key','VersionId','ExpectedBucketOwner','ChecksumMode'];
   ok(Object.keys(params).every(k=>permitted.includes(k)&&
    typeof params[k]==='string'&&params[k].length<=1024&&
    !/[\x00-\x1f]/.test(params[k])),
@@ -50,14 +50,20 @@ export function createR181AwsCliExecutor({command='aws'}={}){
    const r=spawnSync(command,args,{
     encoding:'utf8',timeout:30000,maxBuffer:1024*1024,
     env:{...process.env,AWS_EC2_METADATA_DISABLED:'true',
-     AWS_PAGER:'',AWS_DEFAULT_OUTPUT:'json'}
+     AWS_PAGER:'',AWS_DEFAULT_OUTPUT:'json',
+     AWS_ACCESS_KEY_ID:'',AWS_SECRET_ACCESS_KEY:'',
+     AWS_SESSION_TOKEN:''}
    });
    ok(!r.error&&r.status===0&&r.stdout?.length<=1024*1024,
     'AWS CLI permission, timeout, malformed output or network failure');
    let json;
    try{json=JSON.parse(r.stdout);}catch{fail('AWS CLI did not return JSON');}
    if(!folder)return{json};
-   const bytes=await readFile(join(folder,'application-encrypted-object.bin'));
+   const item=join(folder,'application-encrypted-object.bin');
+   const info=await stat(item);
+   ok(info.isFile()&&info.size>=512&&info.size<=16*1024*1024,
+    'downloaded object size exceeded read-only bound');
+   const bytes=await readFile(item);
    ok(bytes.length>=512&&bytes.length<=16*1024*1024,
     'read-only object must be a bounded application encrypted archive');
    return{json,bytes};
@@ -142,8 +148,9 @@ export function createR181AwsReadOnlyProbe({source,offsite,
    const input={Bucket:t.bucket,Key:key,VersionId:version,
     ExpectedBucketOwner:t.accountId};
    const [h,ret,g]=await Promise.all([
-    call(t,'head-object',input),call(t,'get-object-retention',input),
-    call(t,'get-object',input)
+    call(t,'head-object',{...input,ChecksumMode:'ENABLED'}),
+    call(t,'get-object-retention',input),
+    call(t,'get-object',{...input,ChecksumMode:'ENABLED'})
    ]);
    const j=h.json,ttl=Date.parse(ret.json.Retention?.RetainUntilDate);
    const expected=Buffer.from(sha256,'hex').toString('base64');

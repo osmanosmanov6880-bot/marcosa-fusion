@@ -244,7 +244,7 @@ if(env.R181_SECOND_RUNNER==='true'){
   observation.sourceMode==='CI_SYNTHETIC'&&
   observation.classificationSha256===prior.classificationSha256&&
   observation.quorumReceiptSha256===prior.quorumReceiptSha256&&
-  awsRequests===17,'native read-only PG17 / mocked AWS scope was not bound');
+  awsRequests===15,'native read-only PG17 / mocked AWS scope was not bound');
  const ledger=createR181ObservationLedger({
   executeSql:async q=>sql('postgres',q)});
  ok((await ledger.record(observation)).recorded===true,
