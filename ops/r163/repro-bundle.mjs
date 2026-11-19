@@ -49,7 +49,15 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r168/backup-pipeline.mjs',
  'ops/r168/mock-aws.mjs',
  'ops/r168/ci-real-pg.mjs',
- 'ops/r168/ci-verify-report.mjs'
+ 'ops/r168/ci-verify-report.mjs',
+ 'ops/r169/iam-plan.mjs',
+ 'ops/r169/aws-runtime.mjs',
+ 'ops/r169/cloud-posture.mjs',
+ 'ops/r169/staging-rehearsal.mjs',
+ 'ops/r169/ci-acceptance.mjs',
+ 'ops/r169/ci-native-sdk.mjs',
+ 'ops/r169/ci-verify-report.mjs',
+ 'ops/r169/package.json'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
