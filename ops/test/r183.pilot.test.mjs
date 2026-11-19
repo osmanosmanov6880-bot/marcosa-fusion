@@ -280,6 +280,8 @@ test('R183 real-formatted synthetic PG17 delta snapshot exposes one intentionall
 });
 test('R183 source-bound final pilot gate never permits real pilot or production GO',async()=>{
  const record=await gate();
+ assert.equal(record.baselineMarkerSha256,sha('r183-base:'+commit+':'+runId));
+ assert.equal(record.afterBackupMarkerSha256,sha('r183-late:'+commit+':'+runId));
  assert.equal(record.decision,'NO_GO_REAL_PILOT_EVIDENCE_PENDING');
  assert.equal(record.syntheticLostDeltaEvents,1);
  assert.equal(record.realPilotAuthorized,false);

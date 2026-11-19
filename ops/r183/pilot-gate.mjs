@@ -9,6 +9,7 @@ const H40=/^[a-f0-9]{40}$/,H64=/^[a-f0-9]{64}$/,
 const fail=m=>{throw Error('R183 pilot gate: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
 const sha=x=>createHash('sha256').update(JSON.stringify(x)).digest('hex');
+const shaRaw=x=>createHash('sha256').update(x).digest('hex');
 const canon=x=>Array.isArray(x)?x.map(canon):x&&typeof x==='object'?
  Object.fromEntries(Object.keys(x).sort().map(k=>[k,canon(x[k])])):x;
 const fields=['runId','sequence','nonce','sourceCommit',
@@ -110,8 +111,8 @@ export function createR183PilotGate({readR182Witness,
    deltaProof.runId===w.runId&&deltaProof.sequence===w.sequence&&
    deltaProof.nonce===w.nonce&&
    deltaProof.r182EvidenceSha256===w.r182EvidenceSha256&&
-   deltaProof.baselineMarkerSha256===sha('r183-base:'+commit+':'+w.runId)&&
-   deltaProof.afterBackupMarkerSha256===sha('r183-late:'+commit+':'+w.runId)&&
+   deltaProof.baselineMarkerSha256===shaRaw('r183-base:'+commit+':'+w.runId)&&
+   deltaProof.afterBackupMarkerSha256===shaRaw('r183-late:'+commit+':'+w.runId)&&
    deltaProof.postBackupSourceMarkerCount===2&&
    deltaProof.restoredSnapshotMarkerCount===1&&
    deltaProof.intentionallyMissingPostBackupEvents===1&&
