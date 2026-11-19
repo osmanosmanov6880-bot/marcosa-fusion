@@ -276,11 +276,12 @@ if(env.R183_SECOND_RUNNER==='true'){
    ((ord===1&&kind==='BASELINE')||(ord===2&&kind==='POST_BACKUP')),
    'synthetic source marker contract drifted');
   const response=sql('postgres',
-   "INSERT INTO r183_ci.synthetic_delta_markers("+
+   "WITH written AS (INSERT INTO r183_ci.synthetic_delta_markers("+
    "ordinal,kind,marker_sha256,commit_sha,run_id) VALUES ("+
    ord+",'"+kind+"',"+quotedHash(marker.sha256)+
-   ",'"+commit+"',"+runId+") RETURNING ordinal::text");
-  ok(response===String(ord),'real PostgreSQL synthetic marker write failed');
+   ",'"+commit+"',"+runId+") RETURNING ordinal) "+
+   "SELECT count(*)::text FROM written");
+  ok(response==='1','native PostgreSQL marker insert count must be exactly 1');
  };
  const deltaProof=await createR183DeltaRecovery({
   readR182Witness:readSource,quarantine,
