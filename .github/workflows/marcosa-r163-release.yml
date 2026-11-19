@@ -10,6 +10,12 @@ on:
       - "docs/MARCOSA_R164_*"
       - "ops/r164/**"
       - "ops/test/r164.*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R165_*"
+      - "docs/MARCOSA_R166_*"
       - "ops/r162/lifecycle.mjs"
   push:
     branches: ["feature/**", "codex/**"]
@@ -22,6 +28,12 @@ on:
       - "docs/MARCOSA_R164_*"
       - "ops/r164/**"
       - "ops/test/r164.*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R165_*"
+      - "docs/MARCOSA_R166_*"
       - "ops/r162/lifecycle.mjs"
   workflow_dispatch:
 permissions:
