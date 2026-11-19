@@ -17,6 +17,10 @@ DO $$ BEGIN
  END IF;
 END $$;
 GRANT USAGE ON SCHEMA r175_ci TO marcosa_r175_writer;
+GRANT USAGE ON SCHEMA r174_ci TO marcosa_r175_writer;
+GRANT SELECT ON r174_ci.checkpoint TO marcosa_r175_writer;
+CREATE POLICY r175_checkpoint_observer ON r174_ci.checkpoint
+ FOR SELECT TO marcosa_r175_writer USING(production_authorized=false);
 CREATE TABLE r175_ci.recovery_leases(
  nonce char(32) PRIMARY KEY CHECK(nonce ~ '^[a-f0-9]{32}$'),
  sequence bigint NOT NULL CHECK(sequence>0),
