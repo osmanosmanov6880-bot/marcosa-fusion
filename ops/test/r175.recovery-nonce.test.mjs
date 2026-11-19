@@ -6,7 +6,7 @@ const input={nonce:'a'.repeat(32),sequence:1,anchorSha256:'b'.repeat(64),
  archiveSha256:'c'.repeat(64),commit:'d'.repeat(40)};
 test('R175 SQL uses SERIALIZABLE source snapshot and atomic lease/audit CTE',()=>{
  const s=r175RecoveryNonceSql(input);
- assert.match(s,/FOR SHARE/);
+ assert.match(s,/ISOLATION LEVEL SERIALIZABLE/);
  assert.match(s,/ON CONFLICT DO NOTHING/);
  assert.match(s,/INSERT INTO r175_ci.recovery_audit/);
  assert.match(s,/SET LOCAL ROLE marcosa_r175_writer/);
