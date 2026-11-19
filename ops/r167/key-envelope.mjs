@@ -88,8 +88,10 @@ export function unwrapR167DataKey({envelope,recipientPrivateKey,
  const header=sharedContext(envelope);
  const allowed=Object.keys({...header,wrappedKey:'',authTag:''}).sort().join(',');
  requireTrue(Object.keys(envelope).sort().join(',')===allowed&&
+  envelope.version===1&&envelope.scope===MAGIC&&
+  envelope.productionAuthorized===false&&
   JSON.stringify(header)===JSON.stringify(sharedContext(header)),
-  'unknown key envelope field');
+  'unknown field or elevated key envelope scope');
  checkContext(header,{now:clock(),minimumKeyEpoch});
  requireTrue(header.sourceCommit===sourceCommit&&header.bundleSha256===bundleSha256&&
   header.ciphertextSha256===ciphertextSha256&&
