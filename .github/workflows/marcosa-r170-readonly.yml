@@ -63,10 +63,11 @@ jobs:
           test "$PGDATABASE" = postgres
           test "$PGHOST" = 127.0.0.1
           psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
-      - name: Resolve exact-version AWS SDK STS, IAM, S3 and KMS dependencies without scripts
+      - name: Restore committed transitive AWS SDK lockfile and verify exact SHA-256
         run: |
           set -euo pipefail
-          npm install --prefix ops/r170 --package-lock-only --ignore-scripts --no-audit --no-fund
+          base64 -d ops/r170/package-lock.json.gz.b64 | gzip -dc > ops/r170/package-lock.json
+          echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
           npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
           npm ls --prefix ops/r170 --depth=0
       - name: OIDC STS, IAM canaries, S3 retention and read-only stage fail-closed unit contracts
