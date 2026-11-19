@@ -1,0 +1,358 @@
+name: "MARCOSA | R185 actionable staging intake, synthetic canary rollback, safe evidence and PG17 NO-GO"
+on:
+  pull_request:
+    paths:
+      - "ops/r175/**"
+      - "ops/r177/**"
+      - "ops/r178/**"
+      - "ops/r179/**"
+      - "ops/r180/**"
+      - "ops/r181/**"
+      - "ops/r182/**"
+      - "ops/r183/**"
+      - "ops/r184/**"
+      - "ops/r185/**"
+      - "ops/test/r185.*"
+      - "tests/postgres/186_r185_actionable_hold.sql"
+      - "ops/test/r184.*"
+      - "tests/postgres/185_r184_pilot_continuity_hold.sql"
+      - "ops/test/r183.*"
+      - "tests/postgres/184_r183_independent_pilot_gate.sql"
+      - "ops/test/r182.*"
+      - "tests/postgres/183_r182_no_go_recovery_audit.sql"
+      - "ops/test/r181.*"
+      - "tests/postgres/182_r181_readonly_observations.sql"
+      - "ops/test/r180.*"
+      - "tests/postgres/181_r180_no_go_hold.sql"
+      - "ops/test/r179.*"
+      - "tests/postgres/180_r179_staging_review.sql"
+      - "ops/test/r178.*"
+      - "tests/postgres/179_r178_readonly_gate.sql"
+      - "ops/test/r177.*"
+      - "tests/postgres/178_r177_witness_outcomes.sql"
+      - "ops/r176/**"
+      - "ops/test/r176.*"
+      - "tests/postgres/177_r176_sequence_guard.sql"
+      - "ops/test/r175.*"
+      - ".github/workflows/marcosa-r185-readiness.yml"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r163/repro-bundle.mjs"
+      - "docs/MARCOSA_R185_*"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r175/**"
+      - "ops/r177/**"
+      - "ops/r178/**"
+      - "ops/r179/**"
+      - "ops/r180/**"
+      - "ops/r181/**"
+      - "ops/r182/**"
+      - "ops/r183/**"
+      - "ops/r184/**"
+      - "ops/r185/**"
+      - "ops/test/r185.*"
+      - "tests/postgres/186_r185_actionable_hold.sql"
+      - "ops/test/r184.*"
+      - "tests/postgres/185_r184_pilot_continuity_hold.sql"
+      - "ops/test/r183.*"
+      - "tests/postgres/184_r183_independent_pilot_gate.sql"
+      - "ops/test/r182.*"
+      - "tests/postgres/183_r182_no_go_recovery_audit.sql"
+      - "ops/test/r181.*"
+      - "tests/postgres/182_r181_readonly_observations.sql"
+      - "ops/test/r180.*"
+      - "tests/postgres/181_r180_no_go_hold.sql"
+      - "ops/test/r179.*"
+      - "tests/postgres/180_r179_staging_review.sql"
+      - "ops/test/r178.*"
+      - "tests/postgres/179_r178_readonly_gate.sql"
+      - "ops/test/r177.*"
+      - "tests/postgres/178_r177_witness_outcomes.sql"
+      - "ops/test/r175.*"
+      - ".github/workflows/marcosa-r185-readiness.yml"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r163/repro-bundle.mjs"
+      - "docs/MARCOSA_R185_*"
+  workflow_dispatch:
+# NO id-token:write, real AWS account, customer data or production grants.
+permissions:
+  contents: read
+jobs:
+  r185-diagnostic-canary-native-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 46
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r185-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r185-disposable-only
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Ensure no customer PG or AWS/GitHub OIDC keys and exact checkout
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -X -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int BETWEEN 170000 AND 179999" | grep -qx t
+      - name: Restore exactly pinned AWS SDK v3 IAM KMS S3 STS dependency graph
+        run: |
+          set -euo pipefail
+          base64 -d ops/r170/package-lock.json.gz.b64 | gzip -dc > ops/r170/package-lock.json
+          echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
+          npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
+          npm ls --prefix ops/r170 --depth=0
+      - name: R175 two signed anchors, S3 COMPLIANCE, PG nonce and emergency supervisor tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r175.*.test.mjs
+      - name: R176 signed history, version pin, dangerous replay and restoration guard
+        run: |
+          set -euo pipefail
+          node --test ops/test/r176.*.test.mjs
+      - name: R177 signed lineage, witness tampering and restore outcome negative tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r177.*.test.mjs
+      - name: R178 STS identity, source/offsite full S3 GET, OIDC policy and PostgreSQL replay attack tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r178.*.test.mjs
+      - name: R179 GitHub reviewer history, S3 replication downgrade, full S3 GET and replay attack suite
+        run: |
+          set -euo pipefail
+          node --test ops/test/r179.*.test.mjs
+      - name: R180 verify no-GO classifier, key separation, replay, incident and quarantine failure attacks
+        run: |
+          set -euo pipefail
+          node --test ops/test/r180.*.test.mjs
+      - name: R181 GitHub protected reviewer events, real AWS CLI allowlist, exact S3 bytes and SQL attacks
+        run: |
+          set -euo pipefail
+          node --test ops/test/r181.*.test.mjs
+      - name: R182 two role IAM OIDC trust, bounded recovery drill and NO-GO adversarial suite
+        run: |
+          set -euo pipefail
+          node --test ops/test/r182.*.test.mjs
+      - name: R183 adversarial IAM default boundary, PR review recency and restored-post-backup delta tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r183.*.test.mjs
+      - name: R184 paginated PR audit, twenty write-denial simulations, 8+24 continuity and source NO-GO tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r184.*.test.mjs
+      - name: R185 secret-free evidence, actionable blockers, four canary windows and immutable NO-GO attacks
+        run: |
+          set -euo pipefail
+          node --test ops/test/r185.*.test.mjs
+      - name: R173 and R174 source/offsite KMS, encrypted escrow and archive regression
+        run: |
+          set -euo pipefail
+          node --test ops/test/r173.*.test.mjs ops/test/r174.*.test.mjs
+      - name: Previously audited PostgreSQL17/source-AWS regression tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r171.*.test.mjs ops/test/r172.*.test.mjs
+      - name: Real disposable PG17 R167 Auth/RLS and R171 strict nonce/audit fixtures
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/174_r171_fence.sql
+      - name: Native PG17 backup, second KMS escrow, disable source AWS, offsite-only restore and nonce replay rejection
+        env:
+          R173_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r173/ci-acceptance.mjs
+      - name: Install R174 synthetic PostgreSQL17 monotonic archive RLS fixture
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/175_r174_checkpoint.sql
+      - name: Real PG17 checkpoint CAS/anti-rollback and independent KMS policy admission
+        env:
+          R174_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r174/ci-acceptance.mjs
+      - name: Install R175 disposable PostgreSQL 17 RLS one-use signed anchor lease
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/176_r175_recovery_nonce.sql
+      - name: Native PG17 signed anchor recovery proof, durable lease and isolated second restore
+        env:
+          R175_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r175/ci-acceptance.mjs
+      - name: R176 real isolated PG17 schema with two independent one-use fences
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/177_r176_sequence_guard.sql
+      - name: R176 native PostgreSQL17 admission, replay, backup and restore
+        env:
+          R176_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r176/ci-acceptance.mjs
+      - name: Install R177 immutable historical evidence and outcome tables
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/178_r177_witness_outcomes.sql
+      - name: R177 real PG17 three-signature lineage, double restore and post-restore audit
+        env:
+          R177_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r177/ci-acceptance.mjs
+      - name: Install R178 native PG17 read-only staging evidence RLS
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/179_r178_readonly_gate.sql
+      - name: R178 synthetic dual-STS full S3 version replay and real native PG17 restore
+        env:
+          R178_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r178/ci-acceptance.mjs
+      - name: Install R179 native PG17 immutable approval evidence and FORCE RLS
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/180_r179_staging_review.sql
+      - name: R179 exact encrypted probe continuity, read-only SDK review, PG17 restore and replay
+        env:
+          R179_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r179/ci-acceptance.mjs
+      - name: Install R180 append-only native PostgreSQL17 signed hold and FORCE RLS
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/181_r180_no_go_hold.sql
+      - name: R180 dual Ed25519 NO-GO, independent readback and native PG17 restore
+        env:
+          R180_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r180/ci-acceptance.mjs
+      - name: Install R181 native PG17 append-only read-only observation evidence
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/182_r181_readonly_observations.sql
+      - name: R181 exact R180 hold, source-bound read-only provider fixtures and real PG17 restore
+        env:
+          R181_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r181/ci-acceptance.mjs
+      - name: Install R182 real PostgreSQL17 write-once IAM and measured recovery evidence
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/183_r182_no_go_recovery_audit.sql
+      - name: R182 two actual PG17 restores, frozen source and synthetic IAM role readback
+        env:
+          R182_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r182/ci-acceptance.mjs
+      - name: Install R183 native PG17 immutable pilot NO-GO and private synthetic delta markers
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/184_r183_independent_pilot_gate.sql
+      - name: R183 two IAM boundaries, exact PR review, snapshot delta and PG17 permanent hold
+        env:
+          R183_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r183/ci-acceptance.mjs
+      - name: Install real disposable PG17 R184 8+24 continuity table and immutable pilot gate
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/185_r184_pilot_continuity_hold.sql
+      - name: R184 native PG17 snapshot and WAL, two restores, one-time immutable NO-GO
+        env:
+          R184_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r184/ci-acceptance.mjs
+      - name: Install R185 real PostgreSQL17 serializable readiness hold and audit RLS
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/186_r185_actionable_hold.sql
+      - name: R185 exact source, safe export, mock providers, canary rehearsal and native PG17 restore
+        env:
+          R185_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r185/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r185-staging-diagnostic-safe-evidence
+          path: |
+            ${{ runner.temp }}/r185-staging-operator-no-go-report.json
+            ${{ runner.temp }}/r185-safe-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+  r185-independent-no-go-verification:
+    needs: r185-diagnostic-canary-native-pg17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+      R185_SECOND_RUNNER: "true"
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r185-staging-diagnostic-safe-evidence
+          path: ${{ runner.temp }}/r185-second/
+      - name: Regenerate SHA-256 source attestation, verify no production/offsite claims
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          node --test ops/test/r177.*.test.mjs
+          node --test ops/test/r178.*.test.mjs
+          node --test ops/test/r179.*.test.mjs
+          node --test ops/test/r180.*.test.mjs
+          node --test ops/test/r181.*.test.mjs
+          node --test ops/test/r182.*.test.mjs
+          node --test ops/test/r183.*.test.mjs
+          node --test ops/test/r184.*.test.mjs
+          node --test ops/test/r185.*.test.mjs
+          node ops/r185/ci-acceptance.mjs
