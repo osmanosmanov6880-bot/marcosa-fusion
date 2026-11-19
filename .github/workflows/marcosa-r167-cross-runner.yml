@@ -1,0 +1,154 @@
+name: "MARCOSA | R167 independent PG17 encrypted two-runner recovery"
+on:
+  pull_request:
+    paths:
+      - "ops/r167/**"
+      - "ops/test/r167.*"
+      - "tests/postgres/173_r167_*"
+      - ".github/workflows/marcosa-r167-cross-runner.yml"
+      - "docs/MARCOSA_R167_*"
+      - "ops/r163/repro-bundle.mjs"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r167/**"
+      - "ops/test/r167.*"
+      - "tests/postgres/173_r167_*"
+      - ".github/workflows/marcosa-r167-cross-runner.yml"
+      - "docs/MARCOSA_R167_*"
+      - "ops/r163/repro-bundle.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  synthetic-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    outputs:
+      bundle_sha: ${{ steps.export.outputs.bundle_sha }}
+      archive_sha: ${{ steps.export.outputs.archive_sha }}
+      signer_pin: ${{ steps.export.outputs.signer_pin }}
+      recipient_pin: ${{ steps.export.outputs.recipient_pin }}
+      manifest_sha: ${{ steps.export.outputs.manifest_sha }}
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r167-ci-only-not-production
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r167-ci-only-not-production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify disposable source runner and exact HEAD
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
+      - name: R167 key wrapping, remote HTTPS transport, manifest and SQL witness tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r167.*.test.mjs
+      - name: Create isolated PostgreSQL RLS/Auth/quarantine/audit fixture
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+      - name: Native PG17 source archive, X25519 key wrapping, signed manifest
+        id: export
+        env:
+          R167_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r167/ci-source.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r167-synthetic-encrypted-pg17-transfer
+          path: ${{ runner.temp }}/r167-cross-runner-transfer/
+          retention-days: 1
+          if-no-files-found: error
+
+  independently-restored:
+    needs: synthetic-source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r167-ci-only-not-production
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r167-ci-only-not-production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r167-synthetic-encrypted-pg17-transfer
+          path: ${{ runner.temp }}/r167-downloaded-transfer/
+      - name: Require independent PG17 target, exact repository and source SHA
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
+      - name: Create ONLY NOLOGIN fixture roles on otherwise blank second PostgreSQL
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon NOLOGIN NOBYPASSRLS;'
+          psql -X -v ON_ERROR_STOP=1 -c 'CREATE ROLE authenticated NOLOGIN NOBYPASSRLS;'
+          psql -X -v ON_ERROR_STOP=1 -c 'CREATE ROLE marcosa_r167_reader NOLOGIN NOBYPASSRLS;'
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT count(*) FROM pg_class WHERE relname='r167_sessions'" | grep -qx 0
+      - name: Second runner unwrap, native pg_restore, RLS parity and tamper denial
+        env:
+          R167_PG_CONTAINER: ${{ job.services.postgres.id }}
+          R167_BUNDLE_SHA: ${{ needs.synthetic-source.outputs.bundle_sha }}
+          R167_ARCHIVE_SHA: ${{ needs.synthetic-source.outputs.archive_sha }}
+          R167_SIGNER_PIN: ${{ needs.synthetic-source.outputs.signer_pin }}
+          R167_RECIPIENT_PIN: ${{ needs.synthetic-source.outputs.recipient_pin }}
+          R167_MANIFEST_SHA: ${{ needs.synthetic-source.outputs.manifest_sha }}
+        run: |
+          set -euo pipefail
+          node ops/r167/ci-target.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r167-cross-runner-synthetic-nonsecret-proof
+          path: ${{ runner.temp }}/r167-target-safe-report.json
+          retention-days: 7
+          if-no-files-found: error
