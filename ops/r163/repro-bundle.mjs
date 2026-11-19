@@ -118,7 +118,13 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r179/review-gate.mjs',
  'ops/r179/staging-ledger.mjs',
  'ops/r179/ci-acceptance.mjs',
- 'tests/postgres/180_r179_staging_review.sql'
+ 'tests/postgres/180_r179_staging_review.sql',
+ 'ops/r180/evidence-classifier.mjs',
+ 'ops/r180/quorum-attestation.mjs',
+ 'ops/r180/hold-ledger.mjs',
+ 'ops/r180/hold-gate.mjs',
+ 'ops/r180/ci-acceptance.mjs',
+ 'tests/postgres/181_r180_no_go_hold.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
