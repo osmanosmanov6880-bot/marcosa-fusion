@@ -154,6 +154,21 @@ if(env.R175_SECOND_RUNNER==='true'){
   pinnedReviewerSpkiSha256:receipt.approvals[1].signerSpkiSha256,
   clock,allowExternalCalls:true
  });
+ const previousData={
+  sequence:1,commit,bundleSha256:bundle.sha256,
+  archiveSha256:previousArchive,escrowSha256:previousEscrow,
+  checkpointSha256:previousDigest,priorAnchorSha256:'0'.repeat(64)
+ };
+ const previousStored=await anchorStore.save({
+  receipt:previousAnchor,expected:previousData
+ });
+ const previousRead=await anchorStore.read({
+  sha256:previousStored.sha256,versionId:previousStored.versionId,
+  expected:previousData
+ });
+ ok(previousRead.verified===true&&
+  previousRead.receipt.anchorSha256===data.priorAnchorSha256,
+  'signed R174 genesis anchor was not independently stored and reread');
  const stored=await anchorStore.save({receipt,expected:data});
  ok(stored.immutableVersionChecked,'immutable S3 anchor not verified');
  const fence=createR175RecoveryNonce({
