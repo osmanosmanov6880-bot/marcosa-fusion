@@ -219,7 +219,7 @@ test('R180 durable no-go gate double reads R179 and confirms closed quarantine',
 test('R180 denial path blocks changed source, released quarantine, SQL failure and lost audit',async()=>{
  for(const bad of [{race:true},{openQuarantine:true},
   {invalidAudit:true},{down:true},{wrongReadback:true},
-  {brokenIncident:true}]){
+  {down:true,brokenIncident:true}]){
   const f=fixture(bad);
   await assert.rejects(f.gate.record(f.params),/R180 hold gate/);
   assert.equal(f.stats().events.length,1);
