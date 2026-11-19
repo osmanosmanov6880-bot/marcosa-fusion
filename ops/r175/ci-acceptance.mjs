@@ -79,7 +79,7 @@ if(env.R175_SECOND_RUNNER==='true'){
  const archiveSha256=randomBytes(32).toString('hex');
  const escrowSha256=randomBytes(32).toString('hex');
  const offsiteKmsArn='arn:aws:kms:eu-central-1:444455556666:key/4567abcd-12ab-34cd-56ef-1234567890ab';
- const archivedAtMs=now-60000,sequence=1;
+ const archivedAtMs=now-60000,sequence=2;
  const checkpointSha256=r174RecoveryEvidenceDigest({sequence,commit,
   bundleSha256:bundle.sha256,archiveSha256,escrowSha256,
   offsiteKmsArn,archivedAtMs});
@@ -87,7 +87,7 @@ if(env.R175_SECOND_RUNNER==='true'){
   executeSql:async q=>sql('postgres',q),clock
  });
  ok((await pgCheckpoint.advance({
-  expectedSequence:0,sequence,commit,archiveSha256,
+  expectedSequence:1,sequence,commit,archiveSha256,
   escrowSha256,evidenceSha256:checkpointSha256,archivedAtMs
  })).monotonicCheckpointAccepted,'R174 archive highwater missing');
  const checkpoint=()=>{
