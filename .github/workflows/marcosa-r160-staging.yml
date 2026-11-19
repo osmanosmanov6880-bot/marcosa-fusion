@@ -1,4 +1,4 @@
-name: "MARCOSA | R160–R165 TLS staging, durable quorum and encrypted PG17 restore"
+name: "MARCOSA | R160–R166 TLS staging, durable audit and cross-process encrypted recovery"
 on:
   pull_request:
     paths:
@@ -29,6 +29,9 @@ on:
       - "ops/r165/**"
       - "ops/test/r165.*"
       - "docs/MARCOSA_R165_*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R166_*"
       - "ops/r163/repro-bundle.mjs"
       - "ops/r162/lifecycle.mjs"
   push:
@@ -61,6 +64,9 @@ on:
       - "ops/r165/**"
       - "ops/test/r165.*"
       - "docs/MARCOSA_R165_*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R166_*"
       - "ops/r163/repro-bundle.mjs"
       - "ops/r162/lifecycle.mjs"
   workflow_dispatch:
@@ -110,7 +116,7 @@ jobs:
           set -euo pipefail
           npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
           npm ls pg --prefix ops/r160 --depth=0
-          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs ops/test/r165.*.test.mjs
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs ops/test/r165.*.test.mjs ops/test/r166.*.test.mjs
       - name: Issue test-only certificate authority and enable real PG17 TLS
         env:
           SERVICE_CONTAINER: ${{ job.services.postgres.id }}
@@ -349,5 +355,44 @@ jobs:
         with:
           name: marcosa-r165-disposable-security-evidence
           path: ${{ runner.temp }}/r165-nonsecret-ci-report.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R166 install private PostgreSQL audit chain, strictly limited NOLOGIN grants
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R166_AUDIT_PG17_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r166_audit_reader,marcosa_r166_audit_writer TO marcosa_r160_ci WITH INHERIT FALSE'
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r166_audit_events','SELECT')
+              OR has_table_privilege('marcosa_r166_audit_writer',
+              'marcosa_private.r166_audit_events','DELETE')
+              OR has_table_privilege('marcosa_r166_audit_writer',
+              'marcosa_private.r166_audit_events','UPDATE')
+            THEN RAISE EXCEPTION 'R166 audit role privilege escalation';
+            END IF;
+          END \$\$;"
+      - name: R166 real PG17 signed evidence, fsynced encrypted copies and FRESH process replay test
+        env:
+          R166_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R166_APP_PASSWORD: r160-ssl-verified-ci-app-login
+          R166_ADMIN_PASSWORD: r160-disposable-admin-only
+          R166_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          trap 'rm -f -- "$RUNNER_TEMP/r166-temp-aes-key.bin" "$RUNNER_TEMP/r166-public-restart-proof.json"; rm -rf -- "$RUNNER_TEMP"/r166-vault-primary-* "$RUNNER_TEMP"/r166-vault-copy-*' EXIT
+          node ops/r166/ci-stage1.mjs
+          node ops/r166/ci-stage2.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r166-disposable-anchored-restart-evidence
+          path: ${{ runner.temp }}/r166-safe-evidence-report.json
           retention-days: 7
           if-no-files-found: error
