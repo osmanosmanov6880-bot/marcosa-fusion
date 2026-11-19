@@ -41,7 +41,7 @@ test('R166 rejects arbitrary identities, empty commit and forged chain before DB
  await assert.rejects(w.append({category:'email:user@example.com',outcome:'ok'}),/fixed nonpersonal/);
  await assert.rejects(w.append({category:'nonce_consumed',outcome:'deploy'}),/fixed nonpersonal/);
  assert.equal(f.metrics().commits,0);
- assert.throws(()=>createR166AuditChain({pool:f.pool,commit:'oops'}),/full SHA/);
+ assert.throws(()=>createR166AuditChain({pool:f.pool,commit:'oops'}),/source SHA/);
  const entry={seq:1,atMs:1800000000000,category:'nonce_consumed',
   outcome:'ok',commit,prev:'0'.repeat(64)};
  const hash=r166HashEntry(entry);
