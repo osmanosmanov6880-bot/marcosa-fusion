@@ -106,13 +106,16 @@ export function createR173OffsiteRecovery({
    sha(ciphertext.encryptedSourceKey)===m.sourceEncryptedKeySha256,
    'independent offsite ciphertext or original key metadata changed');
   // Consume durable SQL nonce before any offsite KMS decryption.
-  const consumed=await consumeNonce({
-   nonce:packet.nonce,commit,archiveSha256,
-   reviewerDigest:targetDigest,
-   roleArn:'arn:aws:iam::'+offsiteAccountId+
-    ':role/marcosa-staging-backup-role',
-   productionAuthorized:false
-  });
+  let consumed;
+  try{
+   consumed=await consumeNonce({
+    nonce:packet.nonce,commit,archiveSha256,
+    reviewerDigest:targetDigest,
+    roleArn:'arn:aws:iam::'+offsiteAccountId+
+     ':role/marcosa-staging-backup-role',
+    productionAuthorized:false
+   });
+  }catch{fail('durable independent SQL replay fence rejected');}
   ok(consumed?.durablePostgresFence===true&&
    consumed?.rehearsalLeaseRecorded===true&&
    consumed.nonce===packet.nonce&&
