@@ -9,14 +9,14 @@ const fail=m=>{throw Error('R181 observation ledger: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);},q=s=>"'"+s+"'";
 export function r181ObservationSql({runId,sequence,nonce,sourceCommit,
  classificationSha256,quorumReceiptSha256,
- historyRootSha256,archiveSha256,sourceAccountId,offsiteAccountId,
+ historyRootSha256,probeSha256,sourceAccountId,offsiteAccountId,
  githubEvidenceSha256,awsEvidenceSha256,evidenceSha256,
  sourceMode,decision,productionAuthorized}={}){
  ok(Number.isSafeInteger(runId)&&runId>=10000&&
   Number.isSafeInteger(sequence)&&sequence>=2&&sequence<=32&&
   H32.test(nonce||'')&&H40.test(sourceCommit||'')&&
   [classificationSha256,quorumReceiptSha256,
-   historyRootSha256,archiveSha256,githubEvidenceSha256,
+   historyRootSha256,probeSha256,githubEvidenceSha256,
    awsEvidenceSha256,evidenceSha256].every(x=>H64.test(x||''))&&
   /^\d{12}$/.test(sourceAccountId||'')&&
   /^\d{12}$/.test(offsiteAccountId||'')&&
@@ -45,12 +45,12 @@ export function r181ObservationSql({runId,sequence,nonce,sourceCommit,
   '), inserted AS (',
   ' INSERT INTO r181_ci.observations(',
   ' run_id,sequence,nonce,commit_sha,classification_sha256,',
-  ' quorum_receipt_sha256,history_root_sha256,archive_sha256,',
+  ' quorum_receipt_sha256,history_root_sha256,probe_sha256,',
   ' source_account_id,offsite_account_id,github_evidence_sha256,',
   ' aws_evidence_sha256,evidence_sha256,source_mode,decision)',
   ' SELECT '+[runId,sequence,q(nonce),q(sourceCommit),
    q(classificationSha256),q(quorumReceiptSha256),
-   q(historyRootSha256),q(archiveSha256),
+   q(historyRootSha256),q(probeSha256),
    q(sourceAccountId),q(offsiteAccountId),
    q(githubEvidenceSha256),q(awsEvidenceSha256),
    q(evidenceSha256),q(sourceMode),q(decision)].join(','),

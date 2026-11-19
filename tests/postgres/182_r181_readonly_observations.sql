@@ -31,7 +31,7 @@ CREATE TABLE r181_ci.observations(
  classification_sha256 char(64) NOT NULL CHECK(classification_sha256 ~ '^[a-f0-9]{64}$'),
  quorum_receipt_sha256 char(64) NOT NULL CHECK(quorum_receipt_sha256 ~ '^[a-f0-9]{64}$'),
  history_root_sha256 char(64) NOT NULL CHECK(history_root_sha256 ~ '^[a-f0-9]{64}$'),
- archive_sha256 char(64) NOT NULL CHECK(archive_sha256 ~ '^[a-f0-9]{64}$'),
+ probe_sha256 char(64) NOT NULL CHECK(probe_sha256 ~ '^[a-f0-9]{64}$'),
  source_account_id char(12) NOT NULL CHECK(source_account_id ~ '^[0-9]{12}$'),
  offsite_account_id char(12) NOT NULL CHECK(offsite_account_id ~ '^[0-9]{12}$'),
  github_evidence_sha256 char(64) NOT NULL CHECK(github_evidence_sha256 ~ '^[a-f0-9]{64}$'),
