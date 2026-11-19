@@ -131,7 +131,14 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r181/observation-ledger.mjs',
  'ops/r181/manual-preflight.mjs',
  'ops/r181/ci-acceptance.mjs',
- 'tests/postgres/182_r181_readonly_observations.sql'
+ 'tests/postgres/182_r181_readonly_observations.sql',
+ 'ops/r182/iam-posture.mjs',
+ 'ops/r182/restore-drill.mjs',
+ 'ops/r182/readiness-evidence.mjs',
+ 'ops/r182/readiness-ledger.mjs',
+ 'ops/r182/manual-iam-audit.mjs',
+ 'ops/r182/ci-acceptance.mjs',
+ 'tests/postgres/183_r182_no_go_recovery_audit.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
