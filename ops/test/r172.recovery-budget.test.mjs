@@ -3,8 +3,7 @@ import assert from 'node:assert/strict';
 import {createR172RecoveryBudget} from '../r172/recovery-budget.mjs';
 const commit='a'.repeat(40),bundleSha256='b'.repeat(64),
  nonce='c'.repeat(32);
-const inventory={synthetic:true,
- auditHead:'a'.repeat(64),auditRows:3,
+const inventory={auditHead:'a'.repeat(64),auditRows:3,
  publicRows:3,privateRows:2,activeSessions:1,revokedSessions:1,
  privateRls:true,publicRls:true,
  browserCanReadPrivate:false,readerCanReadPrivate:true,
