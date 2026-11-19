@@ -65,7 +65,13 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r170/read-only-stage.mjs',
  'ops/r170/ci-acceptance.mjs',
  'ops/r170/package.json',
- 'ops/r170/package-lock.json.gz.b64'
+ 'ops/r170/package-lock.json.gz.b64',
+ 'ops/r171/oidc-provider.mjs',
+ 'ops/r171/iam-role-audit.mjs',
+ 'ops/r171/s3-version-audit.mjs',
+ 'ops/r171/pg-fence.mjs',
+ 'ops/r171/ci-acceptance.mjs',
+ 'tests/postgres/174_r171_fence.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
