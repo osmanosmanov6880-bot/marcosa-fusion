@@ -71,7 +71,12 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r171/s3-version-audit.mjs',
  'ops/r171/pg-fence.mjs',
  'ops/r171/ci-acceptance.mjs',
- 'tests/postgres/174_r171_fence.sql'
+ 'tests/postgres/174_r171_fence.sql',
+ 'ops/r172/github-environment.mjs',
+ 'ops/r172/aws-identity.mjs',
+ 'ops/r172/replication-audit.mjs',
+ 'ops/r172/recovery-budget.mjs',
+ 'ops/r172/ci-acceptance.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
