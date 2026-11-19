@@ -337,7 +337,7 @@ jobs:
       - name: R165 durable concurrent Ed25519 replay fence, quarantine and encrypted PG17 restore
         env:
           R165_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
-          ${{ runner.temp }}/r160-ca.pem_FILE: ${{ runner.temp }}/r160-ca.pem
+          R165_CA_FILE: ${{ runner.temp }}/r160-ca.pem
           R165_ADMIN_PASSWORD: r160-disposable-admin-only
           R165_APP_PASSWORD: r160-ssl-verified-ci-app-login
         run: |
