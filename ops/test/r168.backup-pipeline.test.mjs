@@ -7,7 +7,7 @@ import {r168KmsContext} from '../r168/aws-kms.mjs';
 const keyArn='arn:aws:kms:eu-west-1:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab';
 const time=1800000000000;
 const sha=x=>createHash('sha256').update(x).digest('hex');
-const inv=()=>({nonceCount:2,quarantineClosed:true,quarantineGeneration:5,
+const inv=()=>({quarantineClosed:true,quarantineGeneration:5,
  // R167 synthetic source/target schema:
  auditHead:'c'.repeat(64),auditRows:3,publicRows:3,privateRows:2,
  activeSessions:1,revokedSessions:1,privateRls:true,publicRls:true,
