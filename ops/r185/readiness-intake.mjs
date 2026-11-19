@@ -19,7 +19,7 @@ const tasks=Object.freeze([
  {code:'AWS_EFFECTIVE_PERMISSIONS',
   next:'Verify live AWS STS principals, organization SCPs, boundary, resource and KMS policies in both accounts'},
  {code:'REAL_STAGING_BOUNDARY',
-  next:'Audit actual staging ingress, isolation, secrets, rollback and stop controls without customer traffic'},
+  next:'Audit actual staging ingress, isolation, configuration, rollback and stop controls without customer traffic'},
  {code:'PRIVATE_DATA_REVIEW',
   next:'Complete privacy, retention and redaction assessment on a permitted staging data set'},
  {code:'REAL_RECOVERY_OBJECTIVES',
