@@ -161,7 +161,14 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r185/pilot-gate.mjs',
  'ops/r185/hold-ledger.mjs',
  'ops/r185/ci-acceptance.mjs',
- 'tests/postgres/186_r185_actionable_hold.sql'
+ 'tests/postgres/186_r185_actionable_hold.sql',
+ 'ops/r186/github-preflight.mjs',
+ 'ops/r186/https-preflight.mjs',
+ 'ops/r186/staging-assessment.mjs',
+ 'ops/r186/observation-ledger.mjs',
+ 'ops/r186/operator-preflight.mjs',
+ 'ops/r186/ci-acceptance.mjs',
+ 'tests/postgres/187_r186_staging_observation_hold.sql'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
