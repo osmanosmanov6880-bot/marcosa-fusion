@@ -35,7 +35,13 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r166/evidence-vault.mjs',
  'ops/r166/restart-verifier.mjs',
  'ops/r166/ci-stage1.mjs',
- 'ops/r166/ci-stage2.mjs'
+ 'ops/r166/ci-stage2.mjs',
+ 'ops/r167/key-envelope.mjs',
+ 'ops/r167/remote-object.mjs',
+ 'ops/r167/transfer-manifest.mjs',
+ 'ops/r167/pg-witness.mjs',
+ 'ops/r167/ci-source.mjs',
+ 'ops/r167/ci-target.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
