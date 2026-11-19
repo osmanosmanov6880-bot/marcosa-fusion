@@ -1,0 +1,14 @@
+{
+  "name": "marcosa-r169-cloud-bootstrap",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "dependencies": {
+    "@aws-sdk/client-kms": "3.1170.0",
+    "@aws-sdk/client-s3": "3.1170.0",
+    "@aws-sdk/client-sts": "3.1170.0"
+  }
+}
