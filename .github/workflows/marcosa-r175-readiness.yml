@@ -71,18 +71,14 @@ jobs:
           echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
           npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
           npm ls --prefix ops/r170 --depth=0
-      - name: R174 offsite KMS key policy, archive CAS, anti-rollback and incident tests
-        run: |
-          set -euo pipefail
-          node --test ops/test/r175.*.test.mjs
       - name: R175 two signed anchors, S3 COMPLIANCE, PG nonce and emergency supervisor tests
         run: |
           set -euo pipefail
           node --test ops/test/r175.*.test.mjs
-      - name: Source/offsite SHA256, two CMKs, Ed25519 escrow and key isolation tests
+      - name: R173 and R174 source/offsite KMS, encrypted escrow and archive regression
         run: |
           set -euo pipefail
-          node --test ops/test/r174.*.test.mjs
+          node --test ops/test/r173.*.test.mjs ops/test/r174.*.test.mjs
       - name: Previously audited PostgreSQL17/source-AWS regression tests
         run: |
           set -euo pipefail
