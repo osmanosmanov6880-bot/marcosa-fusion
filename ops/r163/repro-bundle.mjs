@@ -76,7 +76,12 @@ export const R163_REQUIRED_SOURCES=Object.freeze([
  'ops/r172/aws-identity.mjs',
  'ops/r172/replication-audit.mjs',
  'ops/r172/recovery-budget.mjs',
- 'ops/r172/ci-acceptance.mjs'
+ 'ops/r172/ci-acceptance.mjs',
+ 'ops/r173/offsite-object.mjs',
+ 'ops/r173/offsite-kms.mjs',
+ 'ops/r173/offsite-escrow.mjs',
+ 'ops/r173/offsite-recovery.mjs',
+ 'ops/r173/ci-acceptance.mjs'
 ].slice().sort());
 const fail=m=>{throw Error('R163 bundle: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
