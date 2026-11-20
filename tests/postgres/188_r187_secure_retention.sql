@@ -49,6 +49,10 @@ CREATE POLICY r187_retention_delete ON r187_ci.synthetic_retention
   AND expires_at < statement_timestamp());
 GRANT SELECT,DELETE ON r187_ci.synthetic_retention
  TO marcosa_r187_retention_worker;
+CREATE POLICY r187_hold_retention_read ON r187_ci.synthetic_retention
+ FOR SELECT TO marcosa_r187_hold_writer
+ USING(synthetic_only=true AND production_authorized=false);
+GRANT SELECT ON r187_ci.synthetic_retention TO marcosa_r187_hold_writer;
 REVOKE ALL ON r187_ci.synthetic_retention
  FROM PUBLIC,anon,authenticated,marcosa_r167_reader;
 
