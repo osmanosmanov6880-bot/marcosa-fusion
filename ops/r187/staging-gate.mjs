@@ -27,12 +27,13 @@ const proofHash=p=>{
   evidenceSha256===sha(raw);
 };
 export function createR187StagingGate({readR186Hold,quarantine,
- clock=()=>Date.now(),allowInspect=false}={}){
+ verifyDualAttestation,clock=()=>Date.now(),allowInspect=false}={}){
  ok(typeof readR186Hold==='function'&&
   typeof quarantine?.status==='function'&&
-  typeof clock==='function','native immutable R186 and quarantine readback required');
+  typeof clock==='function'&&typeof verifyDualAttestation==='function',
+  'native R186 quarantine and independently pinned Ed25519 verifier required');
  async function inspect({commit,bundleSha256,r186Report,
-  retentionProof,dualAttestationProof,tlsProof}={}){
+  retentionProof,dualAttestationProof,dualPacket,dualSignatures,tlsProof}={}){
   ok(allowInspect===true&&H40.test(commit||'')&&
    H64.test(bundleSha256||''),
    'explicit staging-readiness verification required');
@@ -83,6 +84,19 @@ export function createR187StagingGate({readR186Hold,quarantine,
    retentionProof.decision==='NO_GO_SYNTHETIC_RETENTION_ONLY'&&
    proofHash(retentionProof),
    'source-bound native PG17 synthetic retention evidence invalid');
+  ok(dualPacket?.sourceCommit===commit&&
+   dualPacket.bundleSha256===bundleSha256&&
+   dualPacket.runId===before.runId&&
+   dualPacket.githubEvidenceSha256===
+    r186Report.githubProof?.evidenceSha256&&
+   dualPacket.httpsEvidenceSha256===
+    r186Report.httpsProof?.evidenceSha256,
+   'manual Ed25519 packet not bound to checked immutable R186 source');
+  const verifiedDual=verifyDualAttestation({
+   packet:dualPacket,signatures:dualSignatures
+  });
+  ok(verifiedDual?.evidenceSha256===dualAttestationProof?.evidenceSha256,
+   'Ed25519 signatures must be reverified against pinned public keys');
   ok(dualAttestationProof?.sourceCommit===commit&&
    dualAttestationProof.bundleSha256===bundleSha256&&
    dualAttestationProof.runId===before.runId&&
