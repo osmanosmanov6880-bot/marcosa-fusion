@@ -185,7 +185,7 @@ if(e.R188_SECOND_RUNNER==='true'){
  const transcript=createR188SignedTranscript({packet,signatures,
   publicKeys,dualProof,commit,bundleSha256:bundle.sha256,runId});
  const hold=await createR188StagingGate({
-  readR187Hold:holdRead,quarantine,clock,allowInspect:true
+  readR187Hold:()=>holdRead('postgres'),quarantine,clock,allowInspect:true
  }).inspect({commit,bundleSha256:bundle.sha256,
   r187Report,retentionProof:retention,
   transcriptBytes:transcript.bytes,
