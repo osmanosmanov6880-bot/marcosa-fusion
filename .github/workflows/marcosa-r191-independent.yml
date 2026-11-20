@@ -1,0 +1,83 @@
+name: "MARCOSA | R191 independent GitHub, Ed25519, TLS X509, IAM deny and replay"
+on:
+  pull_request:
+    paths:
+      - "ops/r191/**"
+      - "ops/test/r191.*"
+      - ".github/workflows/marcosa-r191-independent.yml"
+      - "docs/MARCOSA_R191_*"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r191/**"
+      - "ops/test/r191.*"
+      - ".github/workflows/marcosa-r191-independent.yml"
+      - "docs/MARCOSA_R191_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r191-source-cryptography-and-certificate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      r191_file_sha: ${{ steps.create.outputs.r191_file_sha }}
+      r191_registry_sha: ${{ steps.create.outputs.r191_registry_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Ensure unprivileged source and available OpenSSL
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          openssl version
+      - name: Five R191 source, crypto, TLS, AWS and integrity test suites
+        run: node --test ops/test/r191.acceptance.test.mjs
+      - name: Create public no-GO artifact with SHA pin for separate runner
+        id: create
+        run: node ops/r191/ci-producer.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r191-independent-public-proof
+          path: ${{ runner.temp }}/r191-first/
+          if-no-files-found: error
+          retention-days: 1
+  r191-independent-second-runner:
+    needs: r191-source-cryptography-and-certificate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R191_FILE_SHA: ${{ needs.r191-source-cryptography-and-certificate.outputs.r191_file_sha }}
+      R191_REGISTRY_SHA: ${{ needs.r191-source-cryptography-and-certificate.outputs.r191_registry_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r191-independent-public-proof
+          path: ${{ runner.temp }}/r191-independent/
+      - name: Independent Ed25519, X509 DER, source git-tree and evidence replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          node ops/r191/ci-verify.mjs
