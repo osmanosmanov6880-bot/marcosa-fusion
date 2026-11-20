@@ -1,0 +1,91 @@
+name: "MARCOSA | R193 audit desk and independent evidence replay"
+on:
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r193/**"
+      - "ops/test/r193.*"
+      - ".github/workflows/marcosa-r193-audit-desk.yml"
+      - "docs/MARCOSA_R193_*"
+  pull_request:
+    paths:
+      - "ops/r193/**"
+      - "ops/test/r193.*"
+      - ".github/workflows/marcosa-r193-audit-desk.yml"
+      - "docs/MARCOSA_R193_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r193-audit-desk-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      packet_sha: ${{ steps.produce.outputs.packet_sha }}
+      pub_sha: ${{ steps.produce.outputs.pub_sha }}
+      html_sha: ${{ steps.produce.outputs.html_sha }}
+      markdown_sha: ${{ steps.produce.outputs.markdown_sha }}
+      source_bundle_sha: ${{ steps.produce.outputs.source_bundle_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify unprivileged source and no provider secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: R193 tests - source, intake, reconciliation, mobile UI, Ed25519
+        run: node --test ops/test/r193.acceptance.test.mjs
+      - name: Generate signed audit report and separate public SHA pins
+        id: produce
+        run: node ops/r193/ci-producer.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r193-offline-audit-desk
+          path: ${{ runner.temp }}/r193-producer/
+          if-no-files-found: error
+          retention-days: 7
+  r193-independent-audit-replay:
+    needs: r193-audit-desk-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R193_PACKET_SHA: ${{ needs.r193-audit-desk-acceptance.outputs.packet_sha }}
+      R193_PUB_SHA: ${{ needs.r193-audit-desk-acceptance.outputs.pub_sha }}
+      R193_HTML_SHA: ${{ needs.r193-audit-desk-acceptance.outputs.html_sha }}
+      R193_MARKDOWN_SHA: ${{ needs.r193-audit-desk-acceptance.outputs.markdown_sha }}
+      R193_SOURCE_BUNDLE_SHA: ${{ needs.r193-audit-desk-acceptance.outputs.source_bundle_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marcosa-r193-offline-audit-desk
+          path: ${{ runner.temp }}/r193-independent/
+      - name: Deny provider or database credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Recheck Ed25519, SHA-pinned evidence, source and HTML/Markdown
+        run: node ops/r193/ci-verify.mjs
