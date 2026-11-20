@@ -1,0 +1,11 @@
+# MARCOSA R191 — независимые проверяемые свидетельства, неизменный NO-GO
+20 ноября 2026. Рабочая ветка PR #168.
+
+## Пять крупных инженерных блоков
+1. GitHub PR history: ops/r191/review-chronology.mjs — фиксированный PR #168, проверка точного HEAD/base/author, 3 отдельных GitHub user ID, подлинности подписи коммита через metadata, ограниченная пагинация, последнее решение, CHANGES_REQUESTED/DISMISSED, повторный HEAD для защиты от гонки; GET only. В тестах ответы GitHub имитируются.
+2. Operator-pinned Ed25519 reviewers: ops/r191/trusted-reviewers.mjs — реестр с отдельным SHA-256 pin, SECURITY/OPERATIONS/PRIVACY, реальные три независимые подписи на exact GitHub/TLS/source packet, временной nonce, срок действия и отзыв публичных ключей. GitHub аккаунт/ключ не равен независимому подтверждению физического лица.
+3. TLS certificate: ops/r191/tls-certificate.mjs — отдельное TLS соединение к глобальному DNS-pinned IPv4, SNI, проверка цепочки TLS через ОС, hostname SAN/X509, срок сертификата, отдельный публичный SHA-256 DER pin. Сеть только по явному согласию; CI использует OpenSSL-одноразовый сертификат и mock socket.
+4. Two-account read-only AWS IAM deny audit: ops/r191/aws-denial-audit.mjs — STS GetCallerIdentity + IAM SimulatePrincipalPolicy для 12 опасных S3/KMS/IAM действий на каждом аккаунте, строгие границы source/offsite, защита от неполных ответов, чужих STS и доступных destructive actions. Симуляция не доказывает фактические SCP/KMS и effective rights, поэтому всегда NO-GO.
+5. Portable evidence and second runner: ops/r191/portable-evidence.mjs, ci-fixture.mjs, ci-producer.mjs, ci-verify.mjs, ops/test/r191.acceptance.test.mjs и workflow marcosa-r191-independent.yml. Первый runner генерирует синтетические внешние доказательства с настоящими Ed25519 и X509, второй без AWS/PostgreSQL/GitHub токенов криптографически проверяет подписи, публичный DER, отдельный SHA реестра и весь Git tree. Файлы имеют ограниченный размер и не содержат private keys.
+
+Отдельная операторская приёмка real GitHub review, human identities, публичного staging TLS, SCP/KMS IAM effective rights, live recovery и legal/privacy обязательна. Все решения остаются NO_GO_EXTERNAL_STAGING_AUTHORITY_PENDING. Ни main, ни production не затронуты.
