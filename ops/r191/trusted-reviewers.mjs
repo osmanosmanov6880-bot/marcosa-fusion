@@ -65,6 +65,7 @@ export function verifyR191PinnedReviewers({
   'all three distinct Ed25519 keys required');
  return sealReceipt({schemaVersion:1,kind:'R191_IDENTITIES',
   sourceCommit:commit,sourceBundleSha256:bundleSha256,
+  sourceMode:g.sourceMode,
   githubEvidenceSha256:g.evidenceSha256,
   registrySha256:actual,signaturesReceiptSha256:verified.evidenceSha256,
   tlsEvidenceSha256:packet.tlsEvidenceSha256,

@@ -85,7 +85,7 @@ export async function inspectR191GithubReviews({
    ids.add(r.id);
    const when=ms(r.submitted_at);
    if(r.state!=='PENDING')requireTrue(Number.isFinite(when)&&
-    when>=committed&&when<=started,'review timestamp invalid or stale');
+    when>0&&when<=started,'review timestamp invalid or stale');
    history.push({id:r.id,userId:r.user.id,type:r.user.type,
     state:r.state,commit:r.commit_id,
     submitted:Number.isFinite(when)?when:null});

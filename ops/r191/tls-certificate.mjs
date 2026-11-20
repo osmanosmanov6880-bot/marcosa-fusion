@@ -2,8 +2,8 @@
  * Verify OS trust, exact hostname, validity and independent leaf SHA-256 pin.
  * Injected CI dial never attests external CA or live host identity. */
 import {lookup} from 'node:dns/promises';
-import {connect as tlsConnect,X509Certificate} from 'node:tls';
-import {createHash} from 'node:crypto';
+import {connect as tlsConnect} from 'node:tls';
+import {createHash,X509Certificate} from 'node:crypto';
 import {isR187PublicIPv4,validateR187DnsAnswers} from '../r187/pinned-https.mjs';
 import {validateR186StagingHostname} from '../r186/https-preflight.mjs';
 import {H40,H64,requireTrue,sealReceipt} from '../r190/common.mjs';
