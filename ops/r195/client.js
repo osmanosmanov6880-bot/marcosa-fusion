@@ -102,8 +102,8 @@
   }
   async function main(){
     docs=await api.create(reference);
-    for(var i=0;i<cards.length;i++){
-      var card=cards[i],id=card.id.slice('control-'.length);
+    for(let i=0;i<cards.length;i++){
+      const card=cards[i],id=card.id.slice('control-'.length);
       if(!api.IDS.includes(id))continue;
       var zone=document.createElement('div');zone.className='r195-controls';
       var label=document.createElement('span');
