@@ -49,5 +49,16 @@ jobs:
                   body=open(path,encoding="utf-8").read()
                   names=sorted(set(re.findall(r'/api/club/[A-Za-z0-9_/-]+',body)))
                   print("FRONTEND_ROUTES",fil,names[:90])
+          safe_words=("auth","login","register","logout","session","profile","episode","series","follow","message","comment","question","admin","live","pick","select","contact","video","project","review","csrf","json","api(","fetch(","username","password","email","name","path","parts","action")
+          for name,pth in (("APP",p),("FRONTEND","/opt/marcosa/current/club.js")):
+              if not os.access(pth,os.R_OK):continue
+              lines=open(pth,encoding="utf-8").read().splitlines()
+              print("CONTRACT_SNAPSHOT",name,len(lines))
+              for i,line in enumerate(lines,1):
+                  low=line.lower()
+                  if (name=="APP" and i>=260 and any(w in low for w in safe_words)) or (name=="FRONTEND" and any(w in low for w in safe_words) and ("api" in low or "fetch(" in low or "password" in low or "submit" in low)):
+                      line=line.strip()
+                      if len(line)>420:line=line[:420]
+                      print("CONTRACT_LINE",name,i,line)
           print("MARCOSA_R3_READ_ONLY_DONE")
           REMOTE
