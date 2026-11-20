@@ -48,9 +48,17 @@ try{
   assert.equal(await page.locator('article.control:visible').count(),2);
   await page.locator('#r195-owner').selectOption('ALL');
   const card=page.locator('#control-TLS_ORIGIN');
+  const otherCard=page.locator('#control-PRIVACY_LEGAL');
+  assert.match(await otherCard.locator('.r195-progress').innerText(),/Не начато/);
   await card.locator('button[data-r195-action="REOPEN"]').click();
+  await page.waitForFunction(()=>document.querySelector('#control-TLS_ORIGIN .r195-progress')?.textContent.includes('Не начато'));
+  assert.match(await otherCard.locator('.r195-progress').innerText(),/Не начато/);
   await card.locator('button[data-r195-action="START"]').click();
+  await page.waitForFunction(()=>document.querySelector('#control-TLS_ORIGIN .r195-progress')?.textContent.includes('В работе'));
+  assert.match(await otherCard.locator('.r195-progress').innerText(),/Не начато/);
   await card.locator('button[data-r195-action="COMPLETE"]').click();
+  await page.waitForFunction(()=>document.querySelector('#control-TLS_ORIGIN .r195-progress')?.textContent.includes('Локально завершено'));
+  assert.match(await otherCard.locator('.r195-progress').innerText(),/Не начато/);
   assert.match(await card.locator('.r195-progress').innerText(),/Локально завершено/);
   assert.equal(await page.locator('#r195-count').innerText(),'3');
   await page.locator('#r194-filter').selectOption('LOCAL_DONE');
