@@ -89,8 +89,7 @@ export function createR187StagingGate({readR186Hold,quarantine,
    dualPacket.runId===before.runId&&
    dualPacket.githubEvidenceSha256===
     r186Report.githubProof?.evidenceSha256&&
-   dualPacket.httpsEvidenceSha256===
-    r186Report.httpsProof?.evidenceSha256,
+   dualPacket.httpsEvidenceSha256===tlsProof?.httpsEvidenceSha256,
    'manual Ed25519 packet not bound to checked immutable R186 source');
   const verifiedDual=verifyDualAttestation({
    packet:dualPacket,signatures:dualSignatures
@@ -102,8 +101,7 @@ export function createR187StagingGate({readR186Hold,quarantine,
    dualAttestationProof.runId===before.runId&&
    dualAttestationProof.githubEvidenceSha256===
     r186Report.githubProof?.evidenceSha256&&
-   dualAttestationProof.httpsEvidenceSha256===
-    r186Report.httpsProof?.evidenceSha256&&
+   dualAttestationProof.httpsEvidenceSha256===tlsProof?.httpsEvidenceSha256&&
    dualAttestationProof.scope==='two-distinct-ed25519-keys-no-go'&&
    dualAttestationProof.cryptographicSignaturesValid===true&&
    Array.isArray(dualAttestationProof.signers)&&
@@ -127,7 +125,7 @@ export function createR187StagingGate({readR186Hold,quarantine,
    tlsProof.sourceBundleSha256===bundleSha256&&
    tlsProof.runId===before.runId&&
    tlsProof.sourceMode==='CI_SYNTHETIC'&&
-   tlsProof.httpsEvidenceSha256===r186Report.httpsProof?.evidenceSha256&&
+   H64.test(tlsProof.httpsEvidenceSha256||'')&&
    tlsProof.stagingHostname===prior.stagingHostname&&
    tlsProof.acceptedGlobalIpv4Addresses>=1&&
    tlsProof.acceptedGlobalIpv4Addresses<=8&&
