@@ -32,7 +32,7 @@ function context({repo,commit,root}){
 }
 async function content(root,path){
  guard(typeof path==='string'&&
-  /^(?:ops\/(?:r16[0-9]|r170|r171|r172|r173|r174|r175|r176|r177|r178|r179|r180|r181|r182|r183|r184|r185|r186|r187|test)\/|tests\/postgres\/)[a-z0-9._/-]+$/.test(path)&&
+  /^(?:ops\/(?:r16[0-9]|r170|r171|r172|r173|r174|r175|r176|r177|r178|r179|r180|r181|r182|r183|r184|r185|r186|r187|r188|test)\/|tests\/postgres\/)[a-z0-9._/-]+$/.test(path)&&
   !path.includes('..')&&!path.includes('//')&&!path.includes('/node_modules/')&&
   !/(?:secret|credential|private|\.pem|\.key|\.env)(?:\.|$)/.test(path),
   'unsafe source evidence path');
@@ -61,7 +61,7 @@ function canonical(manifest){
 }
 export async function buildR162Evidence({root,repo=REPO,commit,files=REQUIRE}={}){
  context({root,repo,commit});
- guard(Array.isArray(files)&&files.length>=REQUIRE.length&&files.length<=176,
+ guard(Array.isArray(files)&&files.length>=REQUIRE.length&&files.length<=192,
   'complete bounded file set required');
  const unique=[...new Set(files)];
  guard(unique.length===files.length&&REQUIRE.every(p=>unique.includes(p)),
@@ -85,7 +85,7 @@ export async function verifyR162Evidence(manifest,{root,repo=REPO,commit}={}){
   manifest.externalDeploymentVerified===false,
   'evidence cannot authorize production');
  guard(Array.isArray(manifest.files)&&manifest.files.length>=REQUIRE.length&&
-  manifest.files.length<=176&&manifest.files.every(f=>
+  manifest.files.length<=192&&manifest.files.every(f=>
    f&&typeof f.path==='string'&&typeof f.size==='number'&&
    typeof f.sha256==='string'&&/^[a-f0-9]{64}$/.test(f.sha256)&&
    Object.keys(f).sort().join(',')==='path,sha256,size'),
