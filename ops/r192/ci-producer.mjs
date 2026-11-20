@@ -25,6 +25,7 @@ await mkdir(target,{recursive:true,mode:0o700});
 await writeFile(join(target,'r192-public.json'),x.bytes,{flag:'wx',mode:0o600});
 const lines=[
  'package_sha='+x.fileSha256,
+ 'bundle_sha='+bundleSha256,
  'old_registry_sha='+x.oldRegistrySha256,
  'release_sha='+x.release.evidenceSha256,
  'review_sha='+x.review.evidenceSha256,

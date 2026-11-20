@@ -1,0 +1,143 @@
+name: "MARCOSA | R192 review, Ed25519 rotation, IAM risk and PG17 audited NO-GO"
+on:
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r192/**"
+      - "ops/test/r192.*"
+      - "tests/postgres/192_r192_no_go_recovery.sql"
+      - ".github/workflows/marcosa-r192-readiness.yml"
+      - "docs/MARCOSA_R192_*"
+  pull_request:
+    paths:
+      - "ops/r192/**"
+      - "ops/test/r192.*"
+      - "tests/postgres/192_r192_no_go_recovery.sql"
+      - ".github/workflows/marcosa-r192-readiness.yml"
+      - "docs/MARCOSA_R192_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r192-source-crypto-adversarial:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      package_sha: ${{ steps.produce.outputs.package_sha }}
+      bundle_sha: ${{ steps.produce.outputs.bundle_sha }}
+      old_registry_sha: ${{ steps.produce.outputs.old_registry_sha }}
+      release_sha: ${{ steps.produce.outputs.release_sha }}
+      review_sha: ${{ steps.produce.outputs.review_sha }}
+      iam_sha: ${{ steps.produce.outputs.iam_sha }}
+      rotation_sha: ${{ steps.produce.outputs.rotation_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify exact source and absence of cloud/OIDC privileges
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Five R192 adversarial suites
+        run: node --test ops/test/r192.acceptance.test.mjs
+      - name: Create canonical independent-verify public evidence
+        id: produce
+        run: node ops/r192/ci-producer.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r192-independent-public
+          path: ${{ runner.temp }}/r192-public/
+          if-no-files-found: error
+          retention-days: 1
+  r192-independent-crypto-replay:
+    needs: r192-source-crypto-adversarial
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R192_PACKAGE_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.package_sha }}
+      R192_OLD_REGISTRY_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.old_registry_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r192-independent-public
+          path: ${{ runner.temp }}/r192-independent/
+      - name: Reverify old Ed25519 keys, new registry, Git source, AWS and NO-GO
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          node ops/r192/ci-verify.mjs
+  r192-disposable-native-pg17:
+    needs: r192-source-crypto-adversarial
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r192-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r192-disposable-only
+      AWS_EC2_METADATA_DISABLED: "true"
+      R192_BUNDLE_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.bundle_sha }}
+      R192_RELEASE_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.release_sha }}
+      R192_REVIEW_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.review_sha }}
+      R192_IAM_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.iam_sha }}
+      R192_ROTATION_SHA: ${{ needs.r192-source-crypto-adversarial.outputs.rotation_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check native isolated PG17, no AWS/OIDC and exact source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$PGHOST" = "127.0.0.1"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          psql -X -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int BETWEEN 170000 AND 179999" | grep -qx t
+      - name: Install R192 native immutable FORCE RLS ledger
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres/192_r192_no_go_recovery.sql
+      - name: Real native PG17 audit, denial, backup, restore and replay rejection
+        env:
+          R192_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: node ops/r192/ci-native-pg17.mjs

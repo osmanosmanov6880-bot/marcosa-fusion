@@ -1,0 +1,12 @@
+# MARCOSA R192 — reviewer quorum, three-key rotation, AWS risk and native PG17
+20 ноября 2026. PR #168; не меняет main / production.
+
+## Пять полноценных инженерных блоков
+1. **R191 исправлен до запуска R192:** в S3 object ARN validator разрешена обычная точка внутри имени объекта. Предыдущая R191 CI-приёмка первоначально провалилась (3/5), исправление коммитом 534b657, повторная R191 CI завершилась 2/2 SUCCESS.
+2. **Current-HEAD reviewer readiness** (ops/r192/review-decision.mjs): exact SHA / GitHub R191 receipt, 3 раздельные роли, verified commit claim, unresolved CHANGES_REQUESTED, TTL, явные blockers; положительные synthetic approvals не равны живой личности.
+3. **Monotonic three-key Ed25519 trust rotation** (ops/r192/key-rotation.mjs): canonical old/new JSON, отдельный SHA-256 pin старого реестра, +1 generation, в каждом событии меняется ровно один публичный ключ, прежние три ключа обязаны подписать exact challenge SHA на оба реестра и git bundle, 60 секунд TTL, защита revoked/duplicate/replay. Никогда не разрешает production.
+4. **Two-account AWS safety risk classifier** (ops/r192/aws-risk.mjs): на основе R191 STS/IAM 12 запрещаемых операций на аккаунт, формирование отдельных действий при незапрещённом опасном API; реальный effective IAM/SCP/KMS отдельно обязателен.
+5. **Immutable native PG17 release and independent packet** (ops/r192/native-ledger.mjs, tests/postgres/192_r192_no_go_recovery.sql, ops/r192/ci-native-pg17.mjs, ops/r192/release-verdict.mjs, ops/r192/ci-fixture.mjs, ops/r192/ci-producer.mjs, ops/r192/ci-verify.mjs, ops/test/r192.acceptance.test.mjs and workflow marcosa-r192-readiness.yml): serializable one-use atomic hold/audit, FORCE RLS, NOLOGIN writer, no UPDATE/DELETE, real native pg_dump -Fc and second DB restore plus replay refusal; human-readable remediation per blocker; two independent Node runners to recheck true Ed25519 and Git source/registry SHA. Three CI jobs with separate PG17 service and no AWS credentials.
+
+## Production status
+Все упражнения и облачные ответы CI являются синтетическими. Ed25519 проверяется реальной криптографией, но ключи создаются одноразово; actual IAM effective rights, GitHub Environment approvals, доверенная личность подписантов, TLS staging, live data privacy, RPO/RTO должны оцениваться вне CI. Даже все SUCCESS не разрешают реальный пилот и production. realPilotAuthorized=false; productionAuthorized=false.

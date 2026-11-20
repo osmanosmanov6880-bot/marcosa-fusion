@@ -12,7 +12,7 @@ ok(e.GITHUB_ACTIONS==='true'&&
  /^[a-f0-9]{40}$/.test(e.GITHUB_SHA||'')&&
  /^[a-f0-9]{12,64}$/.test(e.R192_PG_CONTAINER||'')&&
  e.PGHOST==='127.0.0.1'&&e.PGDATABASE==='postgres'&&
- [e.R192_RELEASE_SHA,e.R192_REVIEW_SHA,e.R192_IAM_SHA,e.R192_ROTATION_SHA]
+ [e.R192_BUNDLE_SHA,e.R192_RELEASE_SHA,e.R192_REVIEW_SHA,e.R192_IAM_SHA,e.R192_ROTATION_SHA]
   .every(v=>/^[a-f0-9]{64}$/.test(v||''))&&
  !e.AWS_ACCESS_KEY_ID&&!e.AWS_SECRET_ACCESS_KEY&&
  !e.AWS_SESSION_TOKEN&&!e.ACTIONS_ID_TOKEN_REQUEST_TOKEN,
@@ -30,7 +30,7 @@ ok(sql('postgres',"SELECT current_setting('server_version_num')::int BETWEEN 170
 const packet={
  sourceCommit:e.GITHUB_SHA,
  parentR191Commit:'534b65791b21b514b96894014def478352ba8a70',
- sourceBundleSha256:sha('R192-DISPOSABLE:'+e.GITHUB_SHA),
+ sourceBundleSha256:e.R192_BUNDLE_SHA,
  reviewEvidenceSha256:e.R192_REVIEW_SHA,
  iamRiskEvidenceSha256:e.R192_IAM_SHA,
  rotationEvidenceSha256:e.R192_ROTATION_SHA,
