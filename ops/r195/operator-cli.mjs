@@ -63,9 +63,9 @@ export async function runR195Cli({argv=process.argv.slice(2),
   p.afterAssessment.intakeEvidenceSha256===p.afterIntake.evidenceSha256,
   'assessment does not bind actual source intake');
  const evidenceDelta=compareR194Evidence({commit,bundleSha256,
-  before:p.beforeIntake,after:p.afterIntake,clock:()=>at});
+  before:p.beforeIntake,after:p.afterIntake,clock:()=>p.evidenceDelta.observedAtMs});
  const riskTrend=compareR194Readiness({commit,bundleSha256,
-  before:p.beforeAssessment,after:p.afterAssessment,clock:()=>at});
+  before:p.beforeAssessment,after:p.afterAssessment,clock:()=>p.riskTrend.observedAtMs});
  requireTrue(JSON.stringify(evidenceDelta)===JSON.stringify(p.evidenceDelta)&&
   JSON.stringify(riskTrend)===JSON.stringify(p.riskTrend),
   'R194 comparison changed since original source');
