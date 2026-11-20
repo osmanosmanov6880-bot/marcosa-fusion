@@ -17,7 +17,7 @@ function scope(x){
   typeof x.kmsKeyArn==='string'&&
   x.kmsKeyArn.startsWith('arn:aws:kms:'+x.region+':'+x.accountId+':key/')&&
   typeof x.s3ObjectArn==='string'&&
-  /^arn:aws:s3:::[a-z0-9.-]{3,63}\/[a-zA-Z0-9/_-]{1,120}$/.test(x.s3ObjectArn),
+  /^arn:aws:s3:::[a-z0-9.-]{3,63}\/[a-zA-Z0-9/_.-]{1,120}$/.test(x.s3ObjectArn),
   'explicit pinned IAM role, KMS and S3 object scope required');
 }
 export async function inspectR191AwsDenials({
