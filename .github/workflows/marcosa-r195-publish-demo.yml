@@ -1,0 +1,145 @@
+name: "MARCOSA | Publish isolated R195 DEMO branch (not production)"
+on:
+  push:
+    branches: ["feature/marcosa-r150-growth-economics"]
+    paths:
+      - ".github/workflows/marcosa-r195-publish-demo.yml"
+      - "ops/r195/**"
+      - "tools/browser/r195-audit-desk.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: marcosa-r195-static-demo-only
+  cancel-in-progress: true
+jobs:
+  build-and-browser-accept:
+    if: github.ref == 'refs/heads/feature/marcosa-r150-growth-economics'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Refuse unexpected source and provider secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$GITHUB_REF" = "refs/heads/feature/marcosa-r150-growth-economics"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+      - name: Verify six substantive security and provenance test suites
+        run: node --test ops/test/r195.acceptance.test.mjs
+      - name: Run the real mobile/desktop Chromium user journey
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --prefix tools/browser --ignore-scripts --no-audit --no-fund
+          npx --prefix tools/browser playwright install --with-deps chromium
+          node tools/browser/r195-audit-desk.mjs
+      - name: Generate actual synthetic-only index.html and six team packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p r195-public-demo/handoffs
+          node --input-type=module <<'NODE'
+          import {execFileSync} from 'node:child_process';
+          import {createHash} from 'node:crypto';
+          import {writeFileSync} from 'node:fs';
+          import {buildR194Fixture} from './ops/r194/fixture.mjs';
+          import {renderR195Dashboard} from './ops/r195/dashboard.mjs';
+          const commit=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
+          if(commit!==process.env.GITHUB_SHA) throw Error('Source SHA drift');
+          const tree=execFileSync('git',['rev-parse','HEAD^{tree}'],{encoding:'utf8'}).trim();
+          const bundleSha256=createHash('sha256').update(tree).digest('hex');
+          const f=await buildR194Fixture({commit,bundleSha256});
+          const result=renderR195Dashboard({commit,bundleSha256,
+            assessment:f.after.assessment,ledger:f.board,
+            evidenceDelta:f.evidenceDelta,riskTrend:f.riskTrend});
+          if(result.productionAuthorized!==false||result.handoffs.byOwner.length!==6
+             ||result.handoffs.totalControls!==8||!result.html.includes('NO-GO'))
+            throw Error('Demo release safety gate');
+          const path='r195-public-demo/';
+          writeFileSync(path+'index.html',result.html);
+          writeFileSync(path+'report.md',result.markdown);
+          const manifest=result.handoffs.manifest;
+          writeFileSync(path+'handoffs/manifest.json',
+            JSON.stringify({...manifest,manifestSha256:result.handoffManifestSha256},null,2)+'\n');
+          for(const owner of result.handoffs.byOwner) {
+            writeFileSync(path+'handoffs/'+owner.owner+'.md',owner.markdown);
+            writeFileSync(path+'handoffs/'+owner.owner+'.csv','\ufeff'+owner.csv);
+          }
+          writeFileSync(path+'preview.json',JSON.stringify({
+            kind:'MARCOSA_R195_PUBLIC_SYNTHETIC_DEMO',
+            sourceCommit:commit,bundleSha256,
+            htmlSha256:result.htmlSha256,
+            fixture:true,
+            realPilotAuthorized:false,productionAuthorized:false,
+            notice:'Synthetic static preview. No real providers, personal data or approval.',
+          },null,2)+'\n');
+          NODE
+          test -s r195-public-demo/index.html
+          test -s r195-public-demo/handoffs/SECURITY.csv
+      - name: Upload reproducible preview files for separate static publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r195-publishable-demo
+          path: r195-public-demo/
+          if-no-files-found: error
+          retention-days: 7
+  publish-static-preview-branch:
+    needs: build-and-browser-accept
+    if: github.ref == 'refs/heads/feature/marcosa-r150-growth-economics'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout isolated public-preview branch, not main
+        uses: actions/checkout@v4
+        with:
+          ref: marcosa-r195-preview
+          persist-credentials: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: marcosa-r195-publishable-demo
+          path: ${{ runner.temp }}/r195-accepted-demo/
+      - name: Publish ONLY public static synthetic demo to isolated preview branch
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git branch --show-current)" = "marcosa-r195-preview"
+          mkdir -p previews/r195
+          cp -R "$RUNNER_TEMP/r195-accepted-demo/." previews/r195/
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const m=JSON.parse(readFileSync('previews/r195/preview.json'));
+          if(m.kind!=='MARCOSA_R195_PUBLIC_SYNTHETIC_DEMO'||
+             m.sourceCommit!==process.env.RELEASE_SHA||
+             m.fixture!==true||m.productionAuthorized!==false||
+             m.realPilotAuthorized!==false)throw Error('Refuse unpinned or unsafe preview');
+          NODE
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add previews/r195
+          if git diff --cached --quiet; then
+            echo "Preview already matches reviewed source."
+          else
+            git commit -m "preview(r195): publish synthetic-only accepted offline Audit Desk at $RELEASE_SHA"
+            git push origin HEAD:refs/heads/marcosa-r195-preview
+          fi
+          echo "MARCOSA_R195_PREVIEW_SOURCE=$RELEASE_SHA"
+          echo "MARCOSA_R195_PREVIEW_BRANCH=marcosa-r195-preview"
+          echo "MARCOSA_R195_PRODUCTION_UNCHANGED=TRUE"
