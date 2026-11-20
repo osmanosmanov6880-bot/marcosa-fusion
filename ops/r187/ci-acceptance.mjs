@@ -220,11 +220,17 @@ if(env.R187_SECOND_RUNNER==='true'){
     sha256:fields[2],expired:fields[3]==='true'};
   });
  };
- const roleDelete=(query)=>sql('postgres',
-  "BEGIN;\nSET LOCAL ROLE marcosa_r187_retention_worker;\n"+
-  "WITH removed AS (DELETE FROM r187_ci.synthetic_retention "+
-  query+" RETURNING ordinal) "+
-  "SELECT count(*)::text FROM removed;\nCOMMIT;");
+ const roleDelete=query=>{
+  const result=sql('postgres',
+   "BEGIN;\nSET LOCAL ROLE marcosa_r187_retention_worker;\n"+
+   "WITH removed AS (DELETE FROM r187_ci.synthetic_retention "+
+   query+" RETURNING ordinal) "+
+   "SELECT count(*)::text FROM removed;\nCOMMIT;");
+  const rows=result.split(/\r?\n/).map(x=>x.trim())
+   .filter(x=>/^\d{1,2}$/.test(x));
+  ok(rows.length===1,'bounded PostgreSQL retention SELECT count missing');
+  return rows[0];
+ };
  ok(roleDelete('WHERE ordinal=5')==='0',
   'FORCE RLS mistakenly permitted active synthetic record deletion');
  const retention=await createR187PrivacyRetention({
