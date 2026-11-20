@@ -1,0 +1,52 @@
+name: "MARCOSA R3 read-only API contract scan"
+on:
+  push:
+    branches: ["feature/marcosa-r150-growth-economics"]
+    paths: [".github/workflows/marcosa-r3-read-api-contract.yml"]
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Confirm pinned host and read only public route names
+        shell: bash
+        env:
+          HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          USERNAME: ${{ secrets.MARCOSA_STAGING_USER }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test "$HOST" = '169.58.48.38'
+          test "$USERNAME" = 'marcosa-deploy'
+          source ops/load-pinned-staging-host.sh
+          umask 077
+          DIR="$(mktemp -d)"
+          trap 'rm -rf -- "$DIR"' EXIT
+          printf '%s\n' "$KEY" >"$DIR/key"
+          printf '%s\n' "$KNOWN_HOSTS" >"$DIR/hosts"
+          chmod 600 "$DIR/key" "$DIR/hosts"
+          ssh -i "$DIR/key" -p 22 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DIR/hosts" "$USERNAME@$HOST" 'python3 -' <<'REMOTE'
+          import ast, os, re
+          root="/opt/marcosa-club/current"
+          p=root+"/server/app.py"
+          print("API_CONTRACT_ACCESS",os.path.isfile(p),os.access(p,os.R_OK))
+          if not os.access(p,os.R_OK):raise SystemExit(0)
+          tree=ast.parse(open(p,encoding="utf-8").read())
+          for node in ast.walk(tree):
+              if isinstance(node,ast.FunctionDef) and node.name in ("do_GET","do_POST","dispatch","handle","api","route"):
+                  print("HANDLER",node.name,node.lineno)
+                  for leaf in ast.walk(node):
+                      if isinstance(leaf,ast.Constant) and isinstance(leaf.value,str) and leaf.value.startswith("/api/club/"):
+                          print("ROUTE",leaf.value[:120])
+          for fil in ("club.js","index.html"):
+              path="/opt/marcosa/current/"+fil
+              if os.access(path,os.R_OK):
+                  body=open(path,encoding="utf-8").read()
+                  names=sorted(set(re.findall(r'/api/club/[A-Za-z0-9_/-]+',body)))
+                  print("FRONTEND_ROUTES",fil,names[:90])
+          print("MARCOSA_R3_READ_ONLY_DONE")
+          REMOTE
