@@ -51,8 +51,8 @@ function decodeRegistry(bytes){
 }
 export function r192RotationMessage(packet){
  requireTrue(plain(packet)&&Object.keys(packet).sort().join(',')===
-  'expiresAtMs,issuedAtMs,newRegistrySha256,nonce,oldRegistrySha256,sourceCommit'&&
-  H40.test(packet.sourceCommit||'')&&
+  'bundleSha256,expiresAtMs,issuedAtMs,newRegistrySha256,nonce,oldRegistrySha256,sourceCommit'&&
+  H40.test(packet.sourceCommit||'')&&H64.test(packet.bundleSha256||'')&&
   [packet.oldRegistrySha256,packet.newRegistrySha256].every(x=>H64.test(x||''))&&
   /^[a-f0-9]{32}$/.test(packet.nonce||'')&&
   Number.isSafeInteger(packet.issuedAtMs)&&
@@ -63,10 +63,10 @@ export function r192RotationMessage(packet){
  return Buffer.from(challengePrefix+JSON.stringify(packet));
 }
 export function verifyR192KeyRotation({
- oldBytes,newBytes,expectedOldSha256,challenge,signatures,
+ oldBytes,newBytes,expectedOldSha256,bundleSha256,challenge,signatures,
  revokedFingerprintSha256=[],clock=()=>Date.now()
 }={}){
- requireTrue(H64.test(expectedOldSha256||'')&&
+ requireTrue(H64.test(expectedOldSha256||'')&&H64.test(bundleSha256||'')&&
   Array.isArray(revokedFingerprintSha256)&&
   revokedFingerprintSha256.every(x=>H64.test(x||''))&&
   typeof clock==='function','separate externally pinned old registry required');
@@ -87,7 +87,7 @@ export function verifyR192KeyRotation({
  }
  requireTrue(changed===1,'exactly one reviewer key may rotate per event');
  requireTrue(challenge?.sourceCommit===old.record.sourceCommit&&
-  challenge.oldRegistrySha256===old.sha&&
+  challenge.bundleSha256===bundleSha256&&challenge.oldRegistrySha256===old.sha&&
   challenge.newRegistrySha256===next.sha,
   'rotation challenge hashes not bound to both registry versions');
  const msg=r192RotationMessage(challenge);
@@ -114,7 +114,7 @@ export function verifyR192KeyRotation({
  }
  return sealReceipt({schemaVersion:1,kind:'R192_ROTATION',
   sourceCommit:old.record.sourceCommit,
-  sourceBundleSha256:challenge.newRegistrySha256,
+  sourceBundleSha256:bundleSha256,
   oldRegistrySha256:old.sha,newRegistrySha256:next.sha,
   priorGeneration:old.record.generation,newGeneration:next.record.generation,
   actualRotations:changed,verifiedOldSignerCount:3,observedAtMs:now,

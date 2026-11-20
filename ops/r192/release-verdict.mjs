@@ -32,8 +32,8 @@ export function assessR192Release({commit,bundleSha256,
    (r.expiresAtMs===undefined||t<=r.expiresAtMs),
    'evidence readback stale or from future');
  }
- requireTrue(a.githubEvidenceSha256&&
-  a.githubQuorumClaim===true||a.githubQuorumClaim===false,
+ requireTrue(H64.test(a.githubEvidenceSha256||'')&&
+  typeof a.githubQuorumClaim==='boolean',
   'reviewer claim must be explicit and source-bound');
  requireTrue(b.verifiedOldSignerCount===3&&b.actualRotations===1&&
   b.priorGeneration+1===b.newGeneration&&
