@@ -94,7 +94,23 @@ export function createR187StagingGate({readR186Hold,quarantine,
   const verifiedDual=verifyDualAttestation({
    packet:dualPacket,signatures:dualSignatures
   });
-  ok(verifiedDual?.evidenceSha256===dualAttestationProof?.evidenceSha256,
+  // A re-verification has a NEW observedAtMs; the resulting receipt
+  // hash is expected to change. Compare the cryptographically stable
+  // verified payload, signer fingerprints, roles and source instead.
+  // The original receipt must still independently pass proofHash below.
+  const comparable=x=>{
+   if(!x||Object.getPrototypeOf(x)!==Object.prototype)return null;
+   const {observedAtMs,evidenceSha256,...stable}=x;
+   return stable;
+  };
+  ok(verifiedDual?.cryptographicSignaturesValid===true&&
+   dualAttestationProof?.cryptographicSignaturesValid===true&&
+   Number.isSafeInteger(verifiedDual.observedAtMs)&&
+   Number.isSafeInteger(dualAttestationProof.observedAtMs)&&
+   verifiedDual.observedAtMs>=dualAttestationProof.observedAtMs&&
+   verifiedDual.observedAtMs-dualAttestationProof.observedAtMs<=60000&&
+   JSON.stringify(comparable(verifiedDual))===
+    JSON.stringify(comparable(dualAttestationProof)),
    'Ed25519 signatures must be reverified against pinned public keys');
   ok(dualAttestationProof?.sourceCommit===commit&&
    dualAttestationProof.bundleSha256===bundleSha256&&
