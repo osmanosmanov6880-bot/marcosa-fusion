@@ -1,0 +1,3 @@
+﻿"control","owner","priority","currentStatus","localTask","riskTrend","evidenceRevision","action","independentApproval","release"
+"PR_REVIEWS","GOVERNANCE","1","BLOCKED","OPEN","UNMODIFIED","NOT_APPLICABLE","Получить актуальные reviews от Security, Operations и Privacy","REQUIRED","NO_GO"
+"HUMAN_IDENTITY","GOVERNANCE","1","MISSING","OPEN","UNMODIFIED","UNCHANGED","Независимо подтвердить личности владельцев ключей и GitHub аккаунтов","REQUIRED","NO_GO"

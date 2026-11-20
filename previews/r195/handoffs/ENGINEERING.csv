@@ -1,0 +1,2 @@
+﻿"control","owner","priority","currentStatus","localTask","riskTrend","evidenceRevision","action","independentApproval","release"
+"SOURCE_AND_CI","ENGINEERING","1","OBSERVED_UNATTESTED","OPEN","UNMODIFIED","NOT_APPLICABLE","Зафиксировать GitHub HEAD, проверенный run и успешный полный CI","REQUIRED","NO_GO"

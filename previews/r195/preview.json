@@ -1,0 +1,10 @@
+{
+  "kind": "MARCOSA_R195_PUBLIC_SYNTHETIC_DEMO",
+  "sourceCommit": "8b44191b2b555c5c579d569338899bc2769d2588",
+  "bundleSha256": "42d4bb17f001b95d5935776ec5678950747432670a5fd536550b9798bea9b487",
+  "htmlSha256": "4003157b0a3488999a4740142382dc91f65074eb309de9b91de07d834c448e8a",
+  "fixture": true,
+  "realPilotAuthorized": false,
+  "productionAuthorized": false,
+  "notice": "Synthetic static preview. No real providers, personal data or approval."
+}

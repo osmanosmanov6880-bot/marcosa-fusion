@@ -1,0 +1,2 @@
+﻿"control","owner","priority","currentStatus","localTask","riskTrend","evidenceRevision","action","independentApproval","release"
+"GITHUB_ENVIRONMENT","DEVOPS","1","MISSING","OPEN","UNMODIFIED","UNCHANGED","Проверить реальные правила environment, полномочия и историю approvals","REQUIRED","NO_GO"

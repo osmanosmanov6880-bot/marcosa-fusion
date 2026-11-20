@@ -1,0 +1,3 @@
+﻿"control","owner","priority","currentStatus","localTask","riskTrend","evidenceRevision","action","independentApproval","release"
+"TLS_ORIGIN","SECURITY","2","BLOCKED","BLOCKED_LOCAL","DEGRADED","HASH_AND_CLAIM_CHANGED","Сравнить сертификат, DNS и отпечаток с независимым доверенным источником","REQUIRED","NO_GO"
+"AWS_EFFECTIVE_RIGHTS","SECURITY","1","BLOCKED","OPEN","UNMODIFIED","UNCHANGED","Независимо проверить IAM, SCP, KMS, resource policies и фактические разрешения","REQUIRED","NO_GO"

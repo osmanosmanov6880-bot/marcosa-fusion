@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light"><meta name="referrer" content="no-referrer"><meta http-equiv="Content-Security-Policy" content="default-src &#39;none&#39;; style-src &#39;unsafe-inline&#39;; script-src &#39;sha256-3p5aRCTawcwdsFlpOTldFnLYziXQCcjAcEfi3BIc3pk=&#39;; connect-src &#39;none&#39;; base-uri &#39;none&#39;; form-action &#39;none&#39;"><title>MARCOSA | Staging Audit R193</title><style>html{background:#080f20;color:#edf2ff;scroll-behavior:smooth}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',Arial,sans-serif;line-height:1.52}
+a{color:inherit;text-decoration:none} a:hover{text-decoration:underline}
+.shell{max-width:1200px;margin:auto;padding:clamp(16px,4vw,48px)}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #243251;padding-bottom:20px}
+.logo{font-weight:800;letter-spacing:.22em;font-size:13px}.version{font-size:12px;color:#a8b7d0}
+nav{display:flex;gap:20px;flex-wrap:wrap;color:#b6c8ea;font-size:13px}
+.hero{padding:clamp(36px,7vw,86px) 0 34px;display:grid;grid-template-columns:minmax(0,1fr) minmax(230px,360px);gap:28px;align-items:end}
+.eyebrow{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#c5a87b}
+h1{font-size:clamp(38px,6vw,76px);letter-spacing:-.045em;line-height:1.04;margin:14px 0 18px;font-weight:650}
+p{margin:0 0 12px}.sub{color:#b7c3d8;max-width:65ch;font-size:clamp(15px,2vw,18px)}
+.stamp{border:1px solid #42516b;background:#0b172c;border-radius:18px;padding:24px}
+.stamp .label{font-size:12px;color:#aab9d2;text-transform:uppercase;letter-spacing:.14em}
+.stamp strong{display:block;font-size:30px;letter-spacing:.13em;margin:10px 0;color:#e8d6c4}
+.stamp small{color:#adbed8;line-height:1.6;display:block}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:24px 0 44px}
+.metric{border:1px solid #263655;background:#0c1830;border-radius:16px;padding:21px}
+.metric .num{font-variant-numeric:tabular-nums;font-size:32px;display:block;font-weight:600}
+.metric .meta{color:#abbad3;font-size:12px}
+h2{font-size:clamp(23px,2.8vw,35px);margin:0 0 16px;letter-spacing:-.02em;font-weight:600}
+.sec{margin:44px 0}.intro{color:#aebdd3;margin:0 0 19px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.control{background:#111e36;border:1px solid #293855;border-radius:18px;padding:23px;min-width:0}
+.control-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.control h3{font-size:18px;margin:8px 0 10px;font-weight:600}
+.control .id{letter-spacing:.13em;font-size:11px;color:#98adc9}
+.pill{display:inline-block;white-space:normal;text-align:right;font-size:11px;padding:6px 10px;border-radius:30px;background:#25344f;color:#dce6f4}
+.pill.blocked{color:#f4b6a9;background:#3b2733}
+.pill.missing{color:#becce1;background:#263249}
+.pill.claimed{color:#efdaae;background:#3d372a}
+.pill.observed{color:#aedacb;background:#1e3936}
+.detail{color:#bfd0e7;font-size:14px;margin:12px 0 16px}
+.owner{color:#9eb1c7;font-size:12px;text-transform:uppercase;letter-spacing:.1em}
+.card-footer{margin-top:18px;border-top:1px solid #2a3753;padding-top:15px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+code{font-size:12px;color:#d2ddf2;word-break:break-all;overflow-wrap:anywhere}
+.tasks{counter-reset:tasks;display:grid;gap:9px}
+.task{border-bottom:1px solid #263454;display:grid;grid-template-columns:44px 1fr auto;gap:13px;align-items:center;padding:13px 0}
+.task:before{counter-increment:tasks;content:counter(tasks,decimal-leading-zero);color:#c5a87b;font-size:14px}
+.task strong{display:block;font-weight:600}.task small{color:#bdcbe0}.task .owner{white-space:nowrap}
+.fine{font-size:12px;color:#9cadc9;line-height:1.65}
+.meta-table{width:100%;border-collapse:collapse;max-width:100%;table-layout:fixed}
+.meta-table th,.meta-table td{text-align:left;border-bottom:1px solid #263454;padding:11px 0;vertical-align:top;word-wrap:break-word}
+.meta-table th{color:#a7b7d0;font-size:13px;font-weight:450;width:160px}
+footer{border-top:1px solid #263454;margin-top:55px;padding-top:22px;display:flex;justify-content:space-between;gap:15px;color:#a6b7cf;font-size:12px}
+:focus-visible{outline:2px solid #e0bf82;outline-offset:4px}
+@media(max-width:780px){.hero{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}.cards{grid-template-columns:1fr}.task{grid-template-columns:35px 1fr}.task .owner{grid-column:2}.stamp{max-width:400px}header{align-items:flex-start;flex-direction:column}footer{flex-direction:column}}
+@media(max-width:380px){.shell{padding:15px}.metrics{gap:8px}.metric{padding:15px}.control{padding:17px}.pill{font-size:10px}.meta-table th{width:110px}}
+@media print{html{background:#fff;color:#152031}body{background:#fff}.stamp,.control,.metric{background:#fff;border-color:#aeb7c5;color:#152031}.pill,.detail,.fine,.intro,.meta-table th,.owner,.meta,.sub,.version,nav,.eyebrow,.stamp small,.stamp .label,.task small{color:#34445a!important}a{text-decoration:underline}.sec{break-inside:avoid}}.r194-workbench{border:1px solid #314265;background:#0d1b33;border-radius:22px;padding:clamp(16px,3vw,32px)}
+.r194-controls{margin-top:18px;border-top:1px solid #32425e;padding-top:14px}
+.r194-progress{font-size:12px;color:#d1bc98;display:block;margin-bottom:10px}
+.r194-buttons{display:flex;flex-wrap:wrap;gap:7px}
+.r194-smallbtn,.r194-button{font:inherit;border:1px solid #536483;border-radius:10px;background:#172944;color:#e8edf8;padding:9px 12px;cursor:pointer;font-size:12px;min-height:40px}
+.r194-smallbtn:hover,.r194-button:hover{border-color:#d5b47d}
+.r194-smallbtn:disabled{opacity:.38;cursor:not-allowed}
+.r194-input,.r194-select,.r194-textarea{font:inherit;background:#111d33;border:1px solid #506080;border-radius:10px;color:#f0f4fc;padding:11px 13px;min-height:45px;width:100%;max-width:100%}
+.r194-input:focus,.r194-select:focus,.r194-textarea:focus{outline:2px solid #d6b98d;outline-offset:2px}
+.r194-textarea{font-family:ui-monospace,monospace;min-height:120px;resize:vertical;font-size:12px}
+.r194-toolgrid{display:grid;grid-template-columns:2fr 1fr;gap:14px;margin:20px 0 12px}
+.r194-label{display:block;font-size:12px;color:#b9c8e0;margin-bottom:8px}
+.r194-note{color:#9eb5d5;font-size:12px;line-height:1.6;margin:12px 0}
+.r194-exchange{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+.r194-results{font-size:13px;color:#dfcfb1;margin-top:11px}
+.r194-status{min-height:1.7em;font-size:12px;color:#b9cbe3;margin-top:13px}
+article.control[hidden]{display:none!important}
+@media(max-width:780px){.r194-toolgrid,.r194-exchange{grid-template-columns:1fr}}
+@media print{.r194-workbench,.r194-controls{display:none!important}}.r195-section{border:1px solid #2b3d5c;border-radius:19px;background:#0e1a31;padding:clamp(17px,3vw,30px)}
+.r195-matrix{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:20px}
+.r195-row{padding:17px;border-radius:13px;border:1px solid #304361;background:#12213d;min-width:0}
+.r195-row strong{display:block;font-size:13px;margin-bottom:6px;font-weight:600;overflow-wrap:anywhere}
+.r195-row small{display:block;color:#b0c4e0;font-size:12px;line-height:1.5}
+.r195-flag{display:inline-block;font-size:11px;color:#e6bd8d;letter-spacing:.04em;margin-bottom:6px}
+.r195-flag.risk{color:#f5aea5}.r195-flag.better{color:#bbd7c7}
+.r195-handoff{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:20px}
+.r195-owner{border:1px solid #324361;border-radius:12px;padding:17px;background:#0d1b35}
+.r195-owner strong{display:block;font-size:13px;letter-spacing:.07em}
+.r195-owner small{display:block;margin:8px 0 15px;color:#a8bbd4}
+.r195-action,.r195-button{font:inherit;background:#192e4c;color:#e5edfc;border:1px solid #5a6c8c;min-height:43px;padding:10px 13px;border-radius:9px;font-size:12px;cursor:pointer}
+.r195-action:disabled{opacity:.34;cursor:not-allowed}
+.r195-action:hover:not(:disabled),.r195-button:hover{border-color:#dfc48b}
+.r195-controls{border-top:1px solid #344661;padding-top:15px;margin-top:16px}
+.r195-progress{font-size:12px;color:#d8ba86;display:block;margin-bottom:12px}
+.r195-buttons{display:flex;gap:7px;flex-wrap:wrap}
+.r195-filezone{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px}
+.r195-label{display:block;font-size:13px;margin-bottom:8px;color:#d2ddf2}
+.r195-file,.r195-textarea,.r195-select{width:100%;border:1px solid #526581;border-radius:10px;background:#101e37;color:#f0f4fa;padding:11px;font:inherit;font-size:13px}
+.r195-textarea{font-family:ui-monospace,monospace;min-height:145px;resize:vertical;font-size:12px}
+.r195-select{min-height:44px}
+.r195-buttons-row{display:flex;gap:9px;flex-wrap:wrap;margin:13px 0}
+.r195-history{margin:10px 0 0;padding-left:22px;color:#b7c9df;font-size:12px;line-height:1.9;max-height:320px;overflow-y:auto}
+.r195-helper{font-size:12px;color:#a5b9d4;margin-top:10px;line-height:1.6}
+.r195-status{font-size:12px;color:#e5c9a4;min-height:40px;margin-top:10px}
+.r195-summary{margin:15px 0;color:#acbfdb;font-size:13px}
+.r195-tag{font-size:11px;color:#dbbe8b;font-weight:500}
+.r194-exchange[hidden]{display:none!important}
+button:focus-visible,select:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid #dfc48b;outline-offset:3px}
+@media(max-width:800px){.r195-handoff{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:650px){.r195-filezone,.r195-matrix,.r195-handoff{grid-template-columns:1fr}}
+@media print{.r195-controls,.r195-filezone,.r195-action,.r195-button,.r195-history{display:none!important}}</style></head><body><div class="shell"><header><div class="logo">MARCOSA <span class="version">/ AUDIT DESK R195</span></div><nav aria-label="Разделы"><a href="#overview">Обзор</a><a href="#checks">Проверки</a><a href="#actions">План действий</a><a href="#source">Источники</a></nav></header><section class="sec r194-workbench" id="workbench"><p class="eyebrow">LOCAL OPERATOR WORKSPACE</p><h2>Рабочий кабинет</h2><p class="intro">Поиск, фильтры и локальные отметки. Выполнение задачи не означает разрешения на пилот или production.</p><div class="r194-toolgrid"><div class="r195-owner-select"><label class="r195-label" for="r195-owner">Ответственный</label><select id="r195-owner" class="r195-select"><option value="ALL">Все роли</option><option value="ENGINEERING">ENGINEERING</option><option value="GOVERNANCE">GOVERNANCE</option><option value="DEVOPS">DEVOPS</option><option value="SECURITY">SECURITY</option><option value="OPERATIONS">OPERATIONS</option><option value="PRIVACY">PRIVACY</option></select></div><div><label class="r194-label" for="r194-search">Поиск направления</label><input id="r194-search" class="r194-input" type="search" maxlength="80" placeholder="Например, TLS или AWS"></div><div><label class="r194-label" for="r194-filter">Статус</label><select class="r194-select" id="r194-filter"><option value="ALL">Все</option><option value="BLOCKED">Заблокировано</option><option value="MISSING">Нет свидетельств</option><option value="CLAIM_UNVERIFIED">Заявлено</option><option value="OBSERVED_UNATTESTED">Наблюдено</option><option value="LOCAL_DONE">Локально выполнено</option></select></div></div><p id="r194-results" class="r194-results" aria-live="polite"></p><div class="r194-exchange" hidden><div><label class="r194-label" for="r194-export-json">Экспорт локального черновика JSON</label><textarea id="r194-export-json" class="r194-textarea" readonly></textarea><button type="button" id="r194-export" class="r194-button">Подготовить экспорт</button></div><div><label class="r194-label" for="r194-import-json">Вставьте ранее экспортированный черновик</label><textarea id="r194-import-json" class="r194-textarea" maxlength="30000"></textarea><button type="button" id="r194-import" class="r194-button">Импортировать</button><button type="button" id="r194-reset" class="r194-button">Сбросить</button></div></div><p class="r194-note">Данные существуют только в памяти открытой вкладки. Сохраните JSON вручную: закрытие страницы сбрасывает изменения. Не вводите персональные данные, токены или пароли.</p><p id="r194-status" class="r194-status" hidden aria-live="polite"></p></section><section class="sec r195-section" id="r195-workspace"><p class="eyebrow">PRIVATE LOCAL DRAFT / V2</p><h2>Черновик оператора</h2><p class="intro">История всех новых действий проверяется по SHA-256. Цепочка защищает от случайной порчи, но не удостоверяет личность.</p><div class="r195-filezone"><div><label class="r195-label" for="r195-file">Импортировать сохранённый файл JSON</label><input class="r195-file" id="r195-file" type="file" accept=".json,application/json"><label class="r195-label" for="r195-paste" style="margin-top:16px">Или вставить текст JSON</label><textarea id="r195-paste" class="r195-textarea" maxlength="70000" placeholder="Черновик MARCOSA R195 v2"></textarea><div class="r195-buttons-row"><button type="button" class="r195-button" id="r195-import">Проверить и импортировать</button><button type="button" class="r195-button" id="r195-reset">Новый черновик</button></div></div><div><label class="r195-label" for="r195-export-text">Подготовленный JSON для копирования</label><textarea id="r195-export-text" class="r195-textarea" readonly></textarea><div class="r195-buttons-row"><button type="button" class="r195-button" id="r195-export">Скачать проверенный JSON</button></div><p class="r195-helper">Сохранение только вручную. Ни токены, ни пароли, ни персональные данные вводить не нужно. JSON — локальная запись, не внешний акт согласования.</p></div></div><div><h3>Последние локальные события <span class="r195-tag" id="r195-count">0</span></h3><ol id="r195-history" class="r195-history"></ol></div><p id="r195-message" role="status" aria-live="polite" class="r195-status"></p></section><main><section class="hero" id="overview"><div><p class="eyebrow">Independent staging readiness</p><h1>Проверка<br>готовности.</h1><p class="sub">Свидетельства GitHub и операторов разделены. Синтетические тесты и заявления не дают права на запуск.</p></div><aside class="stamp" aria-label="Решение"><span class="label">Release decision</span><strong>NO-GO</strong><small>Реальный пилот и production заблокированы до независимой приёмки.</small></aside></section><section class="metrics" aria-label="Сводка"><div class="metric"><span class="num">3</span><span class="meta">Заблокировано</span></div><div class="metric"><span class="num">3</span><span class="meta">Не предоставлено</span></div><div class="metric"><span class="num">1</span><span class="meta">Заявлено</span></div><div class="metric"><span class="num">1</span><span class="meta">Наблюдено</span></div></section><section id="r195-comparison" class="sec r195-section"><p class="eyebrow">EVIDENCE / RISK COMPARISON</p><h2>Что действительно изменилось</h2><p class="r195-summary">Изменений свидетельств: <b>2</b> · Ухудшений: <b>1</b> · Заявленных улучшений: <b>1</b>. Ни один показатель не является допуском к запуску.</p><h3>Динамика восьми контрольных направлений</h3><div class="r195-matrix"><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Исходный код и CI</strong><small>OBSERVED_UNATTESTED → OBSERVED_UNATTESTED · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Три независимых согласования</strong><small>BLOCKED → BLOCKED · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Подтверждение личности</strong><small>MISSING → MISSING · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Защита GitHub Environment</strong><small>MISSING → MISSING · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag risk">УХУДШЕНИЕ</span><strong>Подлинность staging TLS</strong><small>CLAIM_UNVERIFIED → BLOCKED · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Права AWS и ограничения</strong><small>BLOCKED → BLOCKED · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag better">Заявлено улучшение</span><strong>Восстановление staging</strong><small>MISSING → CLAIM_UNVERIFIED · Независимая проверка обязательна</small></div><div class="r195-row"><span class="r195-flag ">Без изменений</span><strong>Правовое и privacy согласование</strong><small>MISSING → MISSING · Независимая проверка обязательна</small></div></div><h3 style="margin-top:28px">История шести типов свидетельств</h3><div class="r195-matrix"><div class="r195-row"><span class="r195-flag">Изменены SHA-256 и статус</span><strong>TLS_ORIGIN</strong><small>PASS_CLAIM → FAIL_CLAIM · Источники без независимой аттестации</small></div><div class="r195-row"><span class="r195-flag">Без изменений</span><strong>AWS_EFFECTIVE_RIGHTS</strong><small>FAIL_CLAIM → FAIL_CLAIM · Источники без независимой аттестации</small></div><div class="r195-row"><span class="r195-flag">Добавлено</span><strong>STAGING_RESTORE</strong><small>Нет записи → PASS_CLAIM · Источники без независимой аттестации</small></div><div class="r195-row"><span class="r195-flag">Без изменений</span><strong>PRIVACY_LEGAL</strong><small>Нет записи → Нет записи · Источники без независимой аттестации</small></div><div class="r195-row"><span class="r195-flag">Без изменений</span><strong>HUMAN_IDENTITY</strong><small>Нет записи → Нет записи · Источники без независимой аттестации</small></div><div class="r195-row"><span class="r195-flag">Без изменений</span><strong>GITHUB_ENVIRONMENT</strong><small>Нет записи → Нет записи · Источники без независимой аттестации</small></div></div></section><section class="sec r195-section" id="r195-handoffs"><p class="eyebrow">TEAM HANDOFF</p><h2>Пакеты для ответственных</h2><p class="intro">Фиксированные задачи по ролям. Экспорт CSV не назначает ответственного автоматически и не подтверждает одобрение.</p><div class="r195-handoff"><div class="r195-owner"><strong>ENGINEERING</strong><small>Контрольных направлений: 1</small><button type="button" class="r195-button" data-r195-owner="ENGINEERING">Скачать CSV</button></div><div class="r195-owner"><strong>GOVERNANCE</strong><small>Контрольных направлений: 2</small><button type="button" class="r195-button" data-r195-owner="GOVERNANCE">Скачать CSV</button></div><div class="r195-owner"><strong>DEVOPS</strong><small>Контрольных направлений: 1</small><button type="button" class="r195-button" data-r195-owner="DEVOPS">Скачать CSV</button></div><div class="r195-owner"><strong>SECURITY</strong><small>Контрольных направлений: 2</small><button type="button" class="r195-button" data-r195-owner="SECURITY">Скачать CSV</button></div><div class="r195-owner"><strong>OPERATIONS</strong><small>Контрольных направлений: 1</small><button type="button" class="r195-button" data-r195-owner="OPERATIONS">Скачать CSV</button></div><div class="r195-owner"><strong>PRIVACY</strong><small>Контрольных направлений: 1</small><button type="button" class="r195-button" data-r195-owner="PRIVACY">Скачать CSV</button></div></div></section><section id="checks" class="sec"><h2>Контрольные направления</h2><p class="intro">Все восемь направлений требуют независимого допуска, даже если автоматическая проверка успешна.</p><div class="cards"><article class="control" id="control-SOURCE_AND_CI"><div class="control-head"><div><span class="id">SOURCE_AND_CI</span><h3>Исходный код и CI</h3></div><span class="pill observed">Наблюдение без аттестации</span></div><p class="detail">Зафиксировать GitHub HEAD, проверенный run и успешный полный CI</p><div class="card-footer"><span class="owner">ENGINEERING</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-PR_REVIEWS"><div class="control-head"><div><span class="id">PR_REVIEWS</span><h3>Три независимых согласования</h3></div><span class="pill blocked">Заблокировано</span></div><p class="detail">Получить актуальные reviews от Security, Operations и Privacy</p><div class="card-footer"><span class="owner">GOVERNANCE</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-HUMAN_IDENTITY"><div class="control-head"><div><span class="id">HUMAN_IDENTITY</span><h3>Подтверждение личности</h3></div><span class="pill missing">Нет свидетельства</span></div><p class="detail">Независимо подтвердить личности владельцев ключей и GitHub аккаунтов</p><div class="card-footer"><span class="owner">GOVERNANCE</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-GITHUB_ENVIRONMENT"><div class="control-head"><div><span class="id">GITHUB_ENVIRONMENT</span><h3>Защита GitHub Environment</h3></div><span class="pill missing">Нет свидетельства</span></div><p class="detail">Проверить реальные правила environment, полномочия и историю approvals</p><div class="card-footer"><span class="owner">DEVOPS</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-TLS_ORIGIN"><div class="control-head"><div><span class="id">TLS_ORIGIN</span><h3>Подлинность staging TLS</h3></div><span class="pill blocked">Заблокировано</span></div><p class="detail">Сравнить сертификат, DNS и отпечаток с независимым доверенным источником</p><div class="card-footer"><span class="owner">SECURITY</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-AWS_EFFECTIVE_RIGHTS"><div class="control-head"><div><span class="id">AWS_EFFECTIVE_RIGHTS</span><h3>Права AWS и ограничения</h3></div><span class="pill blocked">Заблокировано</span></div><p class="detail">Независимо проверить IAM, SCP, KMS, resource policies и фактические разрешения</p><div class="card-footer"><span class="owner">SECURITY</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-STAGING_RESTORE"><div class="control-head"><div><span class="id">STAGING_RESTORE</span><h3>Восстановление staging</h3></div><span class="pill claimed">Заявлено, не проверено</span></div><p class="detail">Выполнить контролируемое восстановление с RPO/RTO и хеш-сверкой</p><div class="card-footer"><span class="owner">OPERATIONS</span><span class="fine">Приёмка: не подтверждена</span></div></article><article class="control" id="control-PRIVACY_LEGAL"><div class="control-head"><div><span class="id">PRIVACY_LEGAL</span><h3>Правовое и privacy согласование</h3></div><span class="pill missing">Нет свидетельства</span></div><p class="detail">Получить юридическое разрешение на реальный пилот и обработку данных</p><div class="card-footer"><span class="owner">PRIVACY</span><span class="fine">Приёмка: не подтверждена</span></div></article></div></section><section id="actions" class="sec"><h2>Следующие действия</h2><p class="intro">Приоритеты определяются риском, а не количеством пройденных синтетических тестов.</p><div class="tasks"><div class="task"><div><strong>Проверить реальные правила environment, полномочия и историю approvals</strong><small>GITHUB_ENVIRONMENT</small></div><span class="owner">DEVOPS</span></div><div class="task"><div><strong>Независимо подтвердить личности владельцев ключей и GitHub аккаунтов</strong><small>HUMAN_IDENTITY</small></div><span class="owner">GOVERNANCE</span></div><div class="task"><div><strong>Независимо проверить IAM, SCP, KMS, resource policies и фактические разрешения</strong><small>AWS_EFFECTIVE_RIGHTS</small></div><span class="owner">SECURITY</span></div><div class="task"><div><strong>Получить юридическое разрешение на реальный пилот и обработку данных</strong><small>PRIVACY_LEGAL</small></div><span class="owner">PRIVACY</span></div><div class="task"><div><strong>Получить актуальные reviews от Security, Operations и Privacy</strong><small>PR_REVIEWS</small></div><span class="owner">GOVERNANCE</span></div><div class="task"><div><strong>Выполнить контролируемое восстановление с RPO/RTO и хеш-сверкой</strong><small>STAGING_RESTORE</small></div><span class="owner">OPERATIONS</span></div><div class="task"><div><strong>Сравнить сертификат, DNS и отпечаток с независимым доверенным источником</strong><small>TLS_ORIGIN</small></div><span class="owner">SECURITY</span></div></div></section><section id="source" class="sec"><h2>Источники и целостность</h2><table class="meta-table"><tbody><tr><th scope="row">Коммит</th><td><code>8b44191b2b555c5c579d569338899bc2769d2588</code></td></tr><tr><th scope="row">SHA-256 дерева/пакета</th><td><code>42d4bb17f001b95d5935776ec5678950747432670a5fd536550b9798bea9b487</code></td></tr><tr><th scope="row">Свидетельство GitHub</th><td><code>fb5df5379d4364824f21ed503540976a35a6f078d4499152d0d10129f2842746</code></td></tr><tr><th scope="row">Свидетельство оператора</th><td><code>ab0bc21141f7a82c7ce500e78ca4743a1b7f00f18095c93e2123fa370e653438</code></td></tr><tr><th scope="row">SHA-256 отчёта</th><td><code>9fdafb30031dd576cae39d65c88c33a1dc2213a4812f30eecd796b56c671fc32</code></td></tr><tr><th scope="row">Режим</th><td><code>Офлайн-отчёт. Нет доступа к production</code></td></tr><tr><th scope="row">Приёмка</th><td><code>Независимое подтверждение отсутствует</code></td></tr></tbody></table><p class="fine" style="margin-top:20px">Этот автономный отчёт не обращается в сеть, не собирает персональные данные и не выдаёт разрешений на развёртывание.</p></section></main><footer><span>MARCOSA / INDEPENDENT READINESS</span><span>R195 · 20 NOV 2026 · NO-GO</span></footer></div><div id="r194-source" hidden aria-hidden="true">{"schemaVersion":1,"commit":"8b44191b2b555c5c579d569338899bc2769d2588","assessmentSha256":"9fdafb30031dd576cae39d65c88c33a1dc2213a4812f30eecd796b56c671fc32","controls":["SOURCE_AND_CI","PR_REVIEWS","HUMAN_IDENTITY","GITHUB_ENVIRONMENT","TLS_ORIGIN","AWS_EFFECTIVE_RIGHTS","STAGING_RESTORE","PRIVACY_LEGAL"],"progress":{"SOURCE_AND_CI":"OPEN","PR_REVIEWS":"OPEN","HUMAN_IDENTITY":"OPEN","GITHUB_ENVIRONMENT":"OPEN","TLS_ORIGIN":"BLOCKED_LOCAL","AWS_EFFECTIVE_RIGHTS":"OPEN","STAGING_RESTORE":"OPEN","PRIVACY_LEGAL":"OPEN"},"sourceMode":"OFFLINE_UNTRUSTED_SCRATCHPAD","productionAuthorized":false}</div><div id="r195-source" hidden aria-hidden="true">{"schemaVersion":2,"sourceCommit":"8b44191b2b555c5c579d569338899bc2769d2588","assessmentSha256":"9fdafb30031dd576cae39d65c88c33a1dc2213a4812f30eecd796b56c671fc32","initialProgress":{"SOURCE_AND_CI":"OPEN","PR_REVIEWS":"OPEN","HUMAN_IDENTITY":"OPEN","GITHUB_ENVIRONMENT":"OPEN","TLS_ORIGIN":"BLOCKED_LOCAL","AWS_EFFECTIVE_RIGHTS":"OPEN","STAGING_RESTORE":"OPEN","PRIVACY_LEGAL":"OPEN"},"handoffs":[{"owner":"ENGINEERING","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"SOURCE_AND_CI\",\"ENGINEERING\",\"1\",\"OBSERVED_UNATTESTED\",\"OPEN\",\"UNMODIFIED\",\"NOT_APPLICABLE\",\"Зафиксировать GitHub HEAD, проверенный run и успешный полный CI\",\"REQUIRED\",\"NO_GO\"\r\n"},{"owner":"GOVERNANCE","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"PR_REVIEWS\",\"GOVERNANCE\",\"1\",\"BLOCKED\",\"OPEN\",\"UNMODIFIED\",\"NOT_APPLICABLE\",\"Получить актуальные reviews от Security, Operations и Privacy\",\"REQUIRED\",\"NO_GO\"\r\n\"HUMAN_IDENTITY\",\"GOVERNANCE\",\"1\",\"MISSING\",\"OPEN\",\"UNMODIFIED\",\"UNCHANGED\",\"Независимо подтвердить личности владельцев ключей и GitHub аккаунтов\",\"REQUIRED\",\"NO_GO\"\r\n"},{"owner":"DEVOPS","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"GITHUB_ENVIRONMENT\",\"DEVOPS\",\"1\",\"MISSING\",\"OPEN\",\"UNMODIFIED\",\"UNCHANGED\",\"Проверить реальные правила environment, полномочия и историю approvals\",\"REQUIRED\",\"NO_GO\"\r\n"},{"owner":"SECURITY","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"TLS_ORIGIN\",\"SECURITY\",\"2\",\"BLOCKED\",\"BLOCKED_LOCAL\",\"DEGRADED\",\"HASH_AND_CLAIM_CHANGED\",\"Сравнить сертификат, DNS и отпечаток с независимым доверенным источником\",\"REQUIRED\",\"NO_GO\"\r\n\"AWS_EFFECTIVE_RIGHTS\",\"SECURITY\",\"1\",\"BLOCKED\",\"OPEN\",\"UNMODIFIED\",\"UNCHANGED\",\"Независимо проверить IAM, SCP, KMS, resource policies и фактические разрешения\",\"REQUIRED\",\"NO_GO\"\r\n"},{"owner":"OPERATIONS","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"STAGING_RESTORE\",\"OPERATIONS\",\"2\",\"CLAIM_UNVERIFIED\",\"OPEN\",\"REPORTED_IMPROVEMENT\",\"ADDED\",\"Выполнить контролируемое восстановление с RPO/RTO и хеш-сверкой\",\"REQUIRED\",\"NO_GO\"\r\n"},{"owner":"PRIVACY","csv":"\"control\",\"owner\",\"priority\",\"currentStatus\",\"localTask\",\"riskTrend\",\"evidenceRevision\",\"action\",\"independentApproval\",\"release\"\r\n\"PRIVACY_LEGAL\",\"PRIVACY\",\"1\",\"MISSING\",\"OPEN\",\"UNMODIFIED\",\"UNCHANGED\",\"Получить юридическое разрешение на реальный пилот и обработку данных\",\"REQUIRED\",\"NO_GO\"\r\n"}],"decision":"NO_GO","productionAuthorized":false}</div><script>/* MARCOSA R195 portable draft v2. No network/storage. SHA-256 is an
+ * integrity checksum, NOT a digital signature or proof of human identity. */
+(function (root) {
+  'use strict';
+  var IDS = ['SOURCE_AND_CI','PR_REVIEWS','HUMAN_IDENTITY',
+    'GITHUB_ENVIRONMENT','TLS_ORIGIN','AWS_EFFECTIVE_RIGHTS',
+    'STAGING_RESTORE','PRIVACY_LEGAL'];
+  var FROM = { START:['OPEN','BLOCKED_LOCAL'], BLOCK:['OPEN','IN_PROGRESS'],
+    COMPLETE:['IN_PROGRESS'], REOPEN:['DONE_LOCAL','BLOCKED_LOCAL'] };
+  var TO = { START:'IN_PROGRESS',BLOCK:'BLOCKED_LOCAL',
+    COMPLETE:'DONE_LOCAL',REOPEN:'OPEN' };
+  var STATES = ['OPEN','IN_PROGRESS','BLOCKED_LOCAL','DONE_LOCAL'];
+  var H40 = /^[a-f0-9]{40}$/, H64 = /^[a-f0-9]{64}$/;
+  function demand(v,m) { if (!v) { throw Error('R195 draft: '+m); } }
+  function object(x) { return x!==null&&typeof x==='object'&&!Array.isArray(x)&&
+    (Object.getPrototypeOf(x)===Object.prototype||Object.getPrototypeOf(x)===null); }
+  function exact(x,names) {
+    return object(x)&&Object.keys(x).sort().join(',')===names.slice().sort().join(',');
+  }
+  function ordered(x) {
+    demand(object(x)&&Object.keys(x).length===IDS.length&&
+      IDS.every(function (id) { return Object.prototype.hasOwnProperty.call(x,id)&&
+        STATES.includes(x[id]); }), 'eight exact initial task states required');
+    var result={}; IDS.forEach(function(id){result[id]=x[id];});return result;
+  }
+  async function digest(value) {
+    demand(root.crypto&&root.crypto.subtle&&typeof root.TextEncoder==='function',
+      'secure SHA-256 API unavailable');
+    var bytes=new root.TextEncoder().encode(value);
+    var out=await root.crypto.subtle.digest('SHA-256',bytes);
+    return Array.from(new Uint8Array(out),function(x){return x.toString(16).padStart(2,'0');}).join('');
+  }
+  function context(x) {
+    demand(object(x)&&H40.test(x.sourceCommit||'')&&H64.test(x.assessmentSha256||''),
+      'exact commit and source assessment SHA required');
+    return {sourceCommit:x.sourceCommit,assessmentSha256:x.assessmentSha256,
+      initialProgress:ordered(x.initialProgress)};
+  }
+  async function genesis(x) {
+    return digest('MARCOSA/R195/LOCAL-ONLY/GENESIS/v2\n'+
+      JSON.stringify([x.sourceCommit,x.assessmentSha256,x.initialProgress]));
+  }
+  async function create(input) {
+    var x=context(input),head=await genesis(x);
+    return {schemaVersion:2,kind:'R195_LOCAL_DRAFT',sourceMode:'LOCAL_UNTRUSTED',
+      sourceCommit:x.sourceCommit,assessmentSha256:x.assessmentSha256,
+      initialProgress:x.initialProgress,progress:ordered(x.initialProgress),
+      events:[],headSha256:head,decision:'NO_GO',
+      realPilotAuthorized:false,productionAuthorized:false};
+  }
+  async function verify(data,reference) {
+    demand(exact(data,['schemaVersion','kind','sourceMode','sourceCommit',
+      'assessmentSha256','initialProgress','progress','events','headSha256',
+      'decision','realPilotAuthorized','productionAuthorized']),
+      'unexpected draft keys');
+    var x=context(reference);
+    demand(data.schemaVersion===2&&data.kind==='R195_LOCAL_DRAFT'&&
+      data.sourceMode==='LOCAL_UNTRUSTED'&&data.sourceCommit===x.sourceCommit&&
+      data.assessmentSha256===x.assessmentSha256&&
+      data.decision==='NO_GO'&&data.realPilotAuthorized===false&&
+      data.productionAuthorized===false&&H64.test(data.headSha256||'')&&
+      Array.isArray(data.events)&&data.events.length<=200,
+      'foreign source, false GO or excessive history');
+    var initial=ordered(data.initialProgress),state=ordered(data.progress);
+    demand(IDS.every(function(id){return initial[id]===x.initialProgress[id];}),
+      'imported draft redefines the pinned initial state');
+    var last=await genesis(x),prevAt=0;
+    for (var i=0;i<data.events.length;i++) {
+      var e=data.events[i];
+      demand(exact(e,['control','action','from','to','atMs',
+        'previousSha256','eventSha256'])&&IDS.includes(e.control)&&
+        Object.prototype.hasOwnProperty.call(FROM,e.action)&&
+        e.from===initial[e.control]&&
+        FROM[e.action].includes(e.from)&&e.to===TO[e.action]&&
+        H64.test(e.eventSha256||'')&&e.previousSha256===last&&
+        Number.isSafeInteger(e.atMs)&&e.atMs>=prevAt&&e.atMs>0,
+        'invalid transition, chronology or hash ancestry');
+      var raw={control:e.control,action:e.action,from:e.from,to:e.to,
+        atMs:e.atMs,previousSha256:e.previousSha256};
+      var signature=await digest('MARCOSA/R195/LOCAL-ONLY/EVENT/v2\n'+JSON.stringify(raw));
+      demand(signature===e.eventSha256,'local event hash mismatch');
+      last=signature;prevAt=e.atMs;initial[e.control]=e.to;
+    }
+    demand(last===data.headSha256&&IDS.every(function(id){
+      return initial[id]===state[id];}),'transcript/replayed progress differs');
+    return true;
+  }
+  async function append(data,reference,control,action,time) {
+    await verify(data,reference);
+    demand(IDS.includes(control)&&Object.prototype.hasOwnProperty.call(FROM,action)&&
+      FROM[action].includes(data.progress[control])&&data.events.length<200,
+      'prohibited state transition or event cap');
+    var atMs=time===undefined?Date.now():time;
+    demand(Number.isSafeInteger(atMs)&&atMs>0&&
+      (!data.events.length||atMs>=data.events[data.events.length-1].atMs),
+      'invalid event timestamp');
+    var raw={control:control,action:action,from:data.progress[control],
+      to:TO[action],atMs:atMs,previousSha256:data.headSha256};
+    var event={...raw,eventSha256:await digest(
+      'MARCOSA/R195/LOCAL-ONLY/EVENT/v2\n'+JSON.stringify(raw))};
+    var out={...data,events:data.events.concat(event),
+      progress:{...data.progress,[control]:TO[action]},
+      headSha256:event.eventSha256};
+    await verify(out,reference);
+    return out;
+  }
+  async function importText(text,reference) {
+    demand(typeof text==='string'&&text.length>=250&&text.length<=70000,
+      'draft file exceeds safe size or is empty');
+    var x;
+    try{x=JSON.parse(text);}catch(_){throw Error('R195 draft: invalid JSON');}
+    await verify(x,reference);
+    return x;
+  }
+  var api=Object.freeze({IDS:IDS.slice(),STATES:STATES.slice(),
+    FROM:FROM,TO:TO,create:create,verify:verify,append:append,
+    importText:importText,exportText:function(x){return JSON.stringify(x,null,2)+'\n';}});
+  if (typeof module==='object'&&module.exports)module.exports=api;
+  root.MarcosaR195Draft=api;
+})(typeof globalThis==='object'?globalThis:this);
+
+(function () {
+  'use strict';
+  var api=globalThis.MarcosaR195Draft;
+  var el=function(id){return document.getElementById(id);};
+  var payload;
+  try {payload=JSON.parse(el('r195-source').textContent);}
+  catch (_) {return;}
+  var reference={sourceCommit:payload.sourceCommit,
+    assessmentSha256:payload.assessmentSha256,
+    initialProgress:payload.initialProgress};
+  var cards=Array.from(document.querySelectorAll('article.control'));
+  var stateText={OPEN:'Не начато',IN_PROGRESS:'В работе',
+    BLOCKED_LOCAL:'Есть препятствие',DONE_LOCAL:'Локально завершено'};
+  var acts=[['START','В работу'],['BLOCK','Препятствие'],
+    ['COMPLETE','Локально сделано'],['REOPEN','Открыть заново']];
+  var docs;
+  var status=el('r195-message'),query=el('r194-search'),
+    filter=el('r194-filter'),ownerFilter=el('r195-owner');
+  var locked=false;
+  function say(s){status.textContent=s;}
+  function download(name,contents,type) {
+    var url=URL.createObjectURL(new Blob([contents],{type:type}));
+    var a=document.createElement('a');a.href=url;a.download=name;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(function(){URL.revokeObjectURL(url);},1500);
+  }
+  function render(){
+    cards.forEach(function(card){
+      var id=card.id.slice('control-'.length);
+      var label=card.querySelector('.r195-progress');
+      if(!label)return;
+      label.textContent='Моя задача: '+stateText[docs.progress[id]];
+      card.querySelectorAll('button[data-r195-action]').forEach(function(b){
+        b.disabled=locked||api.FROM[b.dataset.r195Action].indexOf(docs.progress[id])<0;
+      });
+    });
+    var q=query.value.trim().toLocaleLowerCase('ru'),code=filter.value,
+      owner=ownerFilter.value,count=0;
+    cards.forEach(function(card){
+      var id=card.id.slice('control-'.length);
+      var sourceStatus=card.querySelector('.pill').classList;
+      var matches=!q||card.textContent.toLocaleLowerCase('ru').includes(q);
+      var statusMatch=code==='ALL'||
+        (code==='BLOCKED'&&sourceStatus.contains('blocked'))||
+        (code==='MISSING'&&sourceStatus.contains('missing'))||
+        (code==='CLAIM_UNVERIFIED'&&sourceStatus.contains('claimed'))||
+        (code==='OBSERVED_UNATTESTED'&&sourceStatus.contains('observed'))||
+        (code==='LOCAL_DONE'&&docs.progress[id]==='DONE_LOCAL');
+      var role=card.querySelector('.owner').textContent.trim();
+      card.hidden=!(matches&&statusMatch&&(owner==='ALL'||owner===role));
+      if(!card.hidden)count++;
+    });
+    el('r194-results').textContent='Показано направлений: '+count+' из '+api.IDS.length;
+    el('r195-count').textContent=String(docs.events.length);
+    var history=el('r195-history');history.replaceChildren();
+    docs.events.slice(-12).reverse().forEach(function(event){
+      var li=document.createElement('li');
+      var strong=document.createElement('strong');
+      strong.textContent=event.control;
+      li.appendChild(strong);
+      li.appendChild(document.createTextNode(' — '+event.action+
+        ' · '+stateText[event.to]+' · '+new Date(event.atMs).toLocaleString('ru-RU')));
+      history.appendChild(li);
+    });
+    if(!docs.events.length){
+      var li=document.createElement('li');
+      li.textContent='Пока нет новых действий. Исходная оценка сохранена отдельно.';
+      history.appendChild(li);
+    }
+  }
+  async function act(id,action){
+    if(locked)return;
+    locked=true;
+    try{
+      docs=await api.append(docs,reference,id,action);
+      say('Событие проверено по SHA-256 и добавлено в локальную историю. Разрешение на запуск не выдано.');
+    }catch(e){say('Действие отклонено: '+e.message);}
+    finally{locked=false;render();}
+  }
+  async function importDraft(text){
+    if(locked)return;
+    locked=true;
+    try{
+      var parsed=await api.importText(text,reference);
+      docs=parsed;
+      say('Черновик v2 проверен по всем событиям, хешам и исходному SHA. Production остаётся NO-GO.');
+    }catch(e){say('Импорт отклонён: '+e.message);}
+    finally{locked=false;render();}
+  }
+  async function exportDraft(){
+    if(locked)return;
+    locked=true;
+    try{
+      await api.verify(docs,reference);
+      var text=api.exportText(docs);
+      el('r195-export-text').value=text;
+      download('marcosa-r195-'+payload.sourceCommit.slice(0,8)+'-draft.json',
+        text,'application/json;charset=utf-8');
+      say('JSON-файл сохранён через браузер. Это локальный черновик, не свидетельство допуска.');
+    }catch(e){say('Экспорт отклонён: '+e.message);}
+    finally{locked=false;render();}
+  }
+  async function main(){
+    docs=await api.create(reference);
+    for(let i=0;i<cards.length;i++){
+      const card=cards[i],id=card.id.slice('control-'.length);
+      if(!api.IDS.includes(id))continue;
+      var zone=document.createElement('div');zone.className='r195-controls';
+      var label=document.createElement('span');
+      label.className='r195-progress';label.setAttribute('aria-live','polite');
+      zone.appendChild(label);
+      var btns=document.createElement('div');btns.className='r195-buttons';
+      acts.forEach(function(pair){
+        var b=document.createElement('button');b.type='button';
+        b.className='r195-action';b.textContent=pair[1];
+        b.dataset.r195Action=pair[0];
+        b.addEventListener('click',function(){void act(id,pair[0]);});
+        btns.appendChild(b);
+      });
+      zone.appendChild(btns);
+      card.appendChild(zone);
+    }
+    query.addEventListener('input',render);
+    filter.addEventListener('change',render);
+    ownerFilter.addEventListener('change',render);
+    el('r195-export').addEventListener('click',function(){void exportDraft();});
+    el('r195-import').addEventListener('click',function(){
+      var selected=el('r195-file').files[0];
+      if(!selected)void importDraft(el('r195-paste').value);
+      else if(selected.size>70000||selected.size<250)
+        say('Импорт отклонён: размер файла вне границ.');
+      else void selected.text().then(importDraft).catch(function(){say('Не удалось прочитать файл.');});
+    });
+    el('r195-reset').addEventListener('click',function(){
+      void api.create(reference).then(function(next){
+        docs=next;render();say('Локальный черновик очищен. Исходная оценка не менялась.');
+      }).catch(function(e){say(e.message);});
+    });
+    document.querySelectorAll('button[data-r195-owner]').forEach(function(b){
+      b.addEventListener('click',function(){
+        var owner=b.dataset.r195Owner;
+        var packet=payload.handoffs.find(function(x){return x.owner===owner;});
+        if(!packet)return;
+        download('marcosa-r195-'+owner.toLowerCase()+'-handoff.csv',
+          '\ufeff'+packet.csv,'text/csv;charset=utf-8');
+        say('Файл задач '+owner+' скачан: только источник, действия и NO-GO.');
+      });
+    });
+    render();
+    say('Автономный режим. Данные не отправляются в сеть и не сохраняются без вашего скачивания.');
+  }
+  void main().catch(function(e){say('Проверка локального кабинета недоступна: '+e.message);});
+})();
+</script></body></html>

@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "kind": "R195_OWNER_HANDOFF_MANIFEST",
+  "sourceCommit": "8b44191b2b555c5c579d569338899bc2769d2588",
+  "sourceBundleSha256": "42d4bb17f001b95d5935776ec5678950747432670a5fd536550b9798bea9b487",
+  "assessmentSha256": "9fdafb30031dd576cae39d65c88c33a1dc2213a4812f30eecd796b56c671fc32",
+  "ledgerSha256": "7d70bd2596cc57fa551d279b46155782c8040f2e0a0ea7cb83592157c3e5ba5e",
+  "riskTrendSha256": "b31e13f56229bfe37d424a4de8b413640ee3da6f990cdba7651879bcf8516f03",
+  "evidenceDeltaSha256": "113a009756454ef17e391a8c97ffef2b13a690e85476c8b5c04678ed45515cbe",
+  "ownerHashes": [
+    {
+      "owner": "ENGINEERING",
+      "count": 1,
+      "markdownSha256": "f30c373c382990412424f846943372b1d6a855d5dd9f6d3be2290e206b944ba4",
+      "csvSha256": "81242807bcf97ba73c6c7bf269ff395a450259099b185971668ff0177548f4f2"
+    },
+    {
+      "owner": "GOVERNANCE",
+      "count": 2,
+      "markdownSha256": "5fac7e4c742c3da3445e679d086ded3b9163003845e419679fa319985f4db3fa",
+      "csvSha256": "7e11d1dc3efc58c67d6ec38ef68adec172bf364bbf1606273c2edb39679583b0"
+    },
+    {
+      "owner": "DEVOPS",
+      "count": 1,
+      "markdownSha256": "ec7a03e93ac1047e7d70f53f072fa037cc1673c479ea2dc5227de96993f1742d",
+      "csvSha256": "1d573c2062f902dd12d89e1f8b08cdc5b0eaf3a7d562f338ce52928b467225b0"
+    },
+    {
+      "owner": "SECURITY",
+      "count": 2,
+      "markdownSha256": "469b8fbf39abef70134b94cce0ffe492ef331ce00582e765f4cc2a0f48631ee7",
+      "csvSha256": "cfc071ec22db597f97f00e722cb831f0986dd60badea356e982b44b02a051fab"
+    },
+    {
+      "owner": "OPERATIONS",
+      "count": 1,
+      "markdownSha256": "01a5f0e8d62db05b66260cc281705a9aee7a9103756bf6ac4ab92bebc6b845d7",
+      "csvSha256": "71395a12e31535bf10330398f9b50bec0f351d58f9c76aefdf766fb17da7936b"
+    },
+    {
+      "owner": "PRIVACY",
+      "count": 1,
+      "markdownSha256": "692d35d620a91497214892b813d7a1307efa77a2f209cff5820fb31af5bfd1a2",
+      "csvSha256": "2c6c15939c53c68b781577dc9ed3a21624cf06e334aa5fb616197f4a1a972451"
+    }
+  ],
+  "decision": "NO_GO",
+  "realPilotAuthorized": false,
+  "productionAuthorized": false,
+  "manifestSha256": "1aa3a2e7deaea23fc2bb9b54ce9c13b51f0dca246fd1d2f5aeeabcd934f3c423"
+}

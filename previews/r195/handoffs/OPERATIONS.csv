@@ -1,0 +1,2 @@
+﻿"control","owner","priority","currentStatus","localTask","riskTrend","evidenceRevision","action","independentApproval","release"
+"STAGING_RESTORE","OPERATIONS","2","CLAIM_UNVERIFIED","OPEN","REPORTED_IMPROVEMENT","ADDED","Выполнить контролируемое восстановление с RPO/RTO и хеш-сверкой","REQUIRED","NO_GO"
