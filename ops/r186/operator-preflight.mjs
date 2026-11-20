@@ -17,6 +17,7 @@ import {spawnSync} from 'node:child_process';
 import {buildR163Bundle} from '../r163/repro-bundle.mjs';
 import {createR186GithubPreflight} from './github-preflight.mjs';
 import {createR186HttpsPreflight} from './https-preflight.mjs';
+import {createR187PinnedHttpsTransport} from '../r187/pinned-https.mjs';
 const env=process.env;
 const fail=m=>{throw Error('R186 operator preflight: '+m);};
 const ok=(v,m)=>{if(!v)fail(m);};
@@ -42,8 +43,12 @@ async function main(){
   sourceMode:'OPERATOR_READONLY_UNATTESTED',
   allowNetwork:true
  }).inspect({commit,bundleSha256});
+ const pinned=createR187PinnedHttpsTransport({
+  hostname:env.R186_STAGING_HOST,allowNetwork:true
+ });
+ await pinned.initialize();
  const https=await createR186HttpsPreflight({
-  hostname:env.R186_STAGING_HOST,
+  hostname:env.R186_STAGING_HOST,fetcher:pinned.fetcher,
   sourceMode:'OPERATOR_READONLY_UNATTESTED',
   allowNetwork:true
  }).inspect({commit,bundleSha256});
