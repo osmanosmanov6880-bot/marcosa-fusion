@@ -1,0 +1,121 @@
+name: "MARCOSA | R195 signed offline tasks, six role handoffs and real Chromium"
+on:
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r195/**"
+      - "ops/test/r195.*"
+      - "tools/browser/r195-audit-desk.mjs"
+      - ".github/workflows/marcosa-r195-offline.yml"
+      - "docs/MARCOSA_R195_*"
+  pull_request:
+    paths:
+      - "ops/r195/**"
+      - "ops/test/r195.*"
+      - "tools/browser/r195-audit-desk.mjs"
+      - ".github/workflows/marcosa-r195-offline.yml"
+      - "docs/MARCOSA_R195_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r195-source-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      packet_sha: ${{ steps.produce.outputs.packet_sha }}
+      key_sha: ${{ steps.produce.outputs.key_sha }}
+      html_sha: ${{ steps.produce.outputs.html_sha }}
+      markdown_sha: ${{ steps.produce.outputs.markdown_sha }}
+      handoff_sha: ${{ steps.produce.outputs.handoff_sha }}
+      tree_sha: ${{ steps.produce.outputs.tree_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify exact checkout and reject AWS, OIDC, database privileges
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+      - name: Real Node SHA-256 history, six roles, signed packet and offline CLI
+        run: node --test ops/test/r195.acceptance.test.mjs
+      - name: Generate signed portable audit desk and six owner handoff packages
+        id: produce
+        run: node ops/r195/ci-producer.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r195-mobile-audit-and-handoffs
+          path: ${{ runner.temp }}/r195-public/
+          if-no-files-found: error
+          retention-days: 7
+  r195-second-runner-independent-crypto:
+    needs: r195-source-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R195_PACKET_SHA: ${{ needs.r195-source-acceptance.outputs.packet_sha }}
+      R195_KEY_SHA: ${{ needs.r195-source-acceptance.outputs.key_sha }}
+      R195_HTML_SHA: ${{ needs.r195-source-acceptance.outputs.html_sha }}
+      R195_MARKDOWN_SHA: ${{ needs.r195-source-acceptance.outputs.markdown_sha }}
+      R195_HANDOFF_SHA: ${{ needs.r195-source-acceptance.outputs.handoff_sha }}
+      R195_TREE_SHA: ${{ needs.r195-source-acceptance.outputs.tree_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marcosa-r195-mobile-audit-and-handoffs
+          path: ${{ runner.temp }}/r195-independent/
+      - name: Independent Ed25519 SHA validation of six handoffs and source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+          node ops/r195/ci-verify.mjs
+  r195-real-chromium-mobile-files:
+    needs: r195-source-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned Playwright with Chromium
+        run: |
+          npm install --prefix tools/browser --ignore-scripts --no-audit --no-fund
+          npx --prefix tools/browser playwright install --with-deps chromium
+      - name: Test 360/390/768/1440px offline download/upload, tamper denial and CSV
+        env:
+          MARCOSA_BROWSER_SCREENSHOTS: ${{ runner.temp }}/marcosa-r195-real-browser
+        run: node tools/browser/r195-audit-desk.mjs
+      - name: Save real Chromium screenshots for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r195-browser-evidence
+          path: ${{ runner.temp }}/marcosa-r195-real-browser/
+          if-no-files-found: warn
+          retention-days: 7
