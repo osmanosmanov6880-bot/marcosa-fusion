@@ -30,7 +30,7 @@ test('R193 read-only GitHub observer pins source/CI and rejects head drift',asyn
  await assert.rejects(observeR193Github({...args,
   fetchImpl:r193FixtureFetch({commit,runId,now,headDrift:true})}),/head\/base/);
  await assert.rejects(observeR193Github({...args,
-  fetchImpl:r193FixtureFetch({commit,runId,now,invalidContentType:true})}),/non-200/);
+  fetchImpl:r193FixtureFetch({commit,runId,now,invalidContentType:true})}),/unexpected status|response type/);
  await assert.rejects(observeR193Github({...args,
   reviewerIds:{SECURITY:200,OPERATIONS:200,PRIVACY:400},
   fetchImpl:r193FixtureFetch({commit,runId,now})}),/distinct/);
