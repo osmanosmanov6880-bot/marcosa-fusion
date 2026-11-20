@@ -22,6 +22,7 @@ jobs:
           set -euo pipefail
           test "$HOST" = '169.58.48.38'
           test "$USERNAME" = 'marcosa-deploy'
+          export DEPLOY_HOST="$HOST" DEPLOY_PORT='22'
           source ops/load-pinned-staging-host.sh
           umask 077
           DIR="$(mktemp -d)"
