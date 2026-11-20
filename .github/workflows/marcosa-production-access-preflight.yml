@@ -61,5 +61,17 @@ jobs:
           fi
           test -L /opt/marcosa/current && echo "PRODUCTION_ROOT_SYMLINK=YES" || echo "PRODUCTION_ROOT_SYMLINK=NO"
           test -e /home/marcosa-deploy/marcosa-staging/current && echo "STAGING_EXISTS=YES" || echo "STAGING_EXISTS=NO"
+          echo "SERVICE_LOAD_STATE=$(systemctl show marcosa-club.service -p LoadState --value 2>/dev/null || echo unknown)"
+          echo "SERVICE_ACTIVE_STATE=$(systemctl show marcosa-club.service -p ActiveState --value 2>/dev/null || echo unknown)"
+          echo "SERVICE_RESULT=$(systemctl show marcosa-club.service -p Result --value 2>/dev/null || echo unknown)"
+          if [ -d /opt/marcosa-club ]; then
+            echo "CLUB_APP_ROOT_EXISTS=YES"
+            test -L /opt/marcosa-club/current && echo "CLUB_RELEASE_ACTIVATED=YES" || echo "CLUB_RELEASE_ACTIVATED=NO"
+          else
+            echo "CLUB_APP_ROOT_EXISTS=NO"
+          fi
+          echo "SERVICE_FAILURE_JOURNAL_BEGIN"
+          journalctl --no-pager --output=cat -u marcosa-club.service -n 30 2>&1 | sed -E 's/([Cc]ookie|[Aa]uthorization|[Pp]assword|[Ss]ecret|[Tt]oken)[=:][^ ]+ /\\1=[REDACTED] /g' | tail -n 32 || true
+          echo "SERVICE_FAILURE_JOURNAL_END"
           echo "PRODUCTION_READ_ONLY_CHECK=PASS"
           REMOTE
