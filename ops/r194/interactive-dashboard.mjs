@@ -95,7 +95,7 @@ export function renderR194Interactive({
   .replace(oldCsp,newCsp)
   .replace('</style>',css+'</style>')
   .replace('</nav></header>','</nav></header>'+workspace)
-  .replace('</body>','<template id="r194-source">'+json+'</template>'+
+  .replace('</body>','<div id="r194-source" hidden aria-hidden="true">'+json+'</div>'+
    '<script>'+app+'</script></body>')
   .replace('AUDIT DESK R193','AUDIT DESK R194')
   .replace('R193 · 20 NOV 2026','R194 · 20 NOV 2026');
