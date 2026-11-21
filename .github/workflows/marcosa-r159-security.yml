@@ -1,0 +1,118 @@
+name: "MARCOSA | R159 secure pool Auth sessions and consent fence"
+on:
+  pull_request:
+    paths:
+      - "ops/r159/**"
+      - "ops/test/r159.*"
+      - "docs/MARCOSA_R159_*"
+      - "tests/postgres/165_r159_*"
+      - "tests/postgres/166_r159_*"
+      - "tests/postgres/167_r159_*"
+      - ".github/workflows/marcosa-r159-security.yml"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r159/**"
+      - "ops/test/r159.*"
+      - "docs/MARCOSA_R159_*"
+      - "tests/postgres/165_r159_*"
+      - "tests/postgres/166_r159_*"
+      - "tests/postgres/167_r159_*"
+      - ".github/workflows/marcosa-r159-security.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r159-disposable-security:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r159-disposable-fixture-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r159-disposable-fixture-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Fail closed outside disposable repository and PostgreSQL 17
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          test "$PGUSER" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int>=170000" | grep -qx t
+      - name: R159 run secure transport, session, rotating JWKS and worker tests
+        run: |
+          set -euo pipefail
+          node --check ops/r159/secure-pool.mjs
+          node --check ops/r159/supabase-sessions.mjs
+          node --check ops/r159/jwks-rotation.mjs
+          node --check ops/r159/outbox-worker.mjs
+          node --test ops/test/r159.*.test.mjs
+      - name: Create disposable R30 through R157 schema and synthetic Auth sessions
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_TRUSTED_WRITER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_OUTBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_READER_PRIVACY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R157_OUTBOX_LIFECYCLE_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/165_r159_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R159_AUTH_READER_REFERENCE.sql
+      - name: PostgreSQL 17 real session revocation, leased notification and access refusal
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/166_r159_session_delivery.sql
+          echo 'R159_PG17_AUTH_SESSION_PERMISSION_AND_CONSENT_FENCE=PASS'
+      - name: Full PostgreSQL 17 custom dump, restore, permission/consent revalidation
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r159-disposable-pg17.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE marcosa_r159_restored TEMPLATE template0;"
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r159_restored < "$DUMP"
+          PGDATABASE=marcosa_r159_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/167_r159_restored.sql
+          printf 'NOT-A-POSTGRES-ARCHIVE' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" pg_restore \
+             --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::R159 corrupted PostgreSQL dump accepted"
+            exit 1
+          fi
+          echo 'R159_REAL_PG17_RESTORE_RLS_AND_REVOKED_SESSIONS=PASS'
+          echo 'R159_REAL_SUPABASE_AND_EXTERNAL_DELIVERY=NO_GO'

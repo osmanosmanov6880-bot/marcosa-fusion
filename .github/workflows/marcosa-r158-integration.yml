@@ -1,0 +1,129 @@
+name: "MARCOSA | R158 signed HTTP to real disposable PostgreSQL"
+on:
+  pull_request:
+    paths:
+      - "docs/MARCOSA_R158_*"
+      - "ops/r158/**"
+      - "ops/test/r158.*"
+      - "tests/postgres/163_r158_*"
+      - "tests/postgres/164_r158_*"
+      - ".github/workflows/marcosa-r158-integration.yml"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "docs/MARCOSA_R158_*"
+      - "ops/r158/**"
+      - "ops/test/r158.*"
+      - "tests/postgres/163_r158_*"
+      - "tests/postgres/164_r158_*"
+      - ".github/workflows/marcosa-r158-integration.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  signed-http-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r158-ci-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r158-ci-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Refuse non-loopback or non-disposable PostgreSQL
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGPORT" = "5432"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int>=170000" | grep -qx t
+      - name: Install fake Auth, private RLS, command functions, and session ledger
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_TRUSTED_WRITER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_OUTBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_READER_PRIVACY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R157_OUTBOX_LIFECYCLE_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R158_SESSION_BOUNDARY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/163_r158_roles_and_fixture.sql
+      - name: Prove strict input handling without external dependencies
+        env:
+          PGUSER: marcosa_r158_ci
+          PGPASSWORD: r158-ci-gateway-only
+        run: |
+          set -euo pipefail
+          node --check ops/r158/psql-command-adapter.mjs
+          node --check ops/r158/e2e.mjs
+          node --test ops/test/r158.*.test.mjs
+      - name: Sign ES256 locally and execute real seven-command HTTP to PG17
+        env:
+          PGUSER: marcosa_r158_ci
+          PGPASSWORD: r158-ci-gateway-only
+          R158_POSTGRES_ADMIN_PASSWORD: r158-ci-disposable-only
+        run: |
+          set -euo pipefail
+          node ops/r158/e2e.mjs
+          echo 'R158_REAL_JWT_SESSION_PG17_HTTP=PASS'
+      - name: Real PG17 custom dump, new database restore and revoked-session RLS proof
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r158-disposable-postgres.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          COUNTS="SELECT concat(
+           (SELECT count(*) FROM marcosa_private.r158_sessions),':',
+           (SELECT count(*) FROM marcosa_private.r156_commands),':',
+           (SELECT count(*) FROM public.marcosa_season_audit))"
+          BEFORE="$(psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE marcosa_r158_restored TEMPLATE template0;"
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r158_restored < "$DUMP"
+          AFTER="$(PGDATABASE=marcosa_r158_restored psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          test "$BEFORE" = "$AFTER"
+          PGDATABASE=marcosa_r158_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/164_r158_restored.sql
+          printf 'CORRUPT-POSTGRES-DUMP' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::R158 accepted damaged PG archive"
+            exit 1
+          fi
+          echo 'R158_REAL_PG17_RESTORE_RLS_REVOKED_SESSION=PASS'
+          echo 'R158_EXTERNAL_AUTH_AND_PRODUCTION=NO_GO'

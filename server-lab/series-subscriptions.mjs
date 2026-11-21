@@ -1,5 +1,6 @@
 import {readFileSync} from 'node:fs';
 import {readSeries} from './series.mjs';
+import {nextUnreadEpisodes} from './series-continue.mjs';
 
 const script=readFileSync(new URL('./public/series-subscriptions.js',import.meta.url),'utf8');
 
@@ -24,14 +25,18 @@ export function initSubscriptions(db){
    (user_id=NEW.blocked_id AND series_id IN(SELECT id FROM series WHERE owner_id=NEW.blocker_id));
  END;
  `);
+ // R154: additive SQLite migration; existing subscriptions remain unmuted.
+ const columns=db.prepare('PRAGMA table_info(series_subscriptions)').all();
+ if(!columns.some(column=>column.name==='muted'))
+  db.exec('ALTER TABLE series_subscriptions ADD COLUMN muted INTEGER NOT NULL DEFAULT 0 CHECK(muted IN (0,1))');
 }
 
 export function onEpisode(db,seriesId,episodeId){
  db.prepare(`INSERT OR IGNORE INTO series_reminders(episode_id,series_id,user_id)
  SELECT e.id,e.series_id,sub.user_id FROM series_episodes e
- JOIN series s ON s.id=e.series_id JOIN worlds w ON w.id=s.world_id
+ JOIN series s ON s.id=e.series_id AND s.archived_at IS NULL JOIN worlds w ON w.id=s.world_id
  JOIN posts p ON p.id=e.post_id AND p.world_id=w.id AND p.author_id=s.owner_id
- JOIN series_subscriptions sub ON sub.series_id=e.series_id
+ JOIN series_subscriptions sub ON sub.series_id=e.series_id AND sub.muted=0
  LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id
  WHERE e.series_id=? AND e.id=? AND p.status='published' AND w.visibility='public'
  AND (COALESCE(pc.visibility,'public')='public' OR EXISTS
@@ -41,7 +46,7 @@ export function onEpisode(db,seriesId,episodeId){
  (b.blocker_id=sub.user_id AND b.blocked_id=s.owner_id))`).run(seriesId,episodeId);
 }
 
-export function handleSubscriptions({db,res,route,method,viewer,user,send,check,body}){
+export function handleSubscriptions({db,res,route,method,viewer,user,send,check,body,query,atomic}){
  if(method==='GET'&&route==='/series-subscriptions.js'){
   res.writeHead(200,{'Content-Type':'application/javascript; charset=utf-8'});
   res.end(script);
@@ -49,21 +54,80 @@ export function handleSubscriptions({db,res,route,method,viewer,user,send,check,
  }
  const actor=(user||viewer)?.id;
  const reply=(status,data)=>send(res,status,data,{'Cache-Control':'private, no-store'});
+ if(method==='GET'&&route==='/api/me/series-continue'){
+  check(actor,401,'Нужен вход');
+  reply(200,{items:nextUnreadEpisodes(db,actor),source:'voluntary-checkins'});return true;
+ }
+ if(method==='DELETE'&&route==='/api/me/series-reminders'){
+  check(actor,401,'Нужен вход');
+  check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===0,
+   400,'Удаление не принимает дополнительные поля');
+  const removed=db.prepare('DELETE FROM series_reminders WHERE user_id=?').run(actor).changes;
+  reply(200,{dismissed:true,removed});return true;
+ }
  if(method==='GET'&&route==='/api/me/series-reminders'){
   check(actor,401,'Нужен вход');
-  const items=db.prepare(`SELECT s.slug,s.title AS seriesTitle,e.title AS episodeTitle,
-   e.position,e.post_id AS postId,w.slug AS world
+  const limitRaw=query?.get('limit')||'20';
+  check(/^[1-9][0-9]{0,1}$/.test(limitRaw)&&Number(limitRaw)<=50,
+   400,'Лимит напоминаний от 1 до 50');
+  const limit=Number(limitRaw);
+  const cursorRaw=query?.get('cursor')||'';
+  check(!cursorRaw||(/^[1-9][0-9]{0,14}$/.test(cursorRaw)&&Number.isSafeInteger(Number(cursorRaw))),
+   400,'Неверный курсор напоминаний');
+  const cursor=cursorRaw?Number(cursorRaw):null;
+  const rows=db.prepare(`SELECT s.slug,s.title AS seriesTitle,e.title AS episodeTitle,
+   e.id AS episodeId,e.position,e.post_id AS postId,w.slug AS world
    FROM series_reminders r JOIN series s ON s.id=r.series_id
    JOIN series_episodes e ON e.id=r.episode_id AND e.series_id=s.id
    JOIN posts p ON p.id=e.post_id AND p.world_id=s.world_id AND p.author_id=s.owner_id
    JOIN worlds w ON w.id=s.world_id LEFT JOIN profile_cards pc ON pc.user_id=s.owner_id
-   WHERE r.user_id=? AND p.status='published' AND w.visibility='public'
+   WHERE r.user_id=? AND (? IS NULL OR r.episode_id < ?) AND s.archived_at IS NULL AND p.status='published' AND w.visibility='public'
    AND (COALESCE(pc.visibility,'public')='public' OR EXISTS(SELECT 1 FROM user_follows f
    WHERE f.follower_id=r.user_id AND f.followed_id=s.owner_id AND f.status='active'))
    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.blocker_id=r.user_id AND b.blocked_id=s.owner_id)
    OR (b.blocked_id=r.user_id AND b.blocker_id=s.owner_id))
-   ORDER BY r.episode_id DESC LIMIT 50`).all(actor);
-  reply(200,{items});return true;
+   ORDER BY r.episode_id DESC LIMIT ?`).all(actor,cursor,cursor,limit+1);
+  const items=rows.slice(0,limit);
+  const nextCursor=rows.length>limit?String(items.at(-1).episodeId):null;
+  reply(200,{items,nextCursor});return true;
+ }
+ const dismiss=route.match(/^\/api\/me\/series-reminders\/([1-9][0-9]{0,14})$/);
+ if(dismiss){
+  check(method==='DELETE',405,'Метод недоступен');
+  check(actor,401,'Нужен вход');
+  check(body&&Object.keys(body).length===0,400,'Неизвестные поля');
+  const episodeId=Number(dismiss[1]);
+  check(Number.isSafeInteger(episodeId),400,'Неверный номер выпуска');
+  db.prepare('DELETE FROM series_reminders WHERE episode_id=? AND user_id=?').run(episodeId,actor);
+  reply(200,{dismissed:true});return true;
+ }
+ const preferences=route.match(/^\/api\/series\/([a-z][a-z0-9-]{2,47})\/notifications$/);
+ if(preferences){
+  check(['GET','DELETE','POST'].includes(method),405,'Метод недоступен');
+  check(actor,401,'Нужен вход');
+  if(method!=='GET')check(body&&typeof body==='object'&&!Array.isArray(body)&&Object.keys(body).length===0,
+   400,'Неизвестные поля');
+  const slug=preferences[1];
+  if(method==='DELETE'){
+   const outcome=atomic(()=>{
+    const subscribed=db.prepare('SELECT sub.series_id AS seriesId FROM series_subscriptions sub JOIN series s ON s.id=sub.series_id WHERE s.slug=? AND sub.user_id=?').get(slug,actor);
+    if(!subscribed)return{subscribed:false,muted:false,removed:0};
+    db.prepare('UPDATE series_subscriptions SET muted=1 WHERE series_id=? AND user_id=?').run(subscribed.seriesId,actor);
+    const removed=db.prepare('DELETE FROM series_reminders WHERE series_id=? AND user_id=?').run(subscribed.seriesId,actor).changes;
+    return{subscribed:true,muted:true,removed};
+   });
+   reply(200,outcome);return true;
+  }
+  const season=readSeries(db,slug,actor);
+  check(season,404,'Сезон недоступен');
+  check(actor!==season.owner_id,403,'Автор не подписывается на свой сезон');
+  const subscription=db.prepare('SELECT muted FROM series_subscriptions WHERE series_id=? AND user_id=?').get(season.id,actor);
+  if(method==='GET'){
+   reply(200,{subscribed:Boolean(subscription),muted:Boolean(subscription?.muted)});return true;
+  }
+  check(subscription,409,'Сначала подпишитесь на сезон');
+  db.prepare('UPDATE series_subscriptions SET muted=0 WHERE series_id=? AND user_id=?').run(season.id,actor);
+  reply(200,{subscribed:true,muted:false,backfill:false});return true;
  }
  const match=route.match(/^\/api\/series\/([a-z0-9-]{1,80})\/subscription$/);
  if(!match||!['GET','POST','DELETE'].includes(method))return false;
@@ -81,7 +145,7 @@ export function handleSubscriptions({db,res,route,method,viewer,user,send,check,
   check(!own,403,'Это ваш сезон');
   db.prepare('INSERT OR IGNORE INTO series_subscriptions(series_id,user_id) VALUES(?,?)').run(series.id,actor);
  }
- const subscribed=!!db.prepare('SELECT 1 FROM series_subscriptions WHERE series_id=? AND user_id=?').get(series.id,actor);
- reply(200,{subscribed,own});
+ const preference=db.prepare('SELECT muted FROM series_subscriptions WHERE series_id=? AND user_id=?').get(series.id,actor);
+ reply(200,{subscribed:Boolean(preference),muted:Boolean(preference?.muted),own});
  return true;
 }

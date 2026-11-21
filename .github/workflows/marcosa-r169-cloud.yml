@@ -1,0 +1,128 @@
+name: "MARCOSA | R169 GitHub OIDC, pinned AWS SDK, scoped IAM and isolated PG17"
+on:
+  pull_request:
+    paths:
+      - "ops/r169/**"
+      - "ops/test/r169.*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r169-cloud.yml"
+      - "docs/MARCOSA_R169_*"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r169/**"
+      - "ops/test/r169.*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r169-cloud.yml"
+      - "docs/MARCOSA_R169_*"
+  workflow_dispatch:
+# CI NEVER receives an OIDC token, long-lived credentials or cloud rights.
+permissions:
+  contents: read
+jobs:
+  r169-provider-identity-and-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 19
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r169-disposable-pg17-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r169-disposable-pg17-only
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Reject live cloud credentials and require disposable PostgreSQL 17
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
+      - name: Verify committed compressed AWS SDK v3 lock and install without scripts
+        run: |
+          set -euo pipefail
+          base64 -d ops/r169/package-lock.json.gz.b64 | gzip -dc > ops/r169/package-lock.json
+          echo '29dc3a1ef4db63f5f5e4bbc885e8f372dc40c0f36915180812df1e10901a5eef  ops/r169/package-lock.json' | sha256sum -c -
+          npm ci --prefix ops/r169 --ignore-scripts --no-audit --no-fund
+          npm ls --prefix ops/r169 --depth=0
+      - name: Verify native official AWS SDK v3 classes without external network
+        run: |
+          set -euo pipefail
+          node ops/r169/ci-native-sdk.mjs
+      - name: R169 OIDC, IAM, posture, signing and stage recovery unit tests
+        run: |
+          set -euo pipefail
+          node --test ops/test/r169.*.test.mjs
+      - name: Create synthetic PostgreSQL 17 RLS, Auth and closed quarantine
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+      - name: Native PostgreSQL17 backup and restored database through scoped simulated AWS
+        env:
+          R169_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r169/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r169-cloud-provider-synthetic-nonsecret-evidence
+          path: ${{ runner.temp }}/r169-operator-security-report.json
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r169-aws-sdk-v3-resolved-ci-lockfile
+          path: ops/r169/package-lock.json
+          if-no-files-found: error
+          retention-days: 7
+  r169-independent-review:
+    needs: r169-provider-identity-and-pg17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r169-cloud-provider-synthetic-nonsecret-evidence
+          path: ${{ runner.temp }}/r169-report/
+      - name: Independent exact source and non-production evidence inspection
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node ops/r169/ci-verify-report.mjs

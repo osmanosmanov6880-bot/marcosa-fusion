@@ -1,0 +1,52 @@
+name: "MARCOSA | isolated R151 browser acceptance"
+
+on:
+  push:
+    branches:
+      - "feature/**"
+      - "codex/**"
+    paths:
+      - "server-lab/**"
+      - "tools/browser/**"
+      - ".github/workflows/marcosa-r151-browser.yml"
+  pull_request:
+    paths:
+      - "server-lab/**"
+      - "tools/browser/**"
+      - ".github/workflows/marcosa-r151-browser.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  season-browser-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install browser dependencies
+        run: |
+          npm install --prefix tools/browser --ignore-scripts --no-audit --no-fund
+          npx --prefix tools/browser playwright install --with-deps chromium
+      - name: Execute responsive real-browser acceptance
+        env:
+          MARCOSA_BROWSER_SCREENSHOTS: ${{ runner.temp }}/marcosa-r151-browser
+        run: |
+          node tools/browser/smoke.mjs
+          node tools/browser/author-journey-r152.mjs
+          node tools/browser/r153-editor-and-inbox.mjs
+          node tools/browser/r154-reader-library.mjs
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r151-browser-evidence
+          path: ${{ runner.temp }}/marcosa-r151-browser
+          if-no-files-found: warn
+          retention-days: 7

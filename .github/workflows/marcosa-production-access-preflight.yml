@@ -1,0 +1,77 @@
+name: "MARCOSA | Production SSH read-only preflight"
+on:
+  push:
+    branches: ["feature/marcosa-r150-growth-economics"]
+    paths: [".github/workflows/marcosa-production-access-preflight.yml"]
+permissions:
+  contents: read
+jobs:
+  inspect-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Inspect confirmed production filesystem access without mutations
+        shell: bash
+        env:
+          DEPLOY_HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          DEPLOY_USER: ${{ secrets.MARCOSA_STAGING_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PORT: ${{ vars.MARCOSA_STAGING_PORT || '22' }}
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$GITHUB_REF" = "refs/heads/feature/marcosa-r150-growth-economics"
+          test "$DEPLOY_HOST" = "169.58.48.38"
+          test "$DEPLOY_USER" = "marcosa-deploy"
+          test "$DEPLOY_PORT" = "22"
+          test -n "$DEPLOY_KEY"
+          source ops/load-pinned-staging-host.sh
+          umask 077
+          TEMP_SSH="$(mktemp -d)"
+          trap 'rm -rf -- "$TEMP_SSH"' EXIT
+          printf '%s\n' "$DEPLOY_KEY" > "$TEMP_SSH/id"
+          printf '%s\n' "$KNOWN_HOSTS" > "$TEMP_SSH/known_hosts"
+          chmod 600 "$TEMP_SSH/id" "$TEMP_SSH/known_hosts"
+          ssh-keygen -y -P '' -f "$TEMP_SSH/id" >/dev/null
+          FP="$(ssh-keygen -y -P '' -f "$TEMP_SSH/id" | ssh-keygen -lf - -E sha256 | awk '{print $2}')"
+          test "$FP" = "SHA256:b6e0zrGwnTCu5yo9IZstiPw+5EGfahHgVpI3TWeccA0"
+          node ops/verify-staging-host-key.mjs --hostname "$DEPLOY_HOST" --port "$DEPLOY_PORT" --known-hosts "$TEMP_SSH/known_hosts" --expected "$DEPLOY_HOST_FINGERPRINT"
+          ssh -i "$TEMP_SSH/id" -p "$DEPLOY_PORT" -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$TEMP_SSH/known_hosts" \
+              -o BatchMode=yes -o ConnectTimeout=12 "$DEPLOY_USER@$DEPLOY_HOST" "sh -s" <<'REMOTE'
+          set -eu
+          echo "PRODUCTION_PREFLIGHT_REMOTE_AUTH=PASS"
+          test "$(id -un)" = "marcosa-deploy"
+          test -e /opt/marcosa/current || { echo "PRODUCTION_ROOT_EXISTS=NO"; exit 12; }
+          test -f /opt/marcosa/current/index.html && echo "PRODUCTION_INDEX_EXISTS=YES" || echo "PRODUCTION_INDEX_EXISTS=NO"
+          test -w /opt/marcosa/current && echo "PRODUCTION_DIRECT_WRITE=YES" || echo "PRODUCTION_DIRECT_WRITE=NO"
+          if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            echo "PRODUCTION_SUDO_NONINTERACTIVE=YES"
+            sudo -n test -w /opt/marcosa/current && echo "PRODUCTION_PRIVILEGED_WRITE=YES" || echo "PRODUCTION_PRIVILEGED_WRITE=NO"
+            sudo -n nginx -t >/dev/null 2>&1 && echo "PRODUCTION_NGINX_CONFIG_ACCESS=YES" || echo "PRODUCTION_NGINX_CONFIG_ACCESS=NO"
+          else
+            echo "PRODUCTION_SUDO_NONINTERACTIVE=NO"
+          fi
+          test -L /opt/marcosa/current && echo "PRODUCTION_ROOT_SYMLINK=YES" || echo "PRODUCTION_ROOT_SYMLINK=NO"
+          test -e /home/marcosa-deploy/marcosa-staging/current && echo "STAGING_EXISTS=YES" || echo "STAGING_EXISTS=NO"
+          echo "SERVICE_LOAD_STATE=$(systemctl show marcosa-club.service -p LoadState --value 2>/dev/null || echo unknown)"
+          echo "SERVICE_ACTIVE_STATE=$(systemctl show marcosa-club.service -p ActiveState --value 2>/dev/null || echo unknown)"
+          echo "SERVICE_RESULT=$(systemctl show marcosa-club.service -p Result --value 2>/dev/null || echo unknown)"
+          if [ -d /opt/marcosa-club ]; then
+            echo "CLUB_APP_ROOT_EXISTS=YES"
+            test -L /opt/marcosa-club/current && echo "CLUB_RELEASE_ACTIVATED=YES" || echo "CLUB_RELEASE_ACTIVATED=NO"
+          else
+            echo "CLUB_APP_ROOT_EXISTS=NO"
+          fi
+          echo "SERVICE_FAILURE_JOURNAL_BEGIN"
+          journalctl --no-pager --output=cat -u marcosa-club.service -n 30 2>&1 | sed -E 's/([Cc]ookie|[Aa]uthorization|[Pp]assword|[Ss]ecret|[Tt]oken)[=:][^ ]+ /\\1=[REDACTED] /g' | tail -n 32 || true
+          echo "SERVICE_FAILURE_JOURNAL_END"
+          echo "PRODUCTION_READ_ONLY_CHECK=PASS"
+          REMOTE

@@ -1,0 +1,85 @@
+name: "MARCOSA | R190 real Ed25519, GitHub review, DNS-pinned HTTPS and PG17 immutable NO-GO"
+on:
+  pull_request:
+    paths:
+      - "ops/r190/**"
+      - "ops/test/r190.*"
+      - "tests/postgres/190_r190_immutable_no_go.sql"
+      - ".github/workflows/marcosa-r190-integrity.yml"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r190/**"
+      - "ops/test/r190.*"
+      - "tests/postgres/190_r190_immutable_no_go.sql"
+      - ".github/workflows/marcosa-r190-integrity.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r190-cryptography-github-https-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Reject AWS and OIDC credentials
+        run: |
+          set -euo pipefail
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Real Ed25519 verifier, mock GitHub chronology, pinned HTTPS and adversarial gate tests
+        run: node --test ops/test/r190.contract.test.mjs
+  r190-native-postgres17-restoration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r190-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r190-disposable-only
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Check exact checkout and isolated PG17
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$PGHOST" = "127.0.0.1"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          psql -X -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int BETWEEN 170000 AND 179999" | grep -qx t
+      - name: Install PG17 synthetic immutable FORCE RLS receipt
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres/190_r190_immutable_no_go.sql
+      - name: Native PG17 serializable one-use audit, deny UPDATE, pg_dump and second-db restore
+        env:
+          R190_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: node ops/r190/ci-native-pg17.mjs

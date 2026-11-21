@@ -1,0 +1,398 @@
+name: "MARCOSA | R160–R166 TLS staging, durable audit and cross-process encrypted recovery"
+on:
+  pull_request:
+    paths:
+      - "ops/r160/**"
+      - "ops/test/r160.*"
+      - "ops/r159/jwks-rotation.mjs"
+      - "ops/r159/outbox-worker.mjs"
+      - "tests/postgres/168_r160_*"
+      - ".github/workflows/marcosa-r160-staging.yml"
+      - "docs/MARCOSA_R160_*"
+      - "docs/MARCOSA_R161_*"
+      - "ops/r161/**"
+      - "ops/test/r161.*"
+      - "ops/r157/http-gateway.mjs"
+      - "ops/r157/pg-command-store.mjs"
+      - "tests/postgres/170_r161_*"
+      - "ops/r162/**"
+      - "ops/test/r162.*"
+      - "docs/MARCOSA_R162_*"
+      - "ops/r159/secure-pool.mjs"
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "docs/MARCOSA_R163_*"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "docs/MARCOSA_R165_*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R166_*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/lifecycle.mjs"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r160/**"
+      - "ops/test/r160.*"
+      - "ops/r159/jwks-rotation.mjs"
+      - "ops/r159/outbox-worker.mjs"
+      - "tests/postgres/168_r160_*"
+      - ".github/workflows/marcosa-r160-staging.yml"
+      - "docs/MARCOSA_R160_*"
+      - "docs/MARCOSA_R161_*"
+      - "ops/r161/**"
+      - "ops/test/r161.*"
+      - "ops/r157/http-gateway.mjs"
+      - "ops/r157/pg-command-store.mjs"
+      - "tests/postgres/170_r161_*"
+      - "ops/r162/**"
+      - "ops/test/r162.*"
+      - "docs/MARCOSA_R162_*"
+      - "ops/r159/secure-pool.mjs"
+      - "ops/r163/**"
+      - "ops/test/r163.*"
+      - "docs/MARCOSA_R163_*"
+      - "ops/r162/release-evidence.mjs"
+      - "ops/r164/**"
+      - "ops/test/r164.*"
+      - "docs/MARCOSA_R164_*"
+      - "ops/r165/**"
+      - "ops/test/r165.*"
+      - "docs/MARCOSA_R165_*"
+      - "ops/r166/**"
+      - "ops/test/r166.*"
+      - "docs/MARCOSA_R166_*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/lifecycle.mjs"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r160-tls-staging:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r160-disposable-admin-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r160-disposable-admin-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: ops/r160/package-lock.json
+      - name: Refuse nonlocal PostgreSQL and unexpected repository
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000" | grep -qx t
+      - name: Install exact locked pg and run R160 Node contracts
+        run: |
+          set -euo pipefail
+          npm ci --prefix ops/r160 --ignore-scripts --no-audit --no-fund
+          npm ls pg --prefix ops/r160 --depth=0
+          node --test ops/test/r160.*.test.mjs ops/test/r161.*.test.mjs ops/test/r162.*.test.mjs ops/test/r163.*.test.mjs ops/test/r164.*.test.mjs ops/test/r165.*.test.mjs ops/test/r166.*.test.mjs
+      - name: Issue test-only certificate authority and enable real PG17 TLS
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          openssl req -x509 -newkey rsa:2048 -nodes \
+            -keyout "$RUNNER_TEMP/r160-ca.key" -out "$RUNNER_TEMP/r160-ca.pem" \
+            -days 2 -subj '/CN=R160 Disposable Root CA' \
+            -addext 'basicConstraints=critical,CA:TRUE' >/dev/null 2>&1
+          openssl req -newkey rsa:2048 -nodes \
+            -keyout "$RUNNER_TEMP/r160-server.key" -out "$RUNNER_TEMP/r160-server.csr" \
+            -subj '/CN=127.0.0.1' >/dev/null 2>&1
+          printf 'subjectAltName=IP:127.0.0.1,DNS:localhost\nextendedKeyUsage=serverAuth\n' \
+            > "$RUNNER_TEMP/r160-server-ext.cnf"
+          openssl x509 -req -in "$RUNNER_TEMP/r160-server.csr" \
+            -CA "$RUNNER_TEMP/r160-ca.pem" -CAkey "$RUNNER_TEMP/r160-ca.key" \
+            -CAcreateserial -days 2 -extfile "$RUNNER_TEMP/r160-server-ext.cnf" \
+            -out "$RUNNER_TEMP/r160-server.crt" >/dev/null 2>&1
+          docker cp "$RUNNER_TEMP/r160-server.crt" "$SERVICE_CONTAINER:/var/lib/postgresql/data/r160-server.crt"
+          docker cp "$RUNNER_TEMP/r160-server.key" "$SERVICE_CONTAINER:/var/lib/postgresql/data/r160-server.key"
+          docker exec -u 0 "$SERVICE_CONTAINER" sh -c \
+            'chown postgres:postgres /var/lib/postgresql/data/r160-server.* &&
+            chmod 600 /var/lib/postgresql/data/r160-server.key'
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl = 'on';"
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl_cert_file = 'r160-server.crt';"
+          psql -v ON_ERROR_STOP=1 -c "ALTER SYSTEM SET ssl_key_file = 'r160-server.key';"
+          docker restart "$SERVICE_CONTAINER" >/dev/null
+          for i in $(seq 1 30); do
+            if pg_isready -h 127.0.0.1 -U postgres -d postgres >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          psql -v ON_ERROR_STOP=1 -Atc 'SHOW ssl' | grep -qx on
+      - name: Apply disposable trusted writer + Supabase-shaped Auth fixture
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_TRUSTED_WRITER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_OUTBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_READER_PRIVACY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R157_OUTBOX_LIFECYCLE_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/165_r159_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R159_AUTH_READER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'CREATE POLICY r160_ci_auth_reader ON auth.sessions FOR SELECT TO marcosa_r159_auth_reader USING(true)'
+          psql -v ON_ERROR_STOP=1 -c \
+            "CREATE ROLE marcosa_r160_ci LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'r160-ssl-verified-ci-app-login'"
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r156_writer,marcosa_r159_auth_reader TO marcosa_r160_ci WITH INHERIT FALSE'
+      - name: Real CA-verified node-postgres, JWT HTTP, idempotency and signout
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R160_ADMIN_PASSWORD: r160-disposable-admin-only
+          R160_FIXTURE_ADMIN_REVOKE: ready-to-revoke
+        run: |
+          set -euo pipefail
+          node ops/r160/ci-real-pg.mjs
+      - name: Independent PG17 custom dump/restore and RLS regression
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r160-disposable-postgres.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" pg_dump \
+            -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          psql -v ON_ERROR_STOP=1 -c 'CREATE DATABASE marcosa_r160_restored TEMPLATE template0;'
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r160_restored < "$DUMP"
+          PGDATABASE=marcosa_r160_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/168_r160_restored.sql
+          printf 'BAD-PG-ARCHIVE' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::R160 corrupted archive accepted"
+            exit 1
+          fi
+          echo 'R160_PINNED_PG_TLS_PG17_RESTORE_RLS=PASS'
+          echo 'R160_EXTERNAL_SUPABASE_AND_PRODUCTION=NO_GO'
+
+      - name: Create private R161 receipt ledger and restricted signed webhook login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R161_WEBHOOK_INBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            "CREATE ROLE marcosa_r161_ci LOGIN NOINHERIT NOBYPASSRLS PASSWORD 'r161-ci-synthetic-inbox-login-only'"
+          psql -v ON_ERROR_STOP=1 -c \
+            "GRANT marcosa_r161_webhook_receiver TO marcosa_r161_ci WITH INHERIT FALSE"
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r161_webhook_inbox','SELECT')
+            THEN RAISE EXCEPTION 'R161 browser role can read private webhook inbox';
+            END IF;
+          END \$\$;"
+      - name: R161 real HTTPS, signed SQL session fence, HMAC receiver and deduplication
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R161_INBOX_PASSWORD: r161-ci-synthetic-inbox-login-only
+          R161_ADMIN_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          node ops/r161/ci-real.mjs
+      - name: Independently restore R161 revoked session, private inbox and signed creator revision
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r161-disposable-pg17.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.corrupt"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" pg_dump \
+            -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          psql -v ON_ERROR_STOP=1 -c \
+            'CREATE DATABASE marcosa_r161_restored TEMPLATE template0;'
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r161_restored < "$DUMP"
+          PGDATABASE=marcosa_r161_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/170_r161_restored.sql
+          printf 'R161-BROKEN-PG-ARCHIVE' > "$DUMP.corrupt"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+             pg_restore --list < "$DUMP.corrupt" >/dev/null 2>&1; then
+            echo "::error::R161 corrupt backup accepted"
+            exit 1
+          fi
+          echo 'R161_REAL_TLS_AUTH_TRANSACTION_WEBHOOK_RESTORE=PASS'
+          echo 'R161_REAL_SUPABASE_PUBLIC_DEPLOYMENT_AND_PAYMENTS=NO_GO'
+
+      - name: R162 real PostgreSQL outage, fail-closed gate, TLS CA refusal and JWKS rotation
+        env:
+          R160_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R160_DB_PASSWORD: r160-ssl-verified-ci-app-login
+          R162_ADMIN_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r162/ci-chaos.mjs
+      - name: R162 exact-file SHA256 source-evidence and local readback
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          node ops/r162/ci-release-evidence.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r162-local-evidence
+          path: ${{ runner.temp }}/marcosa-r162-local-source-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R164 rebuild R163 source and run synthetic Ed25519/HTTPS rehearsal
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          node ops/r163/ci-acceptance.mjs
+      - name: R164 independent PG17 archive restore, real RLS/Auth/idempotency regression
+        env:
+          R164_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          R164_DB_PASSWORD: r160-disposable-admin-only
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r164/ci-restore.mjs
+      - name: R164 two-key quorum, single-use nonce and emergency real PG17 drain
+        env:
+          R164_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R164_APP_PASSWORD: r160-ssl-verified-ci-app-login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r164/ci-ops-gate.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r164-disposable-ops-evidence
+          path: |
+            ${{ runner.temp }}/r164-restored-witness.json
+            ${{ runner.temp }}/r164-operations-report.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R165 install disposable NOLOGIN fence roles and deny browser privilege
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R165_PG17_FENCES_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r165_nonce_writer,marcosa_r165_gate_reader,marcosa_r165_gate_closer TO marcosa_r160_ci WITH INHERIT FALSE'
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r165_quarantine','SELECT')
+              OR has_table_privilege('authenticated',
+              'marcosa_private.r165_drill_nonces','SELECT')
+              OR has_table_privilege('marcosa_r156_writer',
+              'marcosa_private.r165_quarantine','UPDATE')
+            THEN RAISE EXCEPTION 'R165 forbidden database privilege';
+            END IF;
+          END \$\$;"
+      - name: R165 durable concurrent Ed25519 replay fence, quarantine and encrypted PG17 restore
+        env:
+          R165_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+          R165_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R165_ADMIN_PASSWORD: r160-disposable-admin-only
+          R165_APP_PASSWORD: r160-ssl-verified-ci-app-login
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          node ops/r165/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r165-disposable-security-evidence
+          path: ${{ runner.temp }}/r165-nonsecret-ci-report.json
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: R166 install private PostgreSQL audit chain, strictly limited NOLOGIN grants
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R166_AUDIT_PG17_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -c \
+            'GRANT marcosa_r166_audit_reader,marcosa_r166_audit_writer TO marcosa_r160_ci WITH INHERIT FALSE'
+          psql -v ON_ERROR_STOP=1 -c "DO \$\$ BEGIN
+            IF has_table_privilege('authenticated',
+              'marcosa_private.r166_audit_events','SELECT')
+              OR has_table_privilege('marcosa_r166_audit_writer',
+              'marcosa_private.r166_audit_events','DELETE')
+              OR has_table_privilege('marcosa_r166_audit_writer',
+              'marcosa_private.r166_audit_events','UPDATE')
+            THEN RAISE EXCEPTION 'R166 audit role privilege escalation';
+            END IF;
+          END \$\$;"
+      - name: R166 real PG17 signed evidence, fsynced encrypted copies and FRESH process replay test
+        env:
+          R166_CA_FILE: ${{ runner.temp }}/r160-ca.pem
+          R166_APP_PASSWORD: r160-ssl-verified-ci-app-login
+          R166_ADMIN_PASSWORD: r160-disposable-admin-only
+          R166_SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          trap 'rm -f -- "$RUNNER_TEMP/r166-temp-aes-key.bin" "$RUNNER_TEMP/r166-public-restart-proof.json"; rm -rf -- "$RUNNER_TEMP"/r166-vault-primary-* "$RUNNER_TEMP"/r166-vault-copy-*' EXIT
+          node ops/r166/ci-stage1.mjs
+          node ops/r166/ci-stage2.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r166-disposable-anchored-restart-evidence
+          path: ${{ runner.temp }}/r166-safe-evidence-report.json
+          retention-days: 7
+          if-no-files-found: error

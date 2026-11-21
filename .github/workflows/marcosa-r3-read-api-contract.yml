@@ -1,0 +1,82 @@
+name: "MARCOSA R3 read-only API contract scan"
+on:
+  push:
+    branches: ["feature/marcosa-r150-growth-economics"]
+    paths: [".github/workflows/marcosa-r3-read-api-contract.yml"]
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    environment: marcosa-staging
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - name: Confirm pinned host and read only public route names
+        shell: bash
+        env:
+          HOST: ${{ secrets.MARCOSA_STAGING_HOST }}
+          USERNAME: ${{ secrets.MARCOSA_STAGING_USER }}
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          test "$HOST" = '169.58.48.38'
+          test "$USERNAME" = 'marcosa-deploy'
+          export DEPLOY_HOST="$HOST" DEPLOY_PORT='22'
+          source ops/load-pinned-staging-host.sh
+          umask 077
+          DIR="$(mktemp -d)"
+          trap 'rm -rf -- "$DIR"' EXIT
+          printf '%s\n' "$KEY" >"$DIR/key"
+          printf '%s\n' "$KNOWN_HOSTS" >"$DIR/hosts"
+          chmod 600 "$DIR/key" "$DIR/hosts"
+          ssh -i "$DIR/key" -p 22 -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$DIR/hosts" "$USERNAME@$HOST" 'python3 -' <<'REMOTE'
+          import ast, os, re
+          root="/opt/marcosa-club/current"
+          p=root+"/server/app.py"
+          print("API_CONTRACT_ACCESS",os.path.isfile(p),os.access(p,os.R_OK))
+          if not os.access(p,os.R_OK):raise SystemExit(0)
+          tree=ast.parse(open(p,encoding="utf-8").read())
+          for node in ast.walk(tree):
+              if isinstance(node,ast.FunctionDef) and node.name in ("do_GET","do_POST","dispatch","handle","api","route"):
+                  print("HANDLER",node.name,node.lineno)
+                  for leaf in ast.walk(node):
+                      if isinstance(leaf,ast.Constant) and isinstance(leaf.value,str) and leaf.value.startswith("/api/club/"):
+                          print("ROUTE",leaf.value[:120])
+          for fil in ("club.js","index.html"):
+              path="/opt/marcosa/current/"+fil
+              if os.access(path,os.R_OK):
+                  body=open(path,encoding="utf-8").read()
+                  names=sorted(set(re.findall(r'/api/club/[A-Za-z0-9_/-]+',body)))
+                  print("FRONTEND_ROUTES",fil,names[:90])
+          safe_words=("auth","login","register","logout","session","profile","episode","series","follow","message","comment","question","admin","live","pick","select","contact","video","project","review","csrf","json","api(","fetch(","username","password","email","name","path","parts","action")
+          for name,pth in (("APP",p),("FRONTEND","/opt/marcosa/current/club.js")):
+              if not os.access(pth,os.R_OK):continue
+              lines=open(pth,encoding="utf-8").read().splitlines()
+              print("CONTRACT_SNAPSHOT",name,len(lines))
+              for i,line in enumerate(lines,1):
+                  low=line.lower()
+                  if (name=="APP" and i>=260 and any(w in low for w in safe_words)) or (name=="FRONTEND" and any(w in low for w in safe_words) and ("api" in low or "fetch(" in low or "password" in low or "submit" in low)):
+                      line=line.strip()
+                      if len(line)>420:line=line[:420]
+                      print("CONTRACT_LINE",name,i,line)
+          front="/opt/marcosa/current/club.js"
+          if os.access(front,os.R_OK):
+              lines=open(front,encoding="utf-8").read().splitlines()
+              for n in (11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99):
+                  if n<=len(lines):
+                      line=lines[n-1].strip()
+                      print("FRONTEND_CONTRACT",n,line[:1200])
+          src=open(p,encoding='utf-8').read()
+          anchors=('def get(self, con, path):','def post(self, con, path):','def admin_post(self, con, path, d):')
+          for a in anchors:
+              print("R4_HOOK_COMPAT_COUNT",a,sum(line.strip()==a for line in src.splitlines()))
+          for line in src.splitlines():
+              if re.match(r'\s*def (get|post|admin_post)\(',line):
+                  print("R4_METHOD_FORMAT",repr(line[:130]))
+          import ast
+          fn={n.name for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef)}
+          for name in ('get','post','admin_post','session','json','password_hash','make_cookie'):
+              print("R4_HOOK_NATIVE_FUNCTION",name,name in fn)
+          print("MARCOSA_R3_READ_ONLY_DONE")
+          REMOTE

@@ -1,0 +1,104 @@
+name: "MARCOSA | R168 KMS and S3 provider adapters with disposable PG17 recovery"
+on:
+  pull_request:
+    paths:
+      - "ops/r168/**"
+      - "ops/test/r168.*"
+      - ".github/workflows/marcosa-r168-provider.yml"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - "docs/MARCOSA_R168_*"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r168/**"
+      - "ops/test/r168.*"
+      - ".github/workflows/marcosa-r168-provider.yml"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - "docs/MARCOSA_R168_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r168-isolated-providers-and-pg17:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 16
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r168-disposable-ci-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r168-disposable-ci-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Require known SHA, repository and disposable PG17
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
+      - name: R168 KMS/S3/IAM/restore negative and positive unit contracts
+        run: |
+          set -euo pipefail
+          node --test ops/test/r168.*.test.mjs
+      - name: Install only disposable PG17 auth, RLS and closed quarantine fixture
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+      - name: Real PostgreSQL17 custom dump, SDK-shaped KMS/S3, independent restore and fault denial
+        env:
+          R168_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r168/ci-real-pg.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r168-disposable-nonsecret-provider-evidence
+          path: ${{ runner.temp }}/r168-safe-provider-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+
+  r168-independent-source-and-report-check:
+    needs: r168-isolated-providers-and-pg17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 9
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r168-disposable-nonsecret-provider-evidence
+          path: ${{ runner.temp }}/r168-independent-report/
+      - name: Independent source SHA, simulated-cloud and PostgreSQL proof verification
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node ops/r168/ci-verify-report.mjs

@@ -1,0 +1,120 @@
+name: "MARCOSA | R194 interactive offline audit, change ledger, Chromium and Ed25519 replay"
+on:
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r194/**"
+      - "ops/test/r194.*"
+      - "tools/browser/r194-audit-desk.mjs"
+      - ".github/workflows/marcosa-r194-workbench.yml"
+      - "docs/MARCOSA_R194_*"
+  pull_request:
+    paths:
+      - "ops/r194/**"
+      - "ops/test/r194.*"
+      - "tools/browser/r194-audit-desk.mjs"
+      - ".github/workflows/marcosa-r194-workbench.yml"
+      - "docs/MARCOSA_R194_*"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  r194-source-workbench-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      packet_sha: ${{ steps.produce.outputs.packet_sha }}
+      key_sha: ${{ steps.produce.outputs.key_sha }}
+      html_sha: ${{ steps.produce.outputs.html_sha }}
+      markdown_sha: ${{ steps.produce.outputs.markdown_sha }}
+      tree_sha: ${{ steps.produce.outputs.tree_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Assert nonprivileged exact source with no AWS/OIDC/DB credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+      - name: Execute R194 ledger, claim history, risk delta, UI and Ed25519 integration
+        run: node --test ops/test/r194.acceptance.test.mjs
+      - name: Produce signed portable offline Audit Desk and source SHA hashes
+        id: produce
+        run: node ops/r194/ci-producer.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r194-mobile-audit-desk
+          path: ${{ runner.temp }}/r194-producer/
+          if-no-files-found: error
+          retention-days: 7
+  r194-independent-ed25519-replay:
+    needs: r194-source-workbench-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      R194_PACKET_SHA: ${{ needs.r194-source-workbench-acceptance.outputs.packet_sha }}
+      R194_KEY_SHA: ${{ needs.r194-source-workbench-acceptance.outputs.key_sha }}
+      R194_HTML_SHA: ${{ needs.r194-source-workbench-acceptance.outputs.html_sha }}
+      R194_MARKDOWN_SHA: ${{ needs.r194-source-workbench-acceptance.outputs.markdown_sha }}
+      R194_TREE_SHA: ${{ needs.r194-source-workbench-acceptance.outputs.tree_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: marcosa-r194-mobile-audit-desk
+          path: ${{ runner.temp }}/r194-independent/
+      - name: Reject cloud and DB privilege inheritance
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+          test -z "${PGHOST:-}"
+          test -z "${PGPASSWORD:-}"
+      - name: Independently verify signature, all proofs, HTML and source tree
+        run: node ops/r194/ci-verify.mjs
+  r194-real-chromium-mobile-offline:
+    needs: r194-source-workbench-acceptance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install pinned Playwright browser from existing tools/browser dependency
+        run: |
+          npm install --prefix tools/browser --ignore-scripts --no-audit --no-fund
+          npx --prefix tools/browser playwright install --with-deps chromium
+      - name: Real Chrome 390px and 1440px interactive offline acceptance
+        env:
+          MARCOSA_BROWSER_SCREENSHOTS: ${{ runner.temp }}/marcosa-r194-screenshots
+        run: node tools/browser/r194-audit-desk.mjs
+      - name: Preserve actual browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marcosa-r194-real-browser-evidence
+          path: ${{ runner.temp }}/marcosa-r194-screenshots/
+          if-no-files-found: warn
+          retention-days: 7

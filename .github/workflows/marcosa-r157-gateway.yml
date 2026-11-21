@@ -1,0 +1,134 @@
+name: "MARCOSA | R157 verified-command gateway and disposable PG17"
+on:
+  pull_request:
+    paths:
+      - "ops/r157/**"
+      - "ops/test/r157.*"
+      - "docs/MARCOSA_R157_*"
+      - "tests/postgres/160_r157_*"
+      - "tests/postgres/161_r157_*"
+      - "tests/postgres/162_r157_*"
+      - ".github/workflows/marcosa-r157-gateway.yml"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r157/**"
+      - "ops/test/r157.*"
+      - "docs/MARCOSA_R157_*"
+      - "tests/postgres/160_r157_*"
+      - "tests/postgres/161_r157_*"
+      - "tests/postgres/162_r157_*"
+      - ".github/workflows/marcosa-r157-gateway.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-r157:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r157-ci-disposable-only
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r157-ci-disposable-only
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Hard fail if PG target differs from isolated CI Postgres
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGPORT" = "5432"
+          test "$PGDATABASE" = "postgres"
+          test "$PGUSER" = "postgres"
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int>=170000" | grep -qx t
+      - name: Verify no dependency fetch, strict syntax and signed JWT HTTP regression
+        run: |
+          set -euo pipefail
+          node --check ops/r157/identity.mjs
+          node --check ops/r157/http-gateway.mjs
+          node --check ops/r157/pg-command-store.mjs
+          node --check ops/r157/outbox-simulator.mjs
+          node --test ops/test/r157.*.test.mjs
+      - name: Install disposable synthetic PostgreSQL Auth / tenant / RLS fixtures
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/00_auth_fixture.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R30_POSTGRES_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R41_POSTGRES_BLOCKS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R84_BLOCK_INTERACTIONS_PG_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R155_PG17_CREATOR_RLS_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_TRUSTED_WRITER_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_OUTBOX_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R156_READER_PRIVACY_REFERENCE.sql
+          psql -v ON_ERROR_STOP=1 -f docs/MARCOSA_R157_OUTBOX_LIFECYCLE_REFERENCE.sql
+      - name: Seed R156 multi-user requests, forbidden changes and queue lifecycle
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/157_r156_writer_editor.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/158_r156_reader_outbox.sql
+          node ops/r156/concurrency.mjs
+      - name: "Real PostgreSQL 17: exhausted delivery, consent revocation and fencing"
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/160_r157_outbox_lifecycle.sql
+          psql -v ON_ERROR_STOP=1 -f tests/postgres/161_r157_transaction_guc.sql
+          echo 'R157_PG17_PRIVACY_AND_DLQ_PASS=1'
+          echo 'R157_REAL_USER_DATA_OR_PRODUCTION_MIGRATED=0'
+
+      - name: "Restore isolated PG17 backup and confirm R157 private controls"
+        env:
+          SERVICE_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          test "$PGHOST" = "127.0.0.1"
+          test "$PGDATABASE" = "postgres"
+          [[ "$SERVICE_CONTAINER" =~ ^[a-f0-9]{12,64}$ ]] || exit 2
+          umask 077
+          DUMP="$RUNNER_TEMP/r157-disposable-postgres.dump"
+          trap 'rm -f -- "$DUMP" "$DUMP.sha256" "$DUMP.bad"' EXIT
+          docker exec -u postgres "$SERVICE_CONTAINER" \
+            pg_dump -U postgres -d postgres --format=custom > "$DUMP"
+          test -s "$DUMP"
+          sha256sum "$DUMP" > "$DUMP.sha256"
+          sha256sum -c "$DUMP.sha256"
+          COUNTS="SELECT concat(
+            (SELECT count(*) FROM marcosa_private.r156_outbox),':',
+            (SELECT count(*) FROM marcosa_private.r156_commands),':',
+            (SELECT count(*) FROM public.marcosa_season_audit))"
+          BEFORE="$(psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE marcosa_r157_restored TEMPLATE template0;"
+          docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore -U postgres --no-owner --exit-on-error \
+            -d marcosa_r157_restored < "$DUMP"
+          AFTER="$(PGDATABASE=marcosa_r157_restored psql -v ON_ERROR_STOP=1 -Atc "$COUNTS")"
+          test "$BEFORE" = "$AFTER"
+          PGDATABASE=marcosa_r157_restored psql -v ON_ERROR_STOP=1 \
+            -f tests/postgres/162_r157_restored.sql
+          printf 'NOT-A-POSTGRES-ARCHIVE' > "$DUMP.bad"
+          if docker exec -u postgres -i "$SERVICE_CONTAINER" \
+            pg_restore --list < "$DUMP.bad" >/dev/null 2>&1; then
+            echo "::error::Broken archive unexpectedly accepted"
+            exit 1
+          fi
+          echo 'R157_PG17_DISPOSABLE_RESTORE_AND_RLS=PASS'
+

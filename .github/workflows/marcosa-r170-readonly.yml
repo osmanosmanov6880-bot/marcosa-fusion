@@ -1,0 +1,123 @@
+name: "MARCOSA | R170 real PG17 read-only IAM and immutable S3 witness"
+on:
+  pull_request:
+    paths:
+      - "ops/r170/**"
+      - "ops/test/r170.*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r170-readonly.yml"
+      - "docs/MARCOSA_R170_*"
+  push:
+    branches: ["feature/**","codex/**"]
+    paths:
+      - "ops/r170/**"
+      - "ops/test/r170.*"
+      - "ops/r163/repro-bundle.mjs"
+      - "ops/r162/release-evidence.mjs"
+      - ".github/workflows/marcosa-r170-readonly.yml"
+      - "docs/MARCOSA_R170_*"
+  workflow_dispatch:
+# Only immutable CI data. Never hand GitHub OIDC or AWS keys to this workflow.
+permissions:
+  contents: read
+jobs:
+  r170-real-pg17-and-sdk-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 17
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_DB: postgres
+          POSTGRES_PASSWORD: r170-only-disposable-ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: "127.0.0.1"
+      PGPORT: "5432"
+      PGDATABASE: postgres
+      PGUSER: postgres
+      PGPASSWORD: r170-only-disposable-ci
+      AWS_EC2_METADATA_DISABLED: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify isolated database, exact HEAD and no cloud secrets
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REPOSITORY" = "osmanosmanov6880-bot/marcosa-fusion"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test "$PGDATABASE" = postgres
+          test "$PGHOST" = 127.0.0.1
+          psql -v ON_ERROR_STOP=1 -Atc "SELECT current_setting('server_version_num')::int >= 170000 AND current_setting('server_version_num')::int < 180000" | grep -qx t
+      - name: Restore committed transitive AWS SDK lockfile and verify exact SHA-256
+        run: |
+          set -euo pipefail
+          base64 -d ops/r170/package-lock.json.gz.b64 | gzip -dc > ops/r170/package-lock.json
+          echo '29825ad0ccbe541a7328e8293fe6ccde272a17bf26a6960f5d031d6cbd0c1e86  ops/r170/package-lock.json' | sha256sum -c -
+          npm ci --prefix ops/r170 --ignore-scripts --no-audit --no-fund
+          npm ls --prefix ops/r170 --depth=0
+      - name: OIDC STS, IAM canaries, S3 retention and read-only stage fail-closed unit contracts
+        run: |
+          set -euo pipefail
+          node --test ops/test/r170.*.test.mjs
+      - name: Install strict synthetic PostgreSQL17 RLS/Auth/quarantine source
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgres/173_r167_synthetic_source.sql
+      - name: Native PG17 encrypted backup, restored RLS and independent AWS read-only witnesses
+        env:
+          R170_PG_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          set -euo pipefail
+          node ops/r170/ci-acceptance.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r170-synthetic-readonly-security-evidence
+          path: ${{ runner.temp }}/r170-safe-isolated-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: r170-aws-sdk-iam-sts-s3-kms-resolved-lockfile
+          path: ops/r170/package-lock.json
+          retention-days: 7
+          if-no-files-found: error
+  r170-independent-source-review:
+    needs: r170-real-pg17-and-sdk-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      PGHOST: ""
+      PGPASSWORD: ""
+      AWS_EC2_METADATA_DISABLED: "true"
+      R170_SECOND_PASS: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - uses: actions/download-artifact@v4
+        with:
+          name: r170-synthetic-readonly-security-evidence
+          path: ${{ runner.temp }}/r170-second-evidence/
+      - name: Independent exact source SHA and conservative no-production evidence review
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          node ops/r170/ci-acceptance.mjs

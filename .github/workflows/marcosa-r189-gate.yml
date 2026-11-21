@@ -1,0 +1,39 @@
+name: "MARCOSA | R189 independent staging evidence fail-closed"
+on:
+  pull_request:
+    paths:
+      - "ops/r188/ci-acceptance.mjs"
+      - "ops/r189/**"
+      - "ops/test/r189.*"
+      - ".github/workflows/marcosa-r189-gate.yml"
+  push:
+    branches: ["feature/**", "codex/**"]
+    paths:
+      - "ops/r188/ci-acceptance.mjs"
+      - "ops/r189/**"
+      - "ops/test/r189.*"
+      - ".github/workflows/marcosa-r189-gate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated-no-go-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Verify no provider or OIDC credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "${AWS_ACCESS_KEY_ID:-}"
+          test -z "${AWS_SECRET_ACCESS_KEY:-}"
+          test -z "${AWS_SESSION_TOKEN:-}"
+          test -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}"
+      - name: Test five R189 fail-closed contracts
+        run: node --test ops/test/r189.gate.test.mjs
