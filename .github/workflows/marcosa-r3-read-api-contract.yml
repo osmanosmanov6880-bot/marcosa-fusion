@@ -67,5 +67,13 @@ jobs:
                   if n<=len(lines):
                       line=lines[n-1].strip()
                       print("FRONTEND_CONTRACT",n,line[:1200])
+          src=open(p,encoding='utf-8').read()
+          anchors=('    def get(self, con, path):\\n','    def post(self, con, path):\\n','    def admin_post(self, con, path, d):\\n')
+          for a in anchors:
+              print("R4_HOOK_COMPAT_COUNT",a.strip().replace('\\n',''),src.count(a))
+          import ast
+          fn={n.name for n in ast.walk(ast.parse(src)) if isinstance(n,ast.FunctionDef)}
+          for name in ('get','post','admin_post','session','json','password_hash','make_cookie'):
+              print("R4_HOOK_NATIVE_FUNCTION",name,name in fn)
           print("MARCOSA_R3_READ_ONLY_DONE")
           REMOTE
